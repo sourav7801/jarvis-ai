@@ -55,6 +55,12 @@ class ConversationTurns:
                 "i did not suggest",
                 "i don't have prior context",
                 "i do not have prior context",
+                "i don't have any context",
+                "i do not have any context",
+                "i don't have context about",
+                "i do not have context about",
+                "could you please provide more information",
+                "clarify which song",
                 "i don't have access to the previous conversation",
                 "i do not have access to the previous conversation",
                 "i'm a new conversation",
@@ -314,7 +320,9 @@ class ConversationTurns:
         return best if best_score >= 0.62 else None
 
     def augment(self, text: str) -> str:
-        if not self.is_ambiguous_followup(text):
+        hint = self.reference_hint(text)
+
+        if not self.is_ambiguous_followup(text) and not hint:
             return str(text or "")
 
         latest = self.latest(prefer_anchor=True)
@@ -322,7 +330,6 @@ class ConversationTurns:
         if not latest:
             return str(text or "")
 
-        hint = self.reference_hint(text)
         recent = self.history(3, useful_only=True)
 
         history_lines = []
