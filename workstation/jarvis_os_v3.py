@@ -495,6 +495,36 @@ def cached_command_result(
         return result
 
 
+def is_reliability_command(
+    text,
+):
+
+    value = re.sub(
+        r"\s+",
+        " ",
+        str(text or "").strip().lower(),
+    )
+
+
+    return any(
+        phrase in value
+
+        for phrase in (
+            "diagnose yourself",
+            "diagnose jarvis",
+            "system doctor",
+            "reliability status",
+            "repair yourself",
+            "self heal",
+            "self-heal",
+            "fix yourself",
+            "improve yourself",
+            "make yourself better",
+            "improvement plan",
+        )
+    )
+
+
 def dispatch_command(
     text,
 ):
@@ -502,8 +532,41 @@ def dispatch_command(
     import main
 
 
+    original_text = str(text or "").strip()
+
+
+    if is_reliability_command(
+        original_text
+    ):
+
+        from agents.reliability_agent import (
+            reliability,
+        )
+
+
+        result = reliability(
+            original_text
+        )
+
+
+        return {
+            "route":
+                "RELIABILITY",
+
+            "response":
+                render_response(
+                    result
+                ),
+
+            "raw":
+                safe(
+                    result
+                ),
+        }
+
+
     text = normalize_agent_command(
-        text
+        original_text
     )
 
 
@@ -716,6 +779,18 @@ def status():
         except Exception:
 
             pass
+
+
+
+    if "reliability" not in result[
+        "agents"
+    ]:
+
+        result[
+            "agents"
+        ].append(
+            "reliability"
+        )
 
 
     for name in (
