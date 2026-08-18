@@ -5161,6 +5161,28 @@ Compatibility marker retained for previous regression tests.
                             event.error
                         );
                     }
+
+
+                    // Self-heal transient browser recognition failures.
+                    // Permission-denied states require user action, but all
+                    // other errors should return to the listening loop.
+                    if (
+                        J.enabled
+                        &&
+                        !J.speaking
+                        &&
+                        ![
+                            "not-allowed",
+                            "service-not-allowed",
+                        ].includes(
+                            event.error
+                        )
+                    ) {
+
+                        scheduleListen(
+                            650
+                        );
+                    }
                 };
 
 

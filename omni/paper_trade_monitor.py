@@ -16,16 +16,25 @@ class PaperMonitorSession:
     active: bool = True
     created_at: float = field(default_factory=time.time)
     checks: int = 0
+    errors: int = 0
     last_action: str = "WAIT"
     last_message: str = "Waiting for first analysis."
+    last_price: float | None = None
     paper_trade: dict | None = None
 
 
 class PaperTradeMonitor:
-    """Background monitor that only records paper candidates."""
+    """Background monitor that only records simulated paper positions.
+
+    This module deliberately imports no broker order surface. It consumes the
+    existing TradingAgent analysis, requires the existing risk engine to approve
+    an entry, records a PAPER position, and can close that paper position on an
+    opposite approved analytical signal. Live execution is always false.
+    """
 
     MIN_INTERVAL_SECONDS = 15.0
     MAX_SESSIONS = 8
+    MAX_CONSECUTIVE_ERRORS = 10
 
     def __init__(self):
         self._lock = threading.RLock()
@@ -40,20 +49,30 @@ class PaperTradeMonitor:
         )
         if not match:
             return default
+
         amount = max(1, int(match.group(1)))
         unit = match.group(2)
         seconds = amount * (60 if unit.startswith(("minute", "min")) else 1)
-        return max(PaperTradeMonitor.MIN_INTERVAL_SECONDS, float(seconds))
+
+        return max(
+            PaperTradeMonitor.MIN_INTERVAL_SECONDS,
+            float(seconds),
+        )
 
     def start(self, symbol: str, timeframe: str = "15m", request: str = "") -> dict:
         symbol = str(symbol or "").strip().upper()
         timeframe = str(timeframe or "15m").strip().lower()
+
         if not symbol:
             raise ValueError("symbol is required")
 
         with self._lock:
             for session in self._sessions.values():
-                if session.active and session.symbol == symbol and session.timeframe == timeframe:
+                if (
+                    session.active
+                    and session.symbol == symbol
+                    and session.timeframe == timeframe
+                ):
                     return {
                         "success": True,
                         "session_id": session.session_id,
@@ -93,14 +112,49 @@ class PaperTradeMonitor:
             "background_monitoring": True,
         }
 
+    @staticmethod
+    def _approved(risk) -> bool:
+        return risk is not None and bool(
+            getattr(risk, "approved", False)
+        )
+
+    @staticmethod
+    def _entry_payload(symbol, timeframe, action, signal, risk, price):
+        return {
+            "mode": "PAPER",
+            "status": "OPEN",
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "side": action,
+            "entry": signal.get("entry") or price,
+            "stop_loss": signal.get("stop_loss"),
+            "target": signal.get("target"),
+            "risk_reason": getattr(risk, "reason", None),
+            "created_at": time.time(),
+            "closed_at": None,
+            "exit": None,
+            "exit_reason": None,
+            "live_execution": False,
+        }
+
+    @staticmethod
+    def _opposite(side: str, action: str) -> bool:
+        return (
+            (side == "BUY" and action == "SELL")
+            or (side == "SELL" and action == "BUY")
+        )
+
     def _run(self, session_id: str) -> None:
         from agents.trading_agent import trading_agent
+
+        consecutive_errors = 0
 
         while True:
             with self._lock:
                 session = self._sessions.get(session_id)
                 if session is None or not session.active:
                     return
+
                 symbol = session.symbol
                 timeframe = session.timeframe
                 interval = session.interval_seconds
@@ -111,66 +165,142 @@ class PaperTradeMonitor:
                     market="india",
                     timeframe=timeframe,
                 )
-                signal = result.get("signal", {}) if isinstance(result, dict) else {}
+
+                if not isinstance(result, dict) or not result.get("success", False):
+                    detail = (
+                        result.get("message", "analysis unavailable")
+                        if isinstance(result, dict)
+                        else "analysis unavailable"
+                    )
+                    raise RuntimeError(str(detail))
+
+                signal = result.get("signal", {})
                 action = str(signal.get("action") or "WAIT").upper()
-                risk = result.get("risk") if isinstance(result, dict) else None
+                risk = result.get("risk")
+                price = result.get("price")
+                approved = self._approved(risk)
 
-                paper_trade = None
+                consecutive_errors = 0
                 message = f"{symbol} {timeframe}: {action}"
-
-                if (
-                    action in {"BUY", "SELL"}
-                    and risk is not None
-                    and bool(getattr(risk, "approved", False))
-                ):
-                    paper_trade = {
-                        "mode": "PAPER",
-                        "symbol": symbol,
-                        "timeframe": timeframe,
-                        "side": action,
-                        "entry": signal.get("entry"),
-                        "stop_loss": signal.get("stop_loss"),
-                        "target": signal.get("target"),
-                        "risk_reason": getattr(risk, "reason", None),
-                        "created_at": time.time(),
-                        "live_execution": False,
-                    }
-                    message = f"Paper {action} candidate recorded for {symbol}."
 
                 with self._lock:
                     current = self._sessions.get(session_id)
-                    if current is None:
+                    if current is None or not current.active:
                         return
+
                     current.checks += 1
+                    current.errors = 0
                     current.last_action = action
-                    current.last_message = message
-                    if paper_trade is not None:
-                        current.paper_trade = paper_trade
+
+                    try:
+                        current.last_price = (
+                            float(price)
+                            if price is not None
+                            else current.last_price
+                        )
+                    except (TypeError, ValueError):
+                        pass
+
+                    trade = current.paper_trade
+
+                    if (
+                        trade is None
+                        and action in {"BUY", "SELL"}
+                        and approved
+                    ):
+                        current.paper_trade = self._entry_payload(
+                            symbol,
+                            timeframe,
+                            action,
+                            signal,
+                            risk,
+                            price,
+                        )
+                        message = (
+                            f"Paper {action} position opened for {symbol}. "
+                            "Live execution remains locked."
+                        )
+
+                    elif (
+                        trade is not None
+                        and trade.get("status") == "OPEN"
+                        and self._opposite(
+                            str(trade.get("side") or "").upper(),
+                            action,
+                        )
+                        and approved
+                    ):
+                        trade["status"] = "CLOSED"
+                        trade["closed_at"] = time.time()
+                        trade["exit"] = price
+                        trade["exit_reason"] = (
+                            "Opposite approved analytical signal."
+                        )
+                        trade["live_execution"] = False
                         current.active = False
+                        message = (
+                            f"Paper position closed for {symbol} on an opposite "
+                            "approved signal. Live execution remained locked."
+                        )
+
+                    current.last_message = message
+
+                    if not current.active:
                         return
 
             except Exception as exc:
+                consecutive_errors += 1
+
                 with self._lock:
                     current = self._sessions.get(session_id)
                     if current is None:
                         return
+
                     current.checks += 1
+                    current.errors = consecutive_errors
                     current.last_action = "ERROR"
-                    current.last_message = f"{type(exc).__name__}: {exc}"
+                    current.last_message = (
+                        f"{type(exc).__name__}: {exc}"
+                    )
+
+                    if consecutive_errors >= self.MAX_CONSECUTIVE_ERRORS:
+                        current.active = False
+                        current.last_message = (
+                            "Paper monitor stopped after repeated analysis errors: "
+                            + current.last_message
+                        )
+                        return
 
             time.sleep(interval)
 
-    def stop(self, session_id: str | None = None, symbol: str | None = None) -> dict:
+    def stop(
+        self,
+        session_id: str | None = None,
+        symbol: str | None = None,
+    ) -> dict:
         stopped = []
+        normalized_symbol = (
+            str(symbol).strip().upper()
+            if symbol
+            else None
+        )
+
         with self._lock:
             for sid, session in self._sessions.items():
                 if not session.active:
                     continue
+
                 if session_id and sid != session_id:
                     continue
-                if symbol and session.symbol != str(symbol).upper():
+
+                if (
+                    normalized_symbol
+                    and session.symbol != normalized_symbol
+                ):
                     continue
+
                 session.active = False
+                session.last_message = "Paper monitor stopped manually."
                 stopped.append(sid)
 
         return {
@@ -180,9 +310,18 @@ class PaperTradeMonitor:
             "live_execution": False,
         }
 
-    def status(self) -> dict:
+    def status(
+        self,
+        session_id: str | None = None,
+    ) -> dict:
         with self._lock:
-            sessions = tuple(
+            if session_id:
+                session = self._sessions.get(str(session_id))
+                sessions = [session] if session is not None else []
+            else:
+                sessions = list(self._sessions.values())
+
+            payload = tuple(
                 {
                     "session_id": s.session_id,
                     "symbol": s.symbol,
@@ -190,16 +329,25 @@ class PaperTradeMonitor:
                     "interval_seconds": s.interval_seconds,
                     "active": s.active,
                     "checks": s.checks,
+                    "errors": s.errors,
                     "last_action": s.last_action,
                     "last_message": s.last_message,
-                    "paper_trade": dict(s.paper_trade) if s.paper_trade else None,
+                    "last_price": s.last_price,
+                    "paper_trade": (
+                        dict(s.paper_trade)
+                        if s.paper_trade
+                        else None
+                    ),
                 }
-                for s in self._sessions.values()
+                for s in sessions
+                if s is not None
             )
 
         return {
             "success": True,
-            "sessions": sessions,
+            "session_count": len(payload),
+            "active_count": sum(1 for item in payload if item["active"]),
+            "sessions": payload,
             "background_monitoring": True,
             "paper_only": True,
             "live_execution": False,

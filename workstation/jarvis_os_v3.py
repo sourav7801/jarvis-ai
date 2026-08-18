@@ -483,6 +483,79 @@ def paper_monitor_symbol_timeframe(text):
     return None, None
 
 
+def paper_monitor_control_request(text):
+    value = re.sub(
+        r"\s+",
+        " ",
+        str(text or "").strip().lower(),
+    )
+
+    status_phrases = (
+        "paper monitor status",
+        "paper trading status",
+        "show paper monitors",
+        "show monitoring",
+        "what are you monitoring",
+        "what are you watching",
+        "monitoring status",
+    )
+
+    if any(phrase in value for phrase in status_phrases):
+        return "status"
+
+    stop_phrases = (
+        "stop monitoring",
+        "stop watching",
+        "stop paper monitor",
+        "stop paper trading",
+        "cancel paper monitor",
+        "cancel monitoring",
+    )
+
+    if any(phrase in value for phrase in stop_phrases):
+        return "stop"
+
+    return None
+
+
+def format_paper_monitor_status(payload):
+    sessions = list(payload.get("sessions") or [])
+
+    if not sessions:
+        return (
+            "No paper monitors are registered. "
+            "Live broker execution remains locked."
+        )
+
+    lines = [
+        "JARVIS PAPER MONITORS",
+        "--------------------------------------------------",
+    ]
+
+    for item in sessions:
+        state = "ACTIVE" if item.get("active") else "STOPPED"
+        lines.append(
+            f"- {item.get('symbol', 'UNKNOWN')} "
+            f"{item.get('timeframe', '')}: {state}; "
+            f"last={item.get('last_action', 'WAIT')}; "
+            f"checks={item.get('checks', 0)}"
+        )
+
+        trade = item.get("paper_trade")
+        if isinstance(trade, dict):
+            lines.append(
+                f"  PAPER {trade.get('side', '')} "
+                f"{trade.get('status', '')} "
+                f"entry={trade.get('entry')} "
+                f"exit={trade.get('exit')}"
+            )
+
+    lines.append("")
+    lines.append("Live broker execution remains locked.")
+
+    return "\n".join(lines)
+
+
 def fast_trading_command(
     text,
 ):
@@ -630,6 +703,52 @@ def dispatch_command(
         }
 
 
+    monitor_control = paper_monitor_control_request(
+        original_text
+    )
+
+    if monitor_control:
+        from omni.paper_trade_monitor import (
+            paper_trade_monitor,
+        )
+
+        if monitor_control == "status":
+            result = paper_trade_monitor.status()
+            response = format_paper_monitor_status(result)
+
+        else:
+            symbol, _timeframe = paper_monitor_symbol_timeframe(
+                original_text
+            )
+            result = paper_trade_monitor.stop(
+                symbol=symbol,
+            )
+            stopped = list(result.get("stopped") or [])
+
+            if stopped:
+                response = (
+                    "Stopped the requested paper monitor. "
+                    "Live broker execution remains locked."
+                )
+            else:
+                response = (
+                    "No matching active paper monitor was found. "
+                    "Live broker execution remains locked."
+                )
+
+        conversation_turns.remember(
+            original_text,
+            response,
+            "PAPER_MONITOR_CONTROL",
+        )
+
+        return {
+            "route": "PAPER_MONITOR_CONTROL",
+            "response": response,
+            "raw": safe(result),
+        }
+
+
     if paper_monitor_request(
         original_text
     ):
@@ -738,6 +857,37 @@ def dispatch_command(
         "jarvis_command",
         None,
     )
+
+
+    if (
+        conversation_turns.is_explanation_followup(
+            original_text
+        )
+    ):
+        contextual_text = conversation_turns.augment(
+            original_text
+        )
+
+        result = main.route_agent(
+            "chat",
+            contextual_text,
+        )
+
+        response = render_response(
+            result
+        )
+
+        conversation_turns.remember(
+            original_text,
+            response,
+            "CHAT_FOLLOWUP",
+        )
+
+        return {
+            "route": "CHAT_FOLLOWUP",
+            "response": response,
+            "raw": safe(result),
+        }
 
 
     if callable(
@@ -982,6 +1132,38 @@ def status():
                             )
                         )
                 }
+
+
+    try:
+        from omni.paper_trade_monitor import (
+            paper_trade_monitor,
+        )
+
+        result[
+            "components"
+        ][
+            "paper_monitors"
+        ] = safe(
+            paper_trade_monitor.status()
+        )
+
+    except Exception as exc:
+        result[
+            "components"
+        ][
+            "paper_monitors"
+        ] = {
+            "error":
+                (
+                    type(
+                        exc
+                    ).__name__
+                    + ": "
+                    + str(
+                        exc
+                    )
+                )
+        }
 
 
     return result
@@ -1530,6 +1712,17 @@ class Handler(
 
                 return self.send_json(
                     market()
+                )
+
+
+            if parsed.path == "/api/paper-monitors":
+
+                from omni.paper_trade_monitor import (
+                    paper_trade_monitor,
+                )
+
+                return self.send_json(
+                    paper_trade_monitor.status()
                 )
 
 

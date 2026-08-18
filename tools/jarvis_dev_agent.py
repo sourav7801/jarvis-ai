@@ -103,15 +103,15 @@ def changed_files(base="HEAD"):
         base,
     )
 
-    files = []
+    files = set()
 
     for line in output.splitlines():
         value = line.strip().replace("\\", "/")
 
         if value:
-            files.append(value)
+            files.add(value)
 
-    return files
+    return sorted(files | untracked_files())
 
 
 def protected_changes(files):
