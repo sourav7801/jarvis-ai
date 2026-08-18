@@ -20,7 +20,7 @@ class ConversationTurn:
 class ConversationTurns:
     """Volatile working memory for conversational follow-ups.
 
-    V2 keeps a small bounded history plus a stable useful anchor. Low-value
+    V2.1 keeps a small bounded history plus a stable useful anchor. Low-value
     clarification failures never replace the anchor. Lightweight entity hints
     let phrases such as "first one", "that song", and typoed repeated titles
     resolve against the user's recent conversation without making durable memory
@@ -51,6 +51,15 @@ class ConversationTurns:
                 "i'm not sure what you're referring to",
                 "am i correct?",
                 "i don't know what you mean",
+                "i didn't suggest",
+                "i did not suggest",
+                "i don't have prior context",
+                "i do not have prior context",
+                "i don't have access to the previous conversation",
+                "i do not have access to the previous conversation",
+                "i'm a new conversation",
+                "i am a new conversation",
+                "each time you interact with me",
             )
         )
 
@@ -156,12 +165,57 @@ class ConversationTurns:
         }
 
     @staticmethod
-    def is_ambiguous_followup(text: str) -> bool:
+    def is_reference_followup(text: str) -> bool:
+        """Recognize semantic references even when the sentence is long.
+
+        Examples:
+        - Can you give me the lyrics of first one song which you suggested me?
+        - Tell me more about the second one you recommended.
+        - What was that movie you mentioned earlier?
+        """
+        value = " ".join(str(text or "").lower().split()).strip()
+        if not value:
+            return False
+
+        reference_words = (
+            r"first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th|"
+            r"that one|this one|that song|this song|that movie|this movie|"
+            r"the one|it"
+        )
+        prior_words = (
+            r"suggested|recommend(?:ed)?|mentioned|listed|gave|told|"
+            r"previous|earlier|above|before"
+        )
+
+        if re.search(rf"\b(?:{reference_words})\b", value) and re.search(
+            rf"\b(?:{prior_words})\b", value
+        ):
+            return True
+
+        if re.search(
+            r"\b(?:which|that)\s+you\s+(?:suggested|recommended|mentioned|listed|gave)\b",
+            value,
+        ):
+            return True
+
+        if re.search(
+            r"^(?:can|could|would)\s+you\s+(?:please\s+)?(?:give|tell|show|explain)\b",
+            value,
+        ) and re.search(rf"\b(?:{reference_words})\b", value):
+            return True
+
+        return False
+
+    @classmethod
+    def is_ambiguous_followup(cls, text: str) -> bool:
         value = " ".join(str(text or "").split()).strip()
         lowered = value.lower()
 
         if not value:
             return False
+
+        if cls.is_reference_followup(value):
+            return True
 
         explicit = {
             "why",
@@ -289,7 +343,8 @@ class ConversationTurns:
             "resolve the current follow-up. Do not reinterpret it as a new unrelated "
             "request. Treat names/titles from the previous answer as likely referents "
             "when the user selects, numbers, or approximately repeats them. Do not "
-            "invent facts, lyrics, metadata, or actions.\n\n"
+            "invent facts, lyrics, metadata, or actions. Never say that prior context "
+            "is unavailable when it is explicitly included below.\n\n"
             + "\n\n".join(history_lines)
             + "\n\n"
             + f"Previous user request: {latest['user']}\n"
