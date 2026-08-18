@@ -3265,6 +3265,18 @@ Compatibility marker retained for previous regression tests.
         followupDeadline:
             0,
 
+        nativeControlAvailable:
+            false,
+
+        nativeLastEventId:
+            0,
+
+        nativePollTimer:
+            null,
+
+        nativeBaseUrl:
+            "http://127.0.0.1:8798",
+
     };
 
 
@@ -3795,6 +3807,257 @@ Compatibility marker retained for previous regression tests.
 
 
     // ========================================================
+    // JARVIS V3.2 HYBRID NATIVE CONTROL
+    //
+    // Browser SpeechRecognition owns normal dictation while
+    // JARVIS is silent. During TTS it is deliberately suspended
+    // so speaker audio cannot become a normal command.
+    //
+    // A tiny native Windows recognizer listens only for control
+    // phrases such as "Jarvis" and "Stop". This keeps barge-in
+    // available without running two full dictation recognizers.
+    // ========================================================
+
+    /* JARVIS_V32_HYBRID_VOICE */
+
+    async function nativeRequest(
+        path,
+        options = {}
+    ) {
+
+        try {
+
+            const response =
+                await fetch(
+                    J.nativeBaseUrl
+                    + path,
+                    {
+                        ...options,
+                        cache:
+                            "no-store",
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "native voice HTTP "
+                    + response.status
+                );
+            }
+
+
+            J.nativeControlAvailable =
+                true;
+
+
+            return await response.json();
+
+        }
+        catch (_) {
+
+            J.nativeControlAvailable =
+                false;
+
+
+            return null;
+        }
+    }
+
+
+    function nativeSpeakingState(
+        speaking
+    ) {
+
+        nativeRequest(
+            "/state",
+            {
+                method:
+                    "POST",
+
+                headers:
+                    {
+                        "Content-Type":
+                            "application/json",
+                    },
+
+                body:
+                    JSON.stringify(
+                        {
+                            speaking:
+                                Boolean(
+                                    speaking
+                                ),
+                        }
+                    ),
+            }
+        );
+    }
+
+
+    function suspendRecognition() {
+
+        clearTimeout(
+            J.restartTimer
+        );
+
+
+        if (!J.recognition) {
+
+            return;
+        }
+
+
+        try {
+
+            J.recognition.abort();
+
+        }
+        catch (_) {
+
+        }
+
+
+        J.listening =
+            false;
+    }
+
+
+    function handleNativeEvent(
+        event
+    ) {
+
+        if (!event) {
+
+            return;
+        }
+
+
+        const id =
+            Number(
+                event.id
+                || 0
+            );
+
+
+        if (
+            id
+            > J.nativeLastEventId
+        ) {
+
+            J.nativeLastEventId =
+                id;
+        }
+
+
+        const type =
+            String(
+                event.type
+                || ""
+            )
+            .toLowerCase();
+
+
+        if (
+            type
+            === "stop"
+        ) {
+
+            interrupt();
+
+
+            return;
+        }
+
+
+        if (
+            type
+            === "wake"
+            &&
+            !J.speaking
+        ) {
+
+            greet();
+        }
+    }
+
+
+    async function pollNativeControl() {
+
+        if (!J.enabled) {
+
+            return;
+        }
+
+
+        const payload =
+            await nativeRequest(
+                "/events?after="
+                + encodeURIComponent(
+                    String(
+                        J.nativeLastEventId
+                    )
+                )
+            );
+
+
+        if (
+            payload
+            &&
+            Array.isArray(
+                payload.events
+            )
+        ) {
+
+            for (
+                const event
+                of payload.events
+            ) {
+
+                handleNativeEvent(
+                    event
+                );
+            }
+        }
+    }
+
+
+    async function initNativeControl() {
+
+        const health =
+            await nativeRequest(
+                "/health"
+            );
+
+
+        J.nativeControlAvailable =
+            Boolean(
+                health
+                &&
+                health.success
+            );
+
+
+        clearInterval(
+            J.nativePollTimer
+        );
+
+
+        J.nativePollTimer =
+            setInterval(
+                pollNativeControl,
+                180
+            );
+
+
+        nativeSpeakingState(
+            J.speaking
+        );
+    }
+
+
+    // ========================================================
     // SPEAK
     // ========================================================
 
@@ -3845,6 +4108,11 @@ Compatibility marker retained for previous regression tests.
 
         J.speaking =
             false;
+
+
+        nativeSpeakingState(
+            false
+        );
     }
 
 
@@ -3954,9 +4222,15 @@ Compatibility marker retained for previous regression tests.
                 );
 
 
-                // Keep microphone cycling for barge-in.
-                scheduleListen(
-                    120
+                // Half-duplex dictation boundary:
+                // browser dictation is OFF while TTS is audible.
+                // Native control recognition remains available
+                // for "Stop" / wake control phrases.
+                suspendRecognition();
+
+
+                nativeSpeakingState(
+                    true
                 );
             };
 
@@ -3987,6 +4261,11 @@ Compatibility marker retained for previous regression tests.
                     + 10000;
 
 
+                nativeSpeakingState(
+                    false
+                );
+
+
                 setVoiceState(
                     "ready"
                 );
@@ -3995,7 +4274,7 @@ Compatibility marker retained for previous regression tests.
                 if (resume) {
 
                     scheduleListen(
-                        400
+                        450
                     );
                 }
             };
@@ -4008,10 +4287,15 @@ Compatibility marker retained for previous regression tests.
                     false;
 
 
+                nativeSpeakingState(
+                    false
+                );
+
+
                 if (resume) {
 
                     scheduleListen(
-                        350
+                        450
                     );
                 }
             };
@@ -4668,7 +4952,11 @@ Compatibility marker retained for previous regression tests.
         delay = 300
     ) {
 
-        if (!J.enabled) {
+        if (
+            !J.enabled
+            ||
+            J.speaking
+        ) {
 
             return;
         }
@@ -4695,6 +4983,8 @@ Compatibility marker retained for previous regression tests.
             !SpeechRecognition
             ||
             J.listening
+            ||
+            J.speaking
         ) {
 
             return;
@@ -4803,12 +5093,14 @@ Compatibility marker retained for previous regression tests.
                         false;
 
 
-                    if (J.enabled) {
+                    if (
+                        J.enabled
+                        &&
+                        !J.speaking
+                    ) {
 
                         scheduleListen(
-                            J.speaking
-                            ? 150
-                            : 330
+                            330
                         );
                     }
                 };
@@ -5062,6 +5354,9 @@ Compatibility marker retained for previous regression tests.
         );
 
 
+        initNativeControl();
+
+
         scheduleListen(
             150
         );
@@ -5081,6 +5376,15 @@ Compatibility marker retained for previous regression tests.
         clearTimeout(
             J.restartTimer
         );
+
+
+        clearInterval(
+            J.nativePollTimer
+        );
+
+
+        J.nativePollTimer =
+            null;
 
 
         cancelSpeech();

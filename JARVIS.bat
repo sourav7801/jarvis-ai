@@ -3,7 +3,10 @@ setlocal
 
 cd /d C:\Jarvis
 
-title JARVIS OS V3.1
+title JARVIS OS V3.2
+
+REM JARVIS_NATIVE_VOICE_V32
+start "JARVIS Native Voice" /min powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\Jarvis\start_jarvis_native_voice.ps1"
 
 if not exist "C:\Jarvis\.venv\Scripts\python.exe" (
     echo.
@@ -17,7 +20,7 @@ if not exist "C:\Jarvis\.venv\Scripts\python.exe" (
 
 if errorlevel 1 (
     echo.
-    echo JARVIS OS V3.1 exited with an error.
+    echo JARVIS OS V3.2 exited with an error.
     pause
 )
 
