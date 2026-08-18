@@ -1,310 +1,288 @@
-import requests
-import urllib.parse
-import xml.etree.ElementTree as ET
-from datetime import datetime
+from __future__ import annotations
 
+import re
+import threading
+import time
+from typing import Any
 
-# ============================================================
-# JARVIS RESEARCH AGENT
-# ============================================================
 
 class ResearchAgent:
+    """Bounded current-news facade for Master JARVIS.
+
+    The primary path reuses workstation.market_news, which already provides
+    GDELT first, Google News RSS fallback, freshness filtering, and caching.
+    Web Intelligence is the independent second fallback.
+    """
+
+    FAILURE_TTL_SECONDS = 90.0
 
     def __init__(self):
         self.name = "research"
+        self._lock = threading.RLock()
+        self._last_failure: dict[str, Any] | None = None
 
-    # ========================================================
-    # GOOGLE NEWS RSS SEARCH
-    # ========================================================
-
-    def search_news(self, query, limit=8):
-
-        try:
-
-            encoded = urllib.parse.quote(query)
-
-            url = (
-                "https://news.google.com/rss/search?"
-                f"q={encoded}&hl=en-US&gl=US&ceid=US:en"
-            )
-
-            response = requests.get(
-                url,
-                timeout=15,
-                headers={
-                    "User-Agent": "Mozilla/5.0"
-                }
-            )
-
-            response.raise_for_status()
-
-            root = ET.fromstring(
-                response.content
-            )
-
-            results = []
-
-            for item in root.findall(".//item")[:limit]:
-
-                title = item.findtext(
-                    "title",
-                    ""
-                )
-
-                link = item.findtext(
-                    "link",
-                    ""
-                )
-
-                published = item.findtext(
-                    "pubDate",
-                    ""
-                )
-
-                source = item.findtext(
-                    "source",
-                    ""
-                )
-
-                results.append({
-                    "title": title,
-                    "source": source,
-                    "published": published,
-                    "url": link,
-                })
-
-            return results
-
-        except Exception as e:
-
-            print(
-                f"JARVIS RESEARCH DEBUG > {e}"
-            )
-
-            return []
-
-
-    # ========================================================
-    # MARKET NEWS
-    # ========================================================
-
-    def market_news(self):
-
-        queries = [
-            "stock market",
-            "India stock market",
-            "Nifty Sensex",
-            "US stock market",
-            "global markets",
-        ]
-
-        all_news = []
-
-        for query in queries:
-
-            news = self.search_news(
-                query,
-                limit=5
-            )
-
-            all_news.extend(
-                news
-            )
-
-        return self.remove_duplicates(
-            all_news
+    @staticmethod
+    def requested_limit(text: str, default: int = 5) -> int:
+        value = str(text or "").lower()
+        words = {
+            "one": 1,
+            "two": 2,
+            "three": 3,
+            "four": 4,
+            "five": 5,
+            "six": 6,
+            "seven": 7,
+            "eight": 8,
+            "nine": 9,
+            "ten": 10,
+        }
+        match = re.search(
+            r"\b(?:top|first|show|give|tell|list)\s+(?:me\s+)?"
+            r"(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b",
+            value,
         )
+        if not match:
+            return min(max(int(default), 1), 10)
+        raw = match.group(1)
+        count = int(raw) if raw.isdigit() else words.get(raw, default)
+        return min(max(int(count), 1), 10)
 
-
-    # ========================================================
-    # SPORTS NEWS
-    # ========================================================
-
-    def sports_news(self):
-
-        queries = [
-            "sports",
-            "cricket",
-            "football",
-            "tennis",
-            "NBA",
-        ]
-
-        all_news = []
-
-        for query in queries:
-
-            news = self.search_news(
-                query,
-                limit=4
-            )
-
-            all_news.extend(
-                news
-            )
-
-        return self.remove_duplicates(
-            all_news
+    @staticmethod
+    def normalize_news_query(text: str) -> str:
+        value = " ".join(str(text or "").split()).strip()
+        value = re.sub(
+            r"^(?:can|could|would)\s+you\s+(?:please\s+)?",
+            "",
+            value,
+            flags=re.IGNORECASE,
         )
-
-
-    # ========================================================
-    # GENERAL NEWS
-    # ========================================================
-
-    def general_news(self):
-
-        queries = [
+        value = re.sub(
+            r"^(?:tell|give|show|list)\s+(?:me\s+)?",
+            "",
+            value,
+            flags=re.IGNORECASE,
+        )
+        value = re.sub(
+            r"^top\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+",
+            "",
+            value,
+            flags=re.IGNORECASE,
+        )
+        value = value.strip(" ?!.,:;-")
+        if value.lower() in {
+            "news",
             "latest news",
-            "world news",
-            "India news",
-            "technology news",
-        ]
+            "current news",
+            "today news",
+            "today's news",
+        }:
+            return "India world technology business latest news"
+        return value or "India world technology business latest news"
 
-        all_news = []
+    def _remember_failure(self, provider: str, detail: str) -> None:
+        with self._lock:
+            self._last_failure = {
+                "provider": str(provider),
+                "detail": str(detail),
+                "recorded_at": time.time(),
+            }
 
-        for query in queries:
+    def last_failure(self) -> dict[str, Any] | None:
+        with self._lock:
+            if not self._last_failure:
+                return None
+            payload = dict(self._last_failure)
 
-            news = self.search_news(
-                query,
-                limit=5
-            )
+        if time.time() - float(payload["recorded_at"]) > self.FAILURE_TTL_SECONDS:
+            return None
 
-            all_news.extend(
-                news
-            )
+        return payload
 
-        return self.remove_duplicates(
-            all_news
-        )
-
-
-    # ========================================================
-    # REMOVE DUPLICATES
-    # ========================================================
-
-    def remove_duplicates(
-        self,
-        articles
-    ):
-
+    @staticmethod
+    def remove_duplicates(articles):
         seen = set()
         results = []
 
-        for article in articles:
-
-            title = article.get(
-                "title",
-                ""
-            ).strip()
-
-            key = title.lower()
-
-            if not title:
+        for article in articles or []:
+            if not isinstance(article, dict):
                 continue
 
-            if key in seen:
+            title = " ".join(str(article.get("title") or "").split()).strip()
+            url = str(article.get("url") or "").strip()
+            key = (title.casefold(), url.casefold())
+
+            if not title or key in seen:
                 continue
 
             seen.add(key)
-
-            results.append(
-                article
-            )
+            results.append(dict(article))
 
         return results
 
+    @staticmethod
+    def format_news(articles, limit=10):
+        chosen = list(articles or [])[: min(max(int(limit), 1), 10)]
 
-    # ========================================================
-    # FORMAT NEWS
-    # ========================================================
-
-    def format_news(
-        self,
-        articles,
-        limit=10
-    ):
-
-        if not articles:
-
+        if not chosen:
             return (
-                "I couldn't retrieve "
-                "current news right now."
+                "I couldn't retrieve current news from the public providers right now. "
+                "The Research Agent ran, but no verified headline source returned usable results."
             )
 
-        lines = []
+        lines = ["Here are the latest headlines:", ""]
 
-        lines.append(
-            "Here are the latest headlines:"
+        for index, article in enumerate(chosen, start=1):
+            title = str(article.get("title") or "Unknown headline")
+            source = (
+                article.get("source")
+                or article.get("domain")
+                or article.get("provider")
+                or ""
+            )
+            lines.append(
+                f"{index}. {title}"
+                + (f" ({source})" if source else "")
+            )
+
+        return "\n".join(lines)
+
+    def _market_news_search(self, query: str, limit: int) -> dict[str, Any]:
+        from workstation.market_news import search_market_news
+
+        return search_market_news(
+            query,
+            limit=limit,
+            timespan="3d",
         )
 
-        lines.append("")
+    def _web_fallback(self, request: str, limit: int) -> dict[str, Any]:
+        from agents.web_intelligence_agent import WEB_INTELLIGENCE_AGENT
 
-        for index, article in enumerate(
-            articles[:limit],
-            start=1
-        ):
-
-            title = article.get(
-                "title",
-                "Unknown headline"
-            )
-
-            source = article.get(
-                "source",
-                ""
-            )
-
-            if source:
-
-                lines.append(
-                    f"{index}. {title} "
-                    f"({source})"
-                )
-
-            else:
-
-                lines.append(
-                    f"{index}. {title}"
-                )
-
-        return "\n".join(
-            lines
+        return WEB_INTELLIGENCE_AGENT.research(
+            f"top {limit} latest news {request}"
         )
 
+    @staticmethod
+    def _web_articles(payload: dict[str, Any], limit: int):
+        output = []
 
-    # ========================================================
-    # MAIN RESEARCH FUNCTION
-    # ========================================================
+        for item in list(payload.get("sources") or [])[:limit]:
+            if not isinstance(item, dict):
+                continue
 
-    def research(
-        self,
-        query
-    ):
+            output.append(
+                {
+                    "title": item.get("title", ""),
+                    "url": item.get("url", ""),
+                    "source": item.get("provider", ""),
+                    "published": item.get("retrieved_at", ""),
+                }
+            )
 
-        query = str(
-            query
-        ).strip()
+        return output
+
+    def search_news(self, query, limit=8):
+        clean = self.normalize_news_query(query)
+        limit = min(max(int(limit), 1), 10)
+
+        try:
+            payload = self._market_news_search(clean, limit)
+            articles = self.remove_duplicates(
+                payload.get("articles", [])
+            )[:limit]
+
+            if payload.get("success") and articles:
+                return {
+                    "success": True,
+                    "provider": payload.get("source", "PUBLIC_NEWS"),
+                    "articles": articles,
+                    "errors": [],
+                }
+
+            self._remember_failure(
+                payload.get("source", "PUBLIC_NEWS"),
+                payload.get("message", "No usable headlines."),
+            )
+
+        except Exception as exc:
+            self._remember_failure(
+                "PUBLIC_NEWS",
+                f"{type(exc).__name__}: {exc}",
+            )
+
+        try:
+            fallback = self._web_fallback(clean, limit)
+            articles = self.remove_duplicates(
+                self._web_articles(fallback, limit)
+            )
+
+            if fallback.get("success") and articles:
+                return {
+                    "success": True,
+                    "provider": (
+                        "+".join(fallback.get("providers", []))
+                        or "WEB_INTELLIGENCE"
+                    ),
+                    "articles": articles,
+                    "errors": list(fallback.get("errors", [])),
+                }
+
+            self._remember_failure(
+                "WEB_INTELLIGENCE",
+                fallback.get(
+                    "notice",
+                    "No fallback source returned usable results.",
+                ),
+            )
+
+        except Exception as exc:
+            self._remember_failure(
+                "WEB_INTELLIGENCE",
+                f"{type(exc).__name__}: {exc}",
+            )
+
+        return {
+            "success": False,
+            "provider": "PUBLIC_NEWS",
+            "articles": [],
+            "errors": [],
+        }
+
+    def market_news(self, limit=5):
+        return self.search_news(
+            "India Nifty Sensex US global stock markets",
+            limit=limit,
+        )
+
+    def sports_news(self, limit=5):
+        return self.search_news(
+            "India cricket football tennis sports",
+            limit=limit,
+        )
+
+    def general_news(self, limit=5):
+        return self.search_news(
+            "India world technology business latest news",
+            limit=limit,
+        )
+
+    def research(self, query):
+        query = str(query or "").strip()
 
         if not query:
-
             return {
                 "success": False,
-                "message":
-                    "No research topic was provided."
+                "type": "research",
+                "articles": [],
+                "message": "No research topic was provided.",
             }
 
-
         value = query.lower()
-
-
-        # ----------------------------------------------------
-        # MARKET
-        # ----------------------------------------------------
+        limit = self.requested_limit(query, 5)
 
         if any(
             word in value
-            for word in [
+            for word in (
                 "market",
                 "stock",
                 "stocks",
@@ -313,28 +291,14 @@ class ResearchAgent:
                 "trading",
                 "finance",
                 "financial",
-            ]
+            )
         ):
+            result = self.market_news(limit)
+            research_type = "market"
 
-            articles = self.market_news()
-
-            return {
-                "success": True,
-                "type": "market",
-                "articles": articles,
-                "message": self.format_news(
-                    articles
-                ),
-            }
-
-
-        # ----------------------------------------------------
-        # SPORTS
-        # ----------------------------------------------------
-
-        if any(
+        elif any(
             word in value
-            for word in [
+            for word in (
                 "sport",
                 "sports",
                 "cricket",
@@ -343,496 +307,44 @@ class ResearchAgent:
                 "tennis",
                 "nba",
                 "f1",
-            ]
+            )
         ):
+            result = self.sports_news(limit)
+            research_type = "sports"
 
-            articles = self.sports_news()
+        else:
+            result = self.search_news(query, limit=limit)
+            research_type = "general"
 
-            return {
-                "success": True,
-                "type": "sports",
-                "articles": articles,
-                "message": self.format_news(
-                    articles
-                ),
-            }
+        articles = result.get("articles", [])
+        success = bool(result.get("success") and articles)
+        message = self.format_news(articles, limit)
 
+        if not success:
+            failure = self.last_failure()
 
-        # ----------------------------------------------------
-        # GENERAL
-        # ----------------------------------------------------
-
-        articles = self.search_news(
-            query,
-            limit=10
-        )
+            if failure:
+                message += (
+                    "\n\nReason: the latest provider failure was "
+                    f"{failure.get('provider')}: {failure.get('detail')}"
+                )
 
         return {
-            "success": True,
-            "type": "general",
+            "success": success,
+            "type": research_type,
+            "provider": result.get("provider"),
             "articles": articles,
-            "message": self.format_news(
-                articles
-            ),
+            "message": message,
+            "last_failure": self.last_failure(),
         }
 
-
-# ============================================================
-# GLOBAL AGENT
-# ============================================================
 
 research_agent = ResearchAgent()
 
 
-# ============================================================
-# SIMPLE FUNCTION
-# ============================================================
-
 def research(query):
+    return research_agent.research(query)
 
-    return research_agent.research(
-        query
-    )
-
-
-# ============================================================
-# TEST
-# ============================================================
 
 if __name__ == "__main__":
-
-    print("=" * 60)
-    print("JARVIS RESEARCH AGENT TEST")
-    print("=" * 60)
-
-    result = research(
-        "today's market news"
-    )
-
-    print()
-
-    print(
-        result.get(
-            "message",
-            result
-        )
-    )
-import requests
-import urllib.parse
-import xml.etree.ElementTree as ET
-from datetime import datetime
-
-
-# ============================================================
-# JARVIS RESEARCH AGENT
-# ============================================================
-
-class ResearchAgent:
-
-    def __init__(self):
-        self.name = "research"
-
-    # ========================================================
-    # GOOGLE NEWS RSS SEARCH
-    # ========================================================
-
-    def search_news(self, query, limit=8):
-
-        try:
-
-            encoded = urllib.parse.quote(query)
-
-            url = (
-                "https://news.google.com/rss/search?"
-                f"q={encoded}&hl=en-US&gl=US&ceid=US:en"
-            )
-
-            response = requests.get(
-                url,
-                timeout=15,
-                headers={
-                    "User-Agent": "Mozilla/5.0"
-                }
-            )
-
-            response.raise_for_status()
-
-            root = ET.fromstring(
-                response.content
-            )
-
-            results = []
-
-            for item in root.findall(".//item")[:limit]:
-
-                title = item.findtext(
-                    "title",
-                    ""
-                )
-
-                link = item.findtext(
-                    "link",
-                    ""
-                )
-
-                published = item.findtext(
-                    "pubDate",
-                    ""
-                )
-
-                source = item.findtext(
-                    "source",
-                    ""
-                )
-
-                results.append({
-                    "title": title,
-                    "source": source,
-                    "published": published,
-                    "url": link,
-                })
-
-            return results
-
-        except Exception as e:
-
-            print(
-                f"JARVIS RESEARCH DEBUG > {e}"
-            )
-
-            return []
-
-
-    # ========================================================
-    # MARKET NEWS
-    # ========================================================
-
-    def market_news(self):
-
-        queries = [
-            "stock market",
-            "India stock market",
-            "Nifty Sensex",
-            "US stock market",
-            "global markets",
-        ]
-
-        all_news = []
-
-        for query in queries:
-
-            news = self.search_news(
-                query,
-                limit=5
-            )
-
-            all_news.extend(
-                news
-            )
-
-        return self.remove_duplicates(
-            all_news
-        )
-
-
-    # ========================================================
-    # SPORTS NEWS
-    # ========================================================
-
-    def sports_news(self):
-
-        queries = [
-            "sports",
-            "cricket",
-            "football",
-            "tennis",
-            "NBA",
-        ]
-
-        all_news = []
-
-        for query in queries:
-
-            news = self.search_news(
-                query,
-                limit=4
-            )
-
-            all_news.extend(
-                news
-            )
-
-        return self.remove_duplicates(
-            all_news
-        )
-
-
-    # ========================================================
-    # GENERAL NEWS
-    # ========================================================
-
-    def general_news(self):
-
-        queries = [
-            "latest news",
-            "world news",
-            "India news",
-            "technology news",
-        ]
-
-        all_news = []
-
-        for query in queries:
-
-            news = self.search_news(
-                query,
-                limit=5
-            )
-
-            all_news.extend(
-                news
-            )
-
-        return self.remove_duplicates(
-            all_news
-        )
-
-
-    # ========================================================
-    # REMOVE DUPLICATES
-    # ========================================================
-
-    def remove_duplicates(
-        self,
-        articles
-    ):
-
-        seen = set()
-        results = []
-
-        for article in articles:
-
-            title = article.get(
-                "title",
-                ""
-            ).strip()
-
-            key = title.lower()
-
-            if not title:
-                continue
-
-            if key in seen:
-                continue
-
-            seen.add(key)
-
-            results.append(
-                article
-            )
-
-        return results
-
-
-    # ========================================================
-    # FORMAT NEWS
-    # ========================================================
-
-    def format_news(
-        self,
-        articles,
-        limit=10
-    ):
-
-        if not articles:
-
-            return (
-                "I couldn't retrieve "
-                "current news right now."
-            )
-
-        lines = []
-
-        lines.append(
-            "Here are the latest headlines:"
-        )
-
-        lines.append("")
-
-        for index, article in enumerate(
-            articles[:limit],
-            start=1
-        ):
-
-            title = article.get(
-                "title",
-                "Unknown headline"
-            )
-
-            source = article.get(
-                "source",
-                ""
-            )
-
-            if source:
-
-                lines.append(
-                    f"{index}. {title} "
-                    f"({source})"
-                )
-
-            else:
-
-                lines.append(
-                    f"{index}. {title}"
-                )
-
-        return "\n".join(
-            lines
-        )
-
-
-    # ========================================================
-    # MAIN RESEARCH FUNCTION
-    # ========================================================
-
-    def research(
-        self,
-        query
-    ):
-
-        query = str(
-            query
-        ).strip()
-
-        if not query:
-
-            return {
-                "success": False,
-                "message":
-                    "No research topic was provided."
-            }
-
-
-        value = query.lower()
-
-
-        # ----------------------------------------------------
-        # MARKET
-        # ----------------------------------------------------
-
-        if any(
-            word in value
-            for word in [
-                "market",
-                "stock",
-                "stocks",
-                "nifty",
-                "sensex",
-                "trading",
-                "finance",
-                "financial",
-            ]
-        ):
-
-            articles = self.market_news()
-
-            return {
-                "success": True,
-                "type": "market",
-                "articles": articles,
-                "message": self.format_news(
-                    articles
-                ),
-            }
-
-
-        # ----------------------------------------------------
-        # SPORTS
-        # ----------------------------------------------------
-
-        if any(
-            word in value
-            for word in [
-                "sport",
-                "sports",
-                "cricket",
-                "football",
-                "soccer",
-                "tennis",
-                "nba",
-                "f1",
-            ]
-        ):
-
-            articles = self.sports_news()
-
-            return {
-                "success": True,
-                "type": "sports",
-                "articles": articles,
-                "message": self.format_news(
-                    articles
-                ),
-            }
-
-
-        # ----------------------------------------------------
-        # GENERAL
-        # ----------------------------------------------------
-
-        articles = self.search_news(
-            query,
-            limit=10
-        )
-
-        return {
-            "success": True,
-            "type": "general",
-            "articles": articles,
-            "message": self.format_news(
-                articles
-            ),
-        }
-
-
-# ============================================================
-# GLOBAL AGENT
-# ============================================================
-
-research_agent = ResearchAgent()
-
-
-# ============================================================
-# SIMPLE FUNCTION
-# ============================================================
-
-def research(query):
-
-    return research_agent.research(
-        query
-    )
-
-
-# ============================================================
-# TEST
-# ============================================================
-
-if __name__ == "__main__":
-
-    print("=" * 60)
-    print("JARVIS RESEARCH AGENT TEST")
-    print("=" * 60)
-
-    result = research(
-        "today's market news"
-    )
-
-    print()
-
-    print(
-        result.get(
-            "message",
-            result
-        )
-    )
+    print(research("top 3 news").get("message"))

@@ -34,6 +34,10 @@ from workstation.jarvis_v3_chart_provider import (
     get_chart,
 )
 
+from omni.conversation_turns import (
+    conversation_turns,
+)
+
 
 ROOT = (
     Path(__file__)
@@ -591,14 +595,24 @@ def dispatch_command(
         )
 
 
+        response = render_response(
+            result
+        )
+
+
+        conversation_turns.remember(
+            original_text,
+            response,
+            "TRADING_FAST",
+        )
+
+
         return {
             "route":
                 "TRADING_FAST",
 
             "response":
-                render_response(
-                    result
-                ),
+                response,
 
             "raw":
                 safe(
@@ -618,8 +632,25 @@ def dispatch_command(
         function
     ):
 
+        contextual_text = conversation_turns.augment(
+            original_text
+        )
+
+
         result = function(
-            text
+            contextual_text
+        )
+
+
+        response = render_response(
+            result
+        )
+
+
+        conversation_turns.remember(
+            original_text,
+            response,
+            "MASTER_JARVIS",
         )
 
 
@@ -628,9 +659,7 @@ def dispatch_command(
                 "MASTER_JARVIS",
 
             "response":
-                render_response(
-                    result
-                ),
+                response,
 
             "raw":
                 safe(

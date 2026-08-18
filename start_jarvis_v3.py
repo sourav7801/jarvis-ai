@@ -51,12 +51,27 @@ def port_open(
 
 def main():
 
+    started = time.perf_counter()
+    last_stage = started
+
+    def stage(name):
+        nonlocal last_stage
+        now = time.perf_counter()
+        print(
+            f"STARTUP > {name}: "
+            f"+{now - last_stage:.3f}s "
+            f"(total {now - started:.3f}s)"
+        )
+        last_stage = now
+
     print("=" * 76)
-    print("JARVIS OS V3.1 — ADAPTIVE WORKSPACE")
+    print("JARVIS OS V3.2 — ADAPTIVE WORKSPACE")
     print("=" * 76)
 
 
     import main as jarvis_main
+
+    stage("main import")
 
     from omni.core_integrity import (
         verify_protected_core,
@@ -64,6 +79,8 @@ def main():
 
 
     core = verify_protected_core()
+
+    stage("protected core verification")
 
 
     if not core.ok:
@@ -77,6 +94,8 @@ def main():
         jarvis_main
         .jarvis_trading_v8_status()
     )
+
+    stage("trading safety status")
 
 
     if trading[
@@ -110,6 +129,8 @@ def main():
         create_server,
     )
 
+    stage("workspace server import")
+
 
     if port_open(
         PORT
@@ -126,6 +147,8 @@ def main():
         PORT,
     )
 
+    stage("HTTP server creation")
+
 
     url = (
         f"http://{HOST}:{PORT}"
@@ -136,6 +159,8 @@ def main():
         "JARVIS OS:",
         url
     )
+
+    stage("CORE READY")
 
 
     def open_browser():
