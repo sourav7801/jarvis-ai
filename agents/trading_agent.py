@@ -175,20 +175,34 @@ class TradingAgent:
 
         }
 
-        # Explicit index names.
+        # Explicit supported instruments always beat generic token parsing.
         lowered = text.lower()
 
-        if "banknifty" in lowered:
-            return "BANKNIFTY"
+        aliases = (
+            ("natural gas", "NATURALGAS"),
+            ("naturalgas", "NATURALGAS"),
+            ("crude oil", "CRUDEOIL"),
+            ("crudeoil", "CRUDEOIL"),
+            ("crude", "CRUDEOIL"),
+            ("bank nifty", "BANKNIFTY"),
+            ("banknifty", "BANKNIFTY"),
+            ("nifty 50", "NIFTY"),
+            ("nifty", "NIFTY"),
+            ("sensex", "SENSEX"),
+            ("gold", "GOLD"),
+            ("silver", "SILVER"),
+            ("bitcoin", "BTC"),
+            ("btc", "BTC"),
+            ("ethereum", "ETH"),
+            ("eth", "ETH"),
+        )
 
-        if "bank nifty" in lowered:
-            return "BANKNIFTY"
-
-        if "nifty 50" in lowered:
-            return "NIFTY"
-
-        if "nifty" in lowered:
-            return "NIFTY"
+        for alias, canonical in aliases:
+            if re.search(
+                r"(?<!\w)" + re.escape(alias) + r"(?!\w)",
+                lowered,
+            ):
+                return canonical
 
         for word in words:
 
@@ -219,7 +233,7 @@ class TradingAgent:
 
                 return clean
 
-        return "NIFTY"
+        return None
 
     # ========================================================
     # FORMAT PRICE
@@ -737,6 +751,16 @@ class TradingAgent:
                 request
             )
         )
+
+        if not symbol:
+            return {
+                "success": False,
+                "stage": "routing",
+                "message": (
+                    "I could not resolve a supported trading instrument from that request. "
+                    "I will not silently substitute NIFTY. Please name the instrument explicitly."
+                ),
+            }
 
         timeframe = extract_timeframe(
             request

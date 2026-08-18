@@ -344,6 +344,12 @@ def normalize_agent_command(
             "look on",
             "looks on",
             "look at",
+            "keep eye",
+            "keep an eye",
+            "watch",
+            "monitor",
+            "paper trade",
+            "paper trading",
             "how does",
             "how is",
             "tell me",
@@ -420,6 +426,61 @@ def normalize_agent_command(
         + " analyze"
     )
 
+
+
+def paper_monitor_request(text):
+    value = re.sub(
+        r"\s+",
+        " ",
+        str(text or "").strip().lower(),
+    )
+
+    return (
+        any(
+            phrase in value
+            for phrase in (
+                "keep eye on",
+                "keep an eye on",
+                "keep watching",
+                "watch ",
+                "monitor ",
+            )
+        )
+        and any(
+            phrase in value
+            for phrase in (
+                "paper trade",
+                "paper trading",
+                "paper position",
+                "simulate trade",
+            )
+        )
+        and any(
+            phrase in value
+            for phrase in (
+                "if you find any trade",
+                "if you find a trade",
+                "when you find a trade",
+                "when there is a trade",
+                "trade opportunity",
+            )
+        )
+    )
+
+
+def paper_monitor_symbol_timeframe(text):
+    for action in tuple(
+        interpret_workspace_command(
+            text
+        )
+    ):
+        if action.get("type") == "chart_symbol":
+            symbol = str(action.get("symbol") or "").strip()
+            timeframe = str(action.get("timeframe") or "15m").strip()
+            if symbol:
+                return symbol, timeframe
+
+    return None, None
 
 
 def fast_trading_command(
@@ -566,6 +627,57 @@ def dispatch_command(
                 safe(
                     result
                 ),
+        }
+
+
+    if paper_monitor_request(
+        original_text
+    ):
+        symbol, timeframe = paper_monitor_symbol_timeframe(
+            original_text
+        )
+
+        if not symbol:
+            return {
+                "route": "PAPER_MONITOR",
+                "response": (
+                    "I recognized the paper-monitor request, but I could not resolve "
+                    "the instrument. I will not silently substitute NIFTY."
+                ),
+                "raw": {
+                    "success": False,
+                    "paper_only": True,
+                    "live_execution": False,
+                },
+            }
+
+        from omni.paper_trade_monitor import (
+            paper_trade_monitor,
+        )
+
+        result = paper_trade_monitor.start(
+            symbol,
+            timeframe or "15m",
+            request=original_text,
+        )
+
+        response = (
+            f"Paper monitor started for {symbol} on {timeframe or '15m'}. "
+            f"I will keep analyzing it in the background and only record a PAPER "
+            f"trade when the existing signal and risk engines approve a setup. "
+            f"Live broker execution remains locked. Session: {result['session_id']}."
+        )
+
+        conversation_turns.remember(
+            original_text,
+            response,
+            "PAPER_MONITOR",
+        )
+
+        return {
+            "route": "PAPER_MONITOR",
+            "response": response,
+            "raw": safe(result),
         }
 
 
