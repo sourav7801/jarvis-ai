@@ -1,0 +1,16 @@
+# Canonical OMNI-JARVIS runtime dependencies.
+# Generate a fully pinned lock file after rebuilding the local environment.
+chromadb
+comtypes
+fyers-apiv3
+numpy
+openpyxl
+pandas
+plotly
+psutil
+pycaw
+pyttsx3
+requests
+sentence-transformers
+SpeechRecognition
+ta

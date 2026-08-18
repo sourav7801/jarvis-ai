@@ -1,0 +1,133 @@
+JARVIS DATA AGENT INTEGRATION
+================================
+
+1. Put data_agent.py here:
+
+    C:\Jarvis\agents\data_agent.py
+
+2. Make sure these packages are installed:
+
+    pip install pandas openpyxl plotly
+
+   Optional for Parquet:
+
+    pip install pyarrow
+
+3. Add this import near your other agent imports in main.py:
+
+    try:
+        from agents.data_agent import (
+            analyze as analyze_dataset,
+            extract_folder_from_request,
+            is_data_request,
+        )
+    except Exception as e:
+        analyze_dataset = None
+        extract_folder_from_request = None
+        is_data_request = None
+        print(f"JARVIS DATA AGENT DEBUG > {e}")
+
+
+4. In process_command(), AFTER the main-menu/exit checks and AFTER
+   detect_department(text), add this block BEFORE deterministic_route():
+
+    # ========================================================
+    # DATA ANALYSIS DEPARTMENT
+    # ========================================================
+
+    data_requested = (
+        is_data_request(text)
+        if is_data_request
+        else False
+    )
+
+    if department in {"data", "analytics", "analysis"}:
+        data_requested = True
+
+    if data_requested:
+
+        if analyze_dataset is None:
+
+            return {
+                "exit": False,
+                "menu": False,
+                "message": (
+                    "The data analysis agent is unavailable."
+                ),
+            }
+
+        folder = (
+            extract_folder_from_request(text)
+            if extract_folder_from_request
+            else None
+        )
+
+        # If the user gives a path, analyze it immediately.
+        if folder:
+
+            print(
+                "\nJARVIS DATA AGENT > "
+                "Processing dataset"
+            )
+
+            result = analyze_dataset(
+                folder,
+                text,
+            )
+
+            return {
+                "exit": False,
+                "menu": False,
+                "message": result.get(
+                    "message",
+                    str(result),
+                ),
+            }
+
+        # No path: do not guess.
+        return {
+            "exit": False,
+            "menu": False,
+            "message": (
+                "Please give me the dataset folder path. "
+                "For example: "
+                "Analyze C:\\Data\\Sales and create an "
+                "Excel dashboard and interactive HTML dashboard."
+            ),
+        }
+
+
+5. IMPORTANT:
+   Do NOT put the data request into the generic AI tool router first.
+   The data agent calculates the numbers locally and creates the artifacts.
+
+6. Test syntax:
+
+    python -m py_compile .\agents\data_agent.py
+    python -m py_compile .\main.py
+
+7. Test the agent directly:
+
+    python -c "from agents.data_agent import analyze; print(analyze(r'C:\Data\Sales', 'analyze sales and create an Excel dashboard'))"
+
+8. Then start Jarvis:
+
+    python -u .\main.py
+
+Example command:
+
+    Analyze C:\Data\Sales and create:
+    - revenue
+    - profit
+    - monthly trends
+    - regional performance
+    - top 10 products
+    - Excel dashboard
+    - interactive HTML dashboard
+
+The generated files will be under:
+
+    C:\Jarvis\workspace\data_reports\<dataset-name>\
+
+This version is local-first. It does not send the dataset to Ollama or
+an external AI service. Actual KPI calculations come from pandas.

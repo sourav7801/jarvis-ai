@@ -1,0 +1,451 @@
+{
+  "checkpoint": 672,
+  "protected_core": true,
+  "public_apis": [
+    {
+      "name": "AgentIsolation",
+      "signature": "(*values)"
+    },
+    {
+      "name": "AgentRegistry",
+      "signature": "(specs=(), isolated_runner=None)"
+    },
+    {
+      "name": "AgentRequest",
+      "signature": "(agent: 'str', text: 'str', required_capabilities: 'frozenset[str]' = <factory>, correlation_id: 'str' = <factory>) -> None"
+    },
+    {
+      "name": "IsolatedAgentRunner",
+      "signature": "(python_executable: 'str | None' = None, limits: 'WorkerLimits | None' = None, signing_key: 'str | None' = None)"
+    },
+    {
+      "name": "MissionControl",
+      "signature": "(registry: 'AgentRegistry', state_path: 'Path | str | None' = None, workspaces_root: 'Path | str | None' = None, max_workers: 'int | None' = None) -> 'None'"
+    },
+    {
+      "name": "authorize_tool",
+      "signature": "(tool_name: 'str', risk: 'str', required_capabilities=frozenset(), approved_capabilities=frozenset()) -> 'SafetyDecision'"
+    },
+    {
+      "name": "build_tool_description",
+      "signature": "()"
+    },
+    {
+      "name": "cancel_speech",
+      "signature": "()"
+    },
+    {
+      "name": "clean_tool_arguments",
+      "signature": "(tool_name, arguments)"
+    },
+    {
+      "name": "data_agent_has_pending_selection",
+      "signature": "()"
+    },
+    {
+      "name": "default_agent_specs",
+      "signature": "()"
+    },
+    {
+      "name": "execute_memory",
+      "signature": "(decision)"
+    },
+    {
+      "name": "execute_tasks",
+      "signature": "(decision)"
+    },
+    {
+      "name": "execute_tool",
+      "signature": "(decision, show_header=True)"
+    },
+    {
+      "name": "get_tool",
+      "signature": "(name: 'str') -> 'Optional[ToolDefinition]'"
+    },
+    {
+      "name": "is_mission_request",
+      "signature": "(text: 'str', context: 'str' = 'master') -> 'bool'"
+    },
+    {
+      "name": "is_operator_request",
+      "signature": "(text: 'str') -> 'bool'"
+    },
+    {
+      "name": "jarvis_action_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_action_v3_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_browser_click",
+      "signature": "(url, selector, approval_id=None)"
+    },
+    {
+      "name": "jarvis_browser_fill",
+      "signature": "(url, selector, value, approval_id=None, sensitive=False)"
+    },
+    {
+      "name": "jarvis_browser_inspect",
+      "signature": "(url, approval_id=None)"
+    },
+    {
+      "name": "jarvis_browser_observation_probe",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_browser_open",
+      "signature": "(url, approved=False)"
+    },
+    {
+      "name": "jarvis_connected_approvals",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_connected_intent",
+      "signature": "(request)"
+    },
+    {
+      "name": "jarvis_connected_services_v2_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_connected_services_v3_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_discover_tools",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_fyers_bridge_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_git_status",
+      "signature": "(repo)"
+    },
+    {
+      "name": "jarvis_github_status",
+      "signature": "(verify=False)"
+    },
+    {
+      "name": "jarvis_google_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_growth_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_integration_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_memory_command_answer",
+      "signature": "(request, project_id=None, conversation_id=None)"
+    },
+    {
+      "name": "jarvis_mission_command_answer",
+      "signature": "(request, project_id=None)"
+    },
+    {
+      "name": "jarvis_nautilus_c2_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_nautilus_c3_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_nautilus_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_operator_compile",
+      "signature": "(goal, hints=None)"
+    },
+    {
+      "name": "jarvis_operator_execute",
+      "signature": "(plan, approval_batch_id=None)"
+    },
+    {
+      "name": "jarvis_operator_memory",
+      "signature": "(limit=20)"
+    },
+    {
+      "name": "jarvis_operator_prepare",
+      "signature": "(goal, hints=None)"
+    },
+    {
+      "name": "jarvis_operator_run",
+      "signature": "(goal, hints=None, approval_batch_id=None)"
+    },
+    {
+      "name": "jarvis_operator_v2_execute",
+      "signature": "(plan, approval_batch_id=None, project_id=None)"
+    },
+    {
+      "name": "jarvis_operator_v2_prepare",
+      "signature": "(goal, proposal_text)"
+    },
+    {
+      "name": "jarvis_operator_v2_prompt",
+      "signature": "(goal, observations=None)"
+    },
+    {
+      "name": "jarvis_operator_v2_validate",
+      "signature": "(goal, proposal_text)"
+    },
+    {
+      "name": "jarvis_operator_v2_validate_replan",
+      "signature": "(goal, proposal_text)"
+    },
+    {
+      "name": "jarvis_operator_v3_plan",
+      "signature": "(goal, observations=None)"
+    },
+    {
+      "name": "jarvis_operator_v3_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_option_chain_provider_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_persistent_browser_click",
+      "signature": "(url, selector, profile='default', approval_id=None, headless=True)"
+    },
+    {
+      "name": "jarvis_persistent_browser_fill",
+      "signature": "(url, selector, value, profile='default', approval_id=None, headless=True, sensitive=False)"
+    },
+    {
+      "name": "jarvis_persistent_browser_inspect",
+      "signature": "(url, profile='default', approval_id=None, headless=True)"
+    },
+    {
+      "name": "jarvis_plan_mission",
+      "signature": "(goal)"
+    },
+    {
+      "name": "jarvis_run_mission",
+      "signature": "(goal, project_id=None, approved=False)"
+    },
+    {
+      "name": "jarvis_self_improvement_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_shadow_status",
+      "signature": "(session_id=None)"
+    },
+    {
+      "name": "jarvis_tool_capability_graph",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_trading_features",
+      "signature": "(bars)"
+    },
+    {
+      "name": "jarvis_trading_find_instruments",
+      "signature": "(query='', exchange=None, asset_class=None, instrument_type=None, underlying=None)"
+    },
+    {
+      "name": "jarvis_trading_guard",
+      "signature": "(capability)"
+    },
+    {
+      "name": "jarvis_trading_metrics",
+      "signature": "(trades)"
+    },
+    {
+      "name": "jarvis_trading_option_features",
+      "signature": "(**kwargs)"
+    },
+    {
+      "name": "jarvis_trading_regime",
+      "signature": "(bars, **kwargs)"
+    },
+    {
+      "name": "jarvis_trading_register_instrument",
+      "signature": "(instrument)"
+    },
+    {
+      "name": "jarvis_trading_signal",
+      "signature": "(strategy_id, current, previous=None)"
+    },
+    {
+      "name": "jarvis_trading_strategy_catalog",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_trading_v1_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_trading_v2_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_trading_v3_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_trading_v4_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_trading_v5_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_trading_v6_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_trading_v7_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_trading_v8_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_trading_validate_candidate",
+      "signature": "(candidate, bars, base_config, regime_datasets=None, monte_carlo_iterations=500, random_seed=1)"
+    },
+    {
+      "name": "jarvis_v3_browser_click",
+      "signature": "(session_id, target_handle, approval_id=None)"
+    },
+    {
+      "name": "jarvis_v3_browser_fill",
+      "signature": "(session_id, target_handle, value, approval_id=None, sensitive=False)"
+    },
+    {
+      "name": "jarvis_v3_browser_observe",
+      "signature": "(session_id)"
+    },
+    {
+      "name": "jarvis_v3_close_browser",
+      "signature": "(session_id)"
+    },
+    {
+      "name": "jarvis_v3_resolve_browser_target",
+      "signature": "(session_id, phrase)"
+    },
+    {
+      "name": "jarvis_v3_start_browser",
+      "signature": "(url, profile='operator-v3', approval_id=None, headless=True)"
+    },
+    {
+      "name": "jarvis_v4_create_mission",
+      "signature": "(goal, plan_data)"
+    },
+    {
+      "name": "jarvis_v4_get_mission",
+      "signature": "(mission_id)"
+    },
+    {
+      "name": "jarvis_v4_resume_mission",
+      "signature": "(mission_id)"
+    },
+    {
+      "name": "jarvis_v4_start_mission",
+      "signature": "(mission_id)"
+    },
+    {
+      "name": "jarvis_vision_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_voice_status",
+      "signature": "()"
+    },
+    {
+      "name": "list_tools",
+      "signature": "() -> 'Dict[str, ToolDefinition]'"
+    },
+    {
+      "name": "route_agent",
+      "signature": "(department, text)"
+    },
+    {
+      "name": "run_data_agent",
+      "signature": "(text)"
+    },
+    {
+      "name": "shorten_for_speech",
+      "signature": "(message)"
+    },
+    {
+      "name": "show_memory",
+      "signature": "()"
+    },
+    {
+      "name": "tool_exists",
+      "signature": "(name)"
+    },
+    {
+      "name": "validate_tool_call",
+      "signature": "(tool_name, arguments)"
+    },
+    {
+      "name": "verify_tool_postcondition",
+      "signature": "(tool_name: 'str', arguments: 'dict', result) -> 'dict'"
+    },
+    {
+      "name": "voice_mode",
+      "signature": "()"
+    }
+  ],
+  "dashboard": {
+    "path": "C:\\Jarvis\\workstation\\app.py",
+    "exists": true,
+    "frameworks": []
+  },
+  "relevant_source_files": [
+    "agents\\chat_agent.py",
+    "agents\\trading_core\\voice_event_bridge.py",
+    "agents\\universal_operator_agent.py",
+    "omni\\collaboration_runtime.py",
+    "omni\\computer_operator.py",
+    "omni\\computer_operator_v2.py",
+    "omni\\computer_operator_v3_status.py",
+    "omni\\meta_agent_runtime.py",
+    "omni\\operator_brain_dsl.py",
+    "omni\\operator_dashboard.py",
+    "omni\\operator_dsl.py",
+    "omni\\operator_memory.py",
+    "omni\\operator_resume.py",
+    "omni\\operator_runtime.py",
+    "omni\\operator_runtime_schema.py",
+    "omni\\operator_schema.py",
+    "omni\\runtime.py",
+    "omni\\trading_intelligence\\shadow_runtime.py",
+    "omni\\vision_runtime.py",
+    "omni\\voice_adapter.py",
+    "workstation\\market_runtime.py",
+    "workstation\\paper_runtime.py"
+  ],
+  "voice_packages": {
+    "speech_recognition": true,
+    "pyttsx3": true,
+    "pyaudio": true,
+    "sounddevice": false,
+    "soundfile": false,
+    "whisper": false,
+    "faster_whisper": false,
+    "vosk": false,
+    "webrtcvad": false,
+    "edge_tts": false
+  },
+  "windows_system_speech": true,
+  "startup_candidates": [],
+  "main_entrypoint": true,
+  "production_modified": false
+}

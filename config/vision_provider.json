@@ -1,0 +1,5 @@
+{
+  "provider": "ollama",
+  "model": "qwen3-vl:4b",
+  "enabled": true
+}

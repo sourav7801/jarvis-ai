@@ -1,0 +1,367 @@
+{
+  "checkpoint": 655,
+  "protected_core": true,
+  "real_fyers_snapshot_persisted": true,
+  "symbol": "NSE:NIFTY50-INDEX",
+  "snapshot_id": "chain-b81acba1947b404ba5ece72bb9d2455c",
+  "captured_at": "2026-08-18T02:49:00.181586+00:00",
+  "option_leg_count": 22,
+  "real_history_rows": 1,
+  "analytics": {
+    "snapshot_count": 1,
+    "atm_iv": 10.93,
+    "iv_rank": null,
+    "iv_percentile": 100.0,
+    "pcr_oi": 0.9158710865384164,
+    "delta_call_oi": null,
+    "delta_put_oi": null
+  },
+  "main_apis": [
+    {
+      "name": "jarvis_compare_champion_challenger",
+      "signature": "(champion, challenger, minimum_margin=2.0)"
+    },
+    {
+      "name": "jarvis_cost_stress",
+      "signature": "(bars, strategy, config)"
+    },
+    {
+      "name": "jarvis_derivatives_campaign",
+      "signature": "(candidates)"
+    },
+    {
+      "name": "jarvis_derivatives_confirmation",
+      "signature": "(chain_analysis, **kwargs)"
+    },
+    {
+      "name": "jarvis_derivatives_ensemble",
+      "signature": "(signals, weights=None, threshold=0.25)"
+    },
+    {
+      "name": "jarvis_derivatives_history",
+      "signature": "(symbol, limit=100)"
+    },
+    {
+      "name": "jarvis_derivatives_history_analytics",
+      "signature": "(symbol, lookback=252)"
+    },
+    {
+      "name": "jarvis_derivatives_leg_history",
+      "signature": "(symbol, strike, option_type, expiry=None, limit=500)"
+    },
+    {
+      "name": "jarvis_derivatives_regime",
+      "signature": "(features)"
+    },
+    {
+      "name": "jarvis_derivatives_signal",
+      "signature": "(strategy_id, features, previous=None)"
+    },
+    {
+      "name": "jarvis_derivatives_strategy_catalog",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_evolve_strategy",
+      "signature": "(strategy_id, regime_datasets, base_config, candidate_count=8, random_seed=1)"
+    },
+    {
+      "name": "jarvis_monte_carlo_trades",
+      "signature": "(trades, initial_capital, iterations=1000, random_seed=1, bootstrap=True)"
+    },
+    {
+      "name": "jarvis_nautilus_backtest",
+      "signature": "(bars, signals, initial_capital=100000.0, quantity=1000, timeout=120)"
+    },
+    {
+      "name": "jarvis_nautilus_c2_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_nautilus_c3_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_nautilus_c3_v5_gate",
+      "signature": "(v5_report, c3_campaign)"
+    },
+    {
+      "name": "jarvis_nautilus_execution_stress",
+      "signature": "(portfolio, profiles=None, timeout=180)"
+    },
+    {
+      "name": "jarvis_nautilus_portfolio_backtest",
+      "signature": "(portfolio, timeout=180)"
+    },
+    {
+      "name": "jarvis_nautilus_portfolio_research",
+      "signature": "(results)"
+    },
+    {
+      "name": "jarvis_nautilus_portfolio_walk_forward",
+      "signature": "(portfolio, train_size, validation_size, test_size, step=None, timeout=180)"
+    },
+    {
+      "name": "jarvis_nautilus_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_nautilus_universal_backtest",
+      "signature": "(bars, signals, instrument, execution=None, initial_capital=100000.0, quantity=1, leverage=1, timeout=120)"
+    },
+    {
+      "name": "jarvis_nautilus_v5_gate",
+      "signature": "(v5_report, nautilus_result)"
+    },
+    {
+      "name": "jarvis_operator_v2_validate",
+      "signature": "(goal, proposal_text)"
+    },
+    {
+      "name": "jarvis_operator_v2_validate_replan",
+      "signature": "(goal, proposal_text)"
+    },
+    {
+      "name": "jarvis_parameter_sensitivity",
+      "signature": "(bars, strategy, config, fields=('stop_loss_pct', 'target_pct', 'max_bars_in_trade'))"
+    },
+    {
+      "name": "jarvis_save_evolution_artifact",
+      "signature": "(artifact)"
+    },
+    {
+      "name": "jarvis_save_validation_report",
+      "signature": "(report)"
+    },
+    {
+      "name": "jarvis_shadow_champion_compare",
+      "signature": "(champion_metrics, challenger_metrics, margin=2.0)"
+    },
+    {
+      "name": "jarvis_strategy_crossover",
+      "signature": "(left_strategy_id, right_strategy_id, generation=1)"
+    },
+    {
+      "name": "jarvis_strategy_mutate",
+      "signature": "(strategy_id, count=5, random_seed=1, generation=1)"
+    },
+    {
+      "name": "jarvis_strategy_retirement_proposal",
+      "signature": "(evaluation, retire_below=-20.0, degrade_below=0.0)"
+    },
+    {
+      "name": "jarvis_sync_derivatives",
+      "signature": "(underlying_bars, futures_bars, chain_snapshots, max_chain_age_seconds=300)"
+    },
+    {
+      "name": "jarvis_trading_v4_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_trading_v5_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_trading_validate_candidate",
+      "signature": "(candidate, bars, base_config, regime_datasets=None, monte_carlo_iterations=500, random_seed=1)"
+    },
+    {
+      "name": "jarvis_walk_forward",
+      "signature": "(bars, strategy, config, train_size, validation_size, test_size, step=None)"
+    },
+    {
+      "name": "validate_tool_call",
+      "signature": "(tool_name, arguments)"
+    }
+  ],
+  "integration_candidates": {
+    "jarvis_evolve_strategy": "(strategy_id, regime_datasets, base_config, candidate_count=8, random_seed=1)",
+    "jarvis_walk_forward": "(bars, strategy, config, train_size, validation_size, test_size, step=None)",
+    "jarvis_parameter_sensitivity": "(bars, strategy, config, fields=('stop_loss_pct', 'target_pct', 'max_bars_in_trade'))",
+    "jarvis_cost_stress": "(bars, strategy, config)",
+    "jarvis_nautilus_portfolio_backtest": "(portfolio, timeout=180)",
+    "jarvis_nautilus_execution_stress": "(portfolio, profiles=None, timeout=180)",
+    "jarvis_nautilus_portfolio_walk_forward": "(portfolio, train_size, validation_size, test_size, step=None, timeout=180)",
+    "jarvis_nautilus_c3_v5_gate": "(v5_report, c3_campaign)",
+    "jarvis_derivatives_history": "(symbol, limit=100)",
+    "jarvis_derivatives_history_analytics": "(symbol, lookback=252)",
+    "jarvis_sync_derivatives": "(underlying_bars, futures_bars, chain_snapshots, max_chain_age_seconds=300)",
+    "jarvis_derivatives_regime": "(features)",
+    "jarvis_derivatives_ensemble": "(signals, weights=None, threshold=0.25)",
+    "jarvis_derivatives_campaign": "(candidates)"
+  },
+  "status_keys": {
+    "v4": [
+      "automatic_broker_order",
+      "automatic_registry_mutation",
+      "automatic_strategy_promotion",
+      "automatic_strategy_retirement",
+      "candidate_limit",
+      "champion_challenger",
+      "drawdown_penalty",
+      "evolution_artifact_store",
+      "expectancy_component",
+      "historical_compatibility_gate",
+      "live_execution",
+      "multi_regime_fitness",
+      "numeric_rule_mutation",
+      "parameter_mutation",
+      "production_self_modification",
+      "profit_factor_component",
+      "protected_core",
+      "regime_aware_evaluation",
+      "regime_stability_penalty",
+      "research_only",
+      "retirement_proposals",
+      "return_component",
+      "strategy_crossover",
+      "strategy_genomes",
+      "trade_count_penalty",
+      "worst_regime_component"
+    ],
+    "v5": [
+      "automatic_broker_order",
+      "automatic_parameter_selection",
+      "automatic_registry_mutation",
+      "automatic_strategy_promotion",
+      "automatic_strategy_retirement",
+      "chronological_train_validation_oos",
+      "cost_stress",
+      "cost_survival_gate",
+      "data_sufficiency_gate",
+      "hardcoded_current_fees",
+      "live_execution",
+      "monte_carlo_bootstrap",
+      "monte_carlo_max_iterations",
+      "monte_carlo_tail_risk",
+      "oos_tuning",
+      "overfitting_risk_score",
+      "parameter_instability_penalty",
+      "parameter_sensitivity",
+      "production_self_modification",
+      "promotion_is_research_recommendation_only",
+      "protected_core",
+      "recommendations",
+      "regime_robustness",
+      "research_only",
+      "rolling_oos_windows",
+      "slippage_stress",
+      "spread_stress",
+      "train_validation_gap",
+      "validation_oos_gap",
+      "walk_forward_penalty",
+      "walk_forward_validation"
+    ],
+    "v6": [
+      "automatic_broker_order",
+      "automatic_live_position_management",
+      "automatic_registry_mutation",
+      "automatic_strategy_promotion",
+      "background_market_polling",
+      "canonical_fyers_history",
+      "canonical_fyers_quote",
+      "evidence_ledger",
+      "explicit_resume",
+      "future_timestamp_guard",
+      "kill_switch",
+      "live_execution",
+      "live_market_read_bridge",
+      "market_freshness_guard",
+      "native_fyers_option_chain",
+      "paper_only",
+      "paper_performance_summary",
+      "performance_drift",
+      "production_self_modification",
+      "protected_core",
+      "research_only",
+      "research_strategy_weighting",
+      "research_weights_drive_broker_capital",
+      "same_tick_reversal",
+      "shadow_champion_challenger",
+      "stale_data_execution",
+      "virtual_fills",
+      "virtual_long",
+      "virtual_short"
+    ],
+    "v7": [
+      "api_call_during_install",
+      "automatic_broker_order",
+      "automatic_capital_allocation",
+      "automatic_registry_mutation",
+      "automatic_strategy_promotion",
+      "background_option_chain_polling",
+      "backward_asof_only",
+      "bounded_research_campaign",
+      "campaign_candidate_limit",
+      "derivatives_regime_engine",
+      "expiry_term_structure",
+      "future_data_leakage",
+      "fyers_market_depth_method",
+      "fyers_option_chain_method",
+      "fyers_sdk_isolated",
+      "fyers_sdk_version",
+      "historical_atm_iv",
+      "historical_chain_store",
+      "historical_delta_oi",
+      "historical_iv_percentile",
+      "historical_iv_rank",
+      "historical_oi",
+      "historical_option_legs",
+      "historical_pcr",
+      "historical_skew",
+      "legacy_v6_fyers_bridge_preserved",
+      "live_execution",
+      "nautilus_c3_preserved",
+      "paper_only",
+      "production_self_modification",
+      "protected_core",
+      "raw_chain_persistence",
+      "real_market_depth_read",
+      "real_option_chain_read",
+      "research_only",
+      "single_leg_naked_option_short",
+      "strategy_ensemble_research",
+      "underlying_futures_options_sync",
+      "v5_authoritative"
+    ],
+    "nautilus_c3": [
+      "automatic_broker_order",
+      "automatic_execution_profile_selection",
+      "automatic_portfolio_allocation",
+      "automatic_portfolio_rebalance",
+      "automatic_registry_mutation",
+      "automatic_strategy_promotion",
+      "available",
+      "broker_adapter",
+      "candidate_reoptimized_on_oos",
+      "chronological_oos",
+      "concentration_analytics",
+      "concentration_uses_input_notional_proxy",
+      "cross_instrument_correlation",
+      "drawdown_attribution",
+      "drawdown_attribution_is_signal_proxy",
+      "engine",
+      "engine_account_report",
+      "engine_fill_report",
+      "engine_position_report",
+      "execution_profile_stress_matrix",
+      "live_execution",
+      "multi_instrument",
+      "multiple_strategy_instances",
+      "nautilus_walk_forward_campaign",
+      "oos_tuning",
+      "production_self_modification",
+      "protected_core",
+      "research_only",
+      "single_base_currency_per_portfolio",
+      "single_event_driven_engine",
+      "single_leg_option_short",
+      "trading_node",
+      "unified_venue_account",
+      "v5_campaign_gate"
+    ]
+  },
+  "live_execution": false,
+  "broker_order": false,
+  "production_source_modified": false
+}

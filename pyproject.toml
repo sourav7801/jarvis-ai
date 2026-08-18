@@ -1,0 +1,60 @@
+[project]
+name = "omni-jarvis"
+version = "0.1.0"
+description = "Local-first orchestrated assistant and paper-trading research platform"
+requires-python = ">=3.11,<3.13"
+dependencies = []
+
+[project.optional-dependencies]
+full = [
+    "chromadb",
+    "comtypes",
+    "fyers-apiv3",
+    "numpy",
+    "openpyxl",
+    "pandas",
+    "plotly",
+    "psutil",
+    "pycaw",
+    "pyttsx3",
+    "requests",
+    "sentence-transformers",
+    "SpeechRecognition",
+    "ta",
+]
+
+[project.scripts]
+omni-jarvis = "main:main"
+omni-workstation = "workstation.app:main"
+omni-doctor = "scripts.doctor:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["main", "config", "voice", "knowledge", "rag", "ingest"]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["omni*", "agents*", "tools*", "trading*", "workstation*", "scripts*"]
+exclude = ["tests*", "jarvis_trading_agent_v1*"]
+
+[tool.setuptools.package-data]
+"workstation.jarvis_trading_workstation_v7" = ["static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+exclude = [
+    ".venv",
+    "**/__pycache__",
+    "jarvis_trading_agent_v1",
+    "agents/jarvis_trading_core_v1",
+    "agents/trading_core/jarvis_trading_core_v2",
+]

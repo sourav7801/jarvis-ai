@@ -1,0 +1,271 @@
+==============================================================================================
+                    JARVIS UPSTOX CAPABILITY AUDIT
+==============================================================================================
+
+CURRENT BASELINE
+----------------------------------------------------------------------------------------------
+Operational agents: 22
+Canonical runtime provider: FYERS
+Regression baseline: 201/201 tests passing
+
+UPSTOX MODULE STATUS
+----------------------------------------------------------------------------------------------
+
+agents.upstox_auth_manager
+  capability      : OAuth authentication
+  exists          : True
+  production path : False
+  reference hits  : 7
+  tests           : 0
+  classes         : OAuthCallbackHandler
+  public funcs    : validate_config, save_token, load_token, build_login_url, exchange_code, login, get_access_token
+  environment     : JARVIS_UPSTOX_TOKEN_FILE, UPSTOX_CLIENT_ID, UPSTOX_CLIENT_SECRET, UPSTOX_REDIRECT_URI
+
+agents.upstox_historical_loader
+  capability      : Historical candles
+  exists          : True
+  production path : False
+  reference hits  : 17
+  tests           : 0
+  public funcs    : load_access_token, build_session, parse_date, fmt, search_sensex, resolve_instrument, fetch_chunk, candles_to_dataframe, get_historical, get_symbol_5m, get_symbol_15m, main
+  environment     : JARVIS_UPSTOX_TOKEN_FILE, UPSTOX_ACCESS_TOKEN, UPSTOX_HISTORICAL_V3_CHUNKED
+
+agents.upstox_live_stream
+  capability      : Live websocket market data
+  exists          : True
+  production path : False
+  reference hits  : 124
+  tests           : 0
+  classes         : LiveCandle, LiveStore, UpstoxLiveStream
+  public funcs    : load_saved_access_token
+  environment     : JARVIS_UPSTOX_DEBUG_PAYLOADS, JARVIS_UPSTOX_STREAM_MODE, JARVIS_UPSTOX_TOKEN_FILE
+
+agents.broker_intraday_adapter
+  capability      : Multi-broker intraday fallback
+  exists          : True
+  production path : False
+  reference hits  : 13
+  tests           : 0
+  public funcs    : now, normalize_dataframe, fetch_zerodha, fetch_upstox, get_intraday_data
+  environment     : UPSTOX_ACCESS_TOKEN
+
+agents.live_intraday_router
+  capability      : Live/historical provider routing
+  exists          : True
+  production path : False
+  reference hits  : 13
+  tests           : 0
+  classes         : LiveIntradayRouter
+  environment     : UPSTOX_HISTORY, UPSTOX_WEBSOCKET
+
+agents.trading_core.option_confirmation
+  capability      : Option-chain OI/volume/Greeks
+  exists          : True
+  production path : False
+  reference hits  : 38
+  tests           : 0
+  classes         : OptionConfirmation
+
+agents.trading_core.option_confirmation_v2
+  capability      : Option contracts + chain + Greeks
+  exists          : True
+  production path : False
+  reference hits  : 16
+  tests           : 0
+  classes         : OptionConfirmationV2
+
+==============================================================================================
+FYERS CAPABILITY SURFACE
+==============================================================================================
+
+AUTH
+  classes  : FyersSettings
+  functions: save_token, load_token, generate_login_url, extract_auth_code, exchange_auth_code, create_client, websocket_access_token, is_configured, interactive_login_settings, notify_running_workstation, login, main
+
+HISTORICAL
+  classes  : none
+  functions: normalize_symbol, resolution_for, candles_to_frame, get_intraday_data, get_quote, main
+
+LIVE
+  classes  : FyersLiveStream
+  functions: main
+
+UNIFIED_PAPER
+  classes  : UnifiedPaperMarketData
+  functions: none
+
+==============================================================================================
+ACTIVE DYNAMIC PROVIDER IMPORTS
+==============================================================================================
+
+agents.trading_core.data_bus
+  -> agents.fyers_live_stream
+  -> agents.upstox_historical_loader
+  -> agents.upstox_live_stream
+
+agents.trading_core.live_bus
+  -> agents.fyers_live_stream
+  -> agents.upstox_live_stream
+
+==============================================================================================
+UPSTOX CALL SITES
+==============================================================================================
+
+agents.upstox_auth_manager
+  jarvis_dependency_duplication_audit.json:2563 "agents.upstox_auth_manager": {
+  jarvis_dependency_duplication_audit.json:2569 "path": "agents\\upstox_auth_manager.py",
+  jarvis_provider_architecture_audit.json:1268 "file": "agents\\upstox_auth_manager.py",
+  jarvis_provider_architecture_audit.json:1466 "text": "\"python -m agents.upstox_auth_manager\""
+  jarvis_provider_architecture_audit.json:1547 "text": "raise RuntimeError(\"No access token. Run agents.upstox_auth_manager first.\")"
+  jarvis_provider_architecture_audit.json:3283 "text": "raise RuntimeError(\"No access token. Run agents.upstox_auth_manager first.\")"
+  agents\upstox_live_stream.py:1346 "python -m agents.upstox_auth_manager"
+
+agents.upstox_historical_loader
+  jarvis_dependency_duplication_audit.json:1442 "agents.upstox_historical_loader"
+  jarvis_dependency_duplication_audit.json:2584 "agents.upstox_historical_loader": {
+  jarvis_dependency_duplication_audit.json:2592 "path": "agents\\upstox_historical_loader.py",
+  jarvis_provider_architecture_audit.json:79 "text": "loader = importlib.import_module(\"agents.upstox_historical_loader\")"
+  jarvis_provider_architecture_audit.json:134 "text": "loader = importlib.import_module(\"agents.upstox_historical_loader\")"
+  jarvis_provider_architecture_audit.json:154 "text": "loader = importlib.import_module(\"agents.upstox_historical_loader\")"
+  jarvis_provider_architecture_audit.json:1096 "text": "#   agents.upstox_historical_loader"
+  jarvis_provider_architecture_audit.json:1100 "text": "from agents.upstox_historical_loader import ("
+  jarvis_provider_architecture_audit.json:1112 "text": "#   agents.upstox_historical_loader"
+  jarvis_provider_architecture_audit.json:1361 "file": "agents\\upstox_historical_loader.py",
+  jarvis_provider_architecture_audit.json:3341 "text": "loader = importlib.import_module(\"agents.upstox_historical_loader\")"
+  jarvis_provider_architecture_audit.json:3591 "text": "loader = importlib.import_module(\"agents.upstox_historical_loader\")"
+  jarvis_provider_architecture_audit.json:3628 "text": "loader = importlib.import_module(\"agents.upstox_historical_loader\")"
+  agents\scalping_research_engine.py:10 #   agents.upstox_historical_loader
+  agents\scalping_research_engine.py:272 from agents.upstox_historical_loader import (
+  agents\scalping_research_engine.py:3876 #   agents.upstox_historical_loader
+  agents\trading_core\data_bus.py:38 loader = importlib.import_module("agents.upstox_historical_loader")
+
+agents.upstox_live_stream
+  jarvis_cleanup_safety_audit.json:8 "agents.trading_core.upstox_live_stream_v4"
+  jarvis_cleanup_safety_audit.json:28 "agents.upstox_live_stream"
+  jarvis_cleanup_safety_audit.json:790 "agents.upstox_live_stream": [
+  jarvis_cleanup_safety_audit.json:794 "text": "from agents.upstox_live_stream import ("
+  jarvis_cleanup_safety_audit.json:797 "file": "agents\\upstox_live_stream.py",
+  jarvis_cleanup_safety_audit.json:799 "text": "upstox_live_stream = UpstoxLiveStream()"
+  jarvis_cleanup_safety_audit.json:802 "file": "agents\\upstox_live_stream.py",
+  jarvis_cleanup_safety_audit.json:804 "text": "upstox_live_stream.start()"
+  jarvis_cleanup_safety_audit.json:807 "file": "agents\\upstox_live_stream.py",
+  jarvis_cleanup_safety_audit.json:809 "text": "upstox_live_stream"
+  jarvis_cleanup_safety_audit.json:812 "file": "agents\\upstox_live_stream.py",
+  jarvis_cleanup_safety_audit.json:814 "text": "upstox_live_stream.stop()"
+  jarvis_cleanup_safety_audit.json:817 "file": "agents\\upstox_live_stream_v4_backup.py",
+  jarvis_cleanup_safety_audit.json:819 "text": "upstox_live_stream = UpstoxLiveStreamV4()"
+  jarvis_cleanup_safety_audit.json:824 "text": "from agents.upstox_live_stream import upstox_live_stream"
+  jarvis_cleanup_safety_audit.json:829 "text": "result = upstox_live_stream.start()"
+  jarvis_cleanup_safety_audit.json:834 "text": "from agents.upstox_live_stream import upstox_live_stream"
+  jarvis_cleanup_safety_audit.json:839 "text": "store = upstox_live_stream.store"
+  jarvis_cleanup_safety_audit.json:844 "text": "snap = upstox_live_stream.snapshot(symbol)"
+  jarvis_cleanup_safety_audit.json:849 "text": "from agents.upstox_live_stream import upstox_live_stream"
+  jarvis_cleanup_safety_audit.json:854 "text": "upstox_live_stream.stop()"
+  jarvis_cleanup_safety_audit.json:859 "text": "from agents.upstox_live_stream import upstox_live_stream"
+  jarvis_cleanup_safety_audit.json:864 "text": "result = upstox_live_stream.start()"
+  jarvis_cleanup_safety_audit.json:869 "text": "from agents.upstox_live_stream import upstox_live_stream"
+  jarvis_cleanup_safety_audit.json:874 "text": "store = upstox_live_stream.store"
+  ... 99 more
+
+agents.broker_intraday_adapter
+  jarvis_dependency_duplication_audit.json:37 "agents.broker_intraday_adapter",
+  jarvis_dependency_duplication_audit.json:147 "agents.broker_intraday_adapter": {
+  jarvis_dependency_duplication_audit.json:159 "path": "agents\\broker_intraday_adapter.py",
+  jarvis_dependency_duplication_audit.json:487 "agents.broker_intraday_adapter",
+  jarvis_dependency_duplication_audit.json:749 "agents.broker_intraday_adapter",
+  jarvis_dependency_duplication_audit.json:2411 "agents.broker_intraday_adapter"
+  jarvis_dependency_duplication_audit.json:2631 "agents.broker_intraday_adapter"
+  jarvis_provider_architecture_audit.json:231 "file": "agents\\broker_intraday_adapter.py",
+  agents\intraday_data_router.py:382 #   agents/broker_intraday_adapter.py
+  agents\intraday_data_router.py:393 from agents.broker_intraday_adapter import (
+  agents\live_intraday_router.py:126 from agents.broker_intraday_adapter import (
+  agents\upstox_live_stream.py:703 from agents.broker_intraday_adapter import (
+  agents\trading_core\data_bus.py:20 ("agents.broker_intraday_adapter", "get_intraday_data")
+
+agents.live_intraday_router
+  jarvis_cleanup_safety_audit.json:792 "file": "agents\\live_intraday_router.py",
+  jarvis_dependency_duplication_audit.json:154 "agents.live_intraday_router",
+  jarvis_dependency_duplication_audit.json:735 "agents.live_intraday_router": {
+  jarvis_dependency_duplication_audit.json:743 "path": "agents\\live_intraday_router.py",
+  jarvis_dependency_duplication_audit.json:835 "agents.live_intraday_router",
+  jarvis_dependency_duplication_audit.json:1079 "agents.live_intraday_router",
+  jarvis_dependency_duplication_audit.json:2616 "agents.live_intraday_router",
+  jarvis_provider_architecture_audit.json:820 "file": "agents\\live_intraday_router.py",
+  agents\live_intraday_router.py:722 live_intraday_router = (
+  agents\live_intraday_router.py:756 live_intraday_router
+  agents\option_paper_monitor.py:160 from agents.live_intraday_router import (
+  agents\option_paper_monitor.py:161 live_intraday_router,
+  agents\option_paper_monitor.py:179 live_intraday_router,
+
+agents.trading_core.option_confirmation
+  jarvis_cleanup_safety_audit.json:20 "agents.trading_core.option_confirmation",
+  jarvis_cleanup_safety_audit.json:21 "agents.trading_core.option_confirmation_v2",
+  jarvis_cleanup_safety_audit.json:179 "agents.trading_core.option_confirmation": [
+  jarvis_cleanup_safety_audit.json:183 "text": "from .option_confirmation import OptionConfirmation"
+  jarvis_cleanup_safety_audit.json:188 "text": "from .option_confirmation import OptionConfirmation"
+  jarvis_cleanup_safety_audit.json:193 "text": "from .option_confirmation import OptionConfirmation"
+  jarvis_cleanup_safety_audit.json:198 "text": "from .option_confirmation_v2 import OptionConfirmationV2"
+  jarvis_cleanup_safety_audit.json:203 "text": "from .option_confirmation import OptionConfirmation"
+  jarvis_cleanup_safety_audit.json:208 "text": "from .option_confirmation_v2 import OptionConfirmationV2"
+  jarvis_cleanup_safety_audit.json:213 "text": "def option_confirmation("
+  jarvis_cleanup_safety_audit.json:218 "text": "opt_probe = self.option_confirmation(symbol)"
+  jarvis_cleanup_safety_audit.json:223 "text": "option = self.option_confirmation(symbol)"
+  jarvis_cleanup_safety_audit.json:226 "agents.trading_core.option_confirmation_v2": [
+  jarvis_cleanup_safety_audit.json:230 "text": "from .option_confirmation_v2 import OptionConfirmationV2"
+  jarvis_cleanup_safety_audit.json:235 "text": "from .option_confirmation_v2 import OptionConfirmationV2"
+  jarvis_dependency_duplication_audit.json:1713 "agents.trading_core.option_confirmation",
+  jarvis_dependency_duplication_audit.json:1731 "agents.trading_core.option_confirmation_v2",
+  jarvis_dependency_duplication_audit.json:1912 "agents.trading_core.option_confirmation",
+  jarvis_dependency_duplication_audit.json:2156 "agents.trading_core.option_confirmation": {
+  jarvis_dependency_duplication_audit.json:2158 "reason": "Overlaps module family 'option_confirmation'. Family members: agents.trading_core.option_confirmation, agents.trading_core.option_confirmation_v2",
+  jarvis_dependency_duplication_audit.json:2165 "path": "agents\\trading_core\\option_confirmation.py",
+  jarvis_dependency_duplication_audit.json:2172 "agents.trading_core.option_confirmation_v2": {
+  jarvis_dependency_duplication_audit.json:2174 "reason": "Overlaps module family 'option_confirmation'. Family members: agents.trading_core.option_confirmation, agents.trading_core.option_confirmation_v2",
+  jarvis_dependency_duplication_audit.json:2181 "path": "agents\\trading_core\\option_confirmation_v2.py",
+  jarvis_dependency_duplication_audit.json:2391 "agents.trading_core.option_confirmation_v2",
+  ... 13 more
+
+agents.trading_core.option_confirmation_v2
+  jarvis_cleanup_safety_audit.json:21 "agents.trading_core.option_confirmation_v2",
+  jarvis_cleanup_safety_audit.json:198 "text": "from .option_confirmation_v2 import OptionConfirmationV2"
+  jarvis_cleanup_safety_audit.json:208 "text": "from .option_confirmation_v2 import OptionConfirmationV2"
+  jarvis_cleanup_safety_audit.json:226 "agents.trading_core.option_confirmation_v2": [
+  jarvis_cleanup_safety_audit.json:230 "text": "from .option_confirmation_v2 import OptionConfirmationV2"
+  jarvis_cleanup_safety_audit.json:235 "text": "from .option_confirmation_v2 import OptionConfirmationV2"
+  jarvis_dependency_duplication_audit.json:1731 "agents.trading_core.option_confirmation_v2",
+  jarvis_dependency_duplication_audit.json:2158 "reason": "Overlaps module family 'option_confirmation'. Family members: agents.trading_core.option_confirmation, agents.trading_core.option_confirmation_v2",
+  jarvis_dependency_duplication_audit.json:2172 "agents.trading_core.option_confirmation_v2": {
+  jarvis_dependency_duplication_audit.json:2174 "reason": "Overlaps module family 'option_confirmation'. Family members: agents.trading_core.option_confirmation, agents.trading_core.option_confirmation_v2",
+  jarvis_dependency_duplication_audit.json:2181 "path": "agents\\trading_core\\option_confirmation_v2.py",
+  jarvis_dependency_duplication_audit.json:2391 "agents.trading_core.option_confirmation_v2",
+  jarvis_dependency_duplication_audit.json:2800 "agents.trading_core.option_confirmation_v2"
+  jarvis_provider_architecture_audit.json:3546 "file": "agents\\trading_core\\option_confirmation_v2.py",
+  agents\trading_core\cli_v2.py:7 from .option_confirmation_v2 import OptionConfirmationV2
+  agents\trading_core\trade_decision_engine_v1.py:7 from .option_confirmation_v2 import OptionConfirmationV2
+
+==============================================================================================
+DECISION SIGNALS
+==============================================================================================
+agents.upstox_auth_manager                           ARCHIVE CANDIDATE ? no runtime reachability/test coverage
+agents.upstox_historical_loader                      ARCHIVE CANDIDATE ? no runtime reachability/test coverage
+agents.upstox_live_stream                            ARCHIVE CANDIDATE ? no runtime reachability/test coverage
+agents.broker_intraday_adapter                       ARCHIVE CANDIDATE ? no runtime reachability/test coverage
+agents.live_intraday_router                          ARCHIVE CANDIDATE ? no runtime reachability/test coverage
+agents.trading_core.option_confirmation              ARCHIVE CANDIDATE ? no runtime reachability/test coverage
+agents.trading_core.option_confirmation_v2           ARCHIVE CANDIDATE ? no runtime reachability/test coverage
+
+==============================================================================================
+NEXT ARCHITECTURE TARGET
+==============================================================================================
+
+MarketDataGateway
+|
++-- FYERSProvider       [canonical Indian market data]
+|
++-- UpstoxProvider      [retain only if unique capability remains]
+|
++-- PublicCryptoProvider
+|
++-- normalized Quote / Candle / OptionChain contracts
+|
++-- Trading / Paper / Workstation consume gateway only

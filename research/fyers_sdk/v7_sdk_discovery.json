@@ -1,0 +1,105 @@
+{
+  "sdk_version": "3.1.16",
+  "interesting_methods": [
+    {
+      "name": "charges_history",
+      "signature": "(self, data) -> dict",
+      "parameters": [
+        "data"
+      ]
+    },
+    {
+      "name": "depth",
+      "signature": "(self, data=None)",
+      "parameters": [
+        "data"
+      ]
+    },
+    {
+      "name": "history",
+      "signature": "(self, data=None)",
+      "parameters": [
+        "data"
+      ]
+    },
+    {
+      "name": "ledger_history",
+      "signature": "(self, data) -> dict",
+      "parameters": [
+        "data"
+      ]
+    },
+    {
+      "name": "optionchain",
+      "signature": "(self, data=None)",
+      "parameters": [
+        "data"
+      ]
+    },
+    {
+      "name": "orderhistory",
+      "signature": "(self, data) -> dict",
+      "parameters": [
+        "data"
+      ]
+    },
+    {
+      "name": "quotes",
+      "signature": "(self, data=None)",
+      "parameters": [
+        "data"
+      ]
+    },
+    {
+      "name": "realised_profit_history",
+      "signature": "(self, data) -> dict",
+      "parameters": [
+        "data"
+      ]
+    },
+    {
+      "name": "tax_pnl_history",
+      "signature": "(self, data) -> dict",
+      "parameters": [
+        "data"
+      ]
+    },
+    {
+      "name": "tradehistory",
+      "signature": "(self, data) -> dict",
+      "parameters": [
+        "data"
+      ]
+    }
+  ],
+  "option_chain_candidates": [
+    {
+      "name": "optionchain",
+      "signature": "(self, data=None)",
+      "parameters": [
+        "data"
+      ]
+    }
+  ],
+  "market_depth_candidates": [
+    {
+      "name": "depth",
+      "signature": "(self, data=None)",
+      "parameters": [
+        "data"
+      ]
+    }
+  ],
+  "selected_option_chain": {
+    "name": "optionchain",
+    "signature": "(self, data=None)",
+    "parameters": [
+      "data"
+    ]
+  },
+  "call_mode": "DICT_PAYLOAD",
+  "network_request": false,
+  "authentication_invoked": false,
+  "client_created": false,
+  "broker_order": false
+}

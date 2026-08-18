@@ -1,0 +1,983 @@
+{
+  "files_searched": 303,
+  "candidates_checked": 22,
+  "no_reference_candidates": [
+    "agents.research_matrix_runner_v2",
+    "agents.trading_core.jarvis_decision_agent_v1",
+    "agents.trading_core.jarvis_decision_agent_v2",
+    "agents.trading_core.upstox_live_stream_v4"
+  ],
+  "referenced_candidates": [
+    "agents.jarvis_trading_core_v1",
+    "agents.trading_core.jarvis_trading_core_v2",
+    "agents.backtest_engine",
+    "agents.backtest_engine_v2",
+    "agents.research_matrix_runner",
+    "agents.trading_core.candidate_engine",
+    "agents.trading_core.candidate_engine_v2",
+    "agents.trading_core.news_engine",
+    "agents.trading_core.news_engine_v2",
+    "agents.trading_core.option_confirmation",
+    "agents.trading_core.option_confirmation_v2",
+    "agents.trading_core.paper_broker",
+    "agents.trading_core.pattern_engine",
+    "agents.trading_core.risk_engine",
+    "agents.trading_core.signal_engine",
+    "agents.trading_core.strategy_engine",
+    "agents.strategy_engine",
+    "agents.upstox_live_stream"
+  ],
+  "results": {
+    "agents.jarvis_trading_core_v1": [
+      {
+        "file": "pyproject.toml",
+        "line": 58,
+        "text": "\"agents/jarvis_trading_core_v1\","
+      }
+    ],
+    "agents.trading_core.jarvis_trading_core_v2": [
+      {
+        "file": "pyproject.toml",
+        "line": 59,
+        "text": "\"agents/trading_core/jarvis_trading_core_v2\","
+      }
+    ],
+    "agents.backtest_engine": [
+      {
+        "file": "agents\\backtest_engine.py",
+        "line": 1326,
+        "text": "backtest_engine = BacktestEngine()"
+      },
+      {
+        "file": "agents\\backtest_engine.py",
+        "line": 1339,
+        "text": "return backtest_engine.run("
+      },
+      {
+        "file": "agents\\backtest_engine_v2.py",
+        "line": 1621,
+        "text": "backtest_engine_v2 = ("
+      },
+      {
+        "file": "agents\\backtest_engine_v2.py",
+        "line": 1636,
+        "text": "return backtest_engine_v2.run("
+      },
+      {
+        "file": "agents\\strategy_research_runner.py",
+        "line": 43,
+        "text": "from agents.backtest_engine_v2 import ("
+      }
+    ],
+    "agents.backtest_engine_v2": [
+      {
+        "file": "agents\\backtest_engine_v2.py",
+        "line": 1621,
+        "text": "backtest_engine_v2 = ("
+      },
+      {
+        "file": "agents\\backtest_engine_v2.py",
+        "line": 1636,
+        "text": "return backtest_engine_v2.run("
+      },
+      {
+        "file": "agents\\strategy_research_runner.py",
+        "line": 43,
+        "text": "from agents.backtest_engine_v2 import ("
+      }
+    ],
+    "agents.research_matrix_runner": [
+      {
+        "file": "agents\\edge_validation_engine.py",
+        "line": 1438,
+        "text": "\"python -m agents.research_matrix_runner\""
+      },
+      {
+        "file": "agents\\research_matrix_runner.py",
+        "line": 977,
+        "text": "research_matrix_runner = ("
+      },
+      {
+        "file": "agents\\research_matrix_runner.py",
+        "line": 989,
+        "text": "research_matrix_runner.run()"
+      },
+      {
+        "file": "agents\\research_matrix_runner.py",
+        "line": 995,
+        "text": "research_matrix_runner.summary("
+      }
+    ],
+    "agents.trading_core.candidate_engine": [
+      {
+        "file": "agents\\trading_core\\core.py",
+        "line": 8,
+        "text": "from .candidate_engine import confirmation_state"
+      },
+      {
+        "file": "agents\\trading_core\\jarvis_decision_agent_v2.py",
+        "line": 10,
+        "text": "from .candidate_engine_v2 import generate_candidate"
+      },
+      {
+        "file": "agents\\trading_core\\jarvis_strategy_paper_v3.py",
+        "line": 10,
+        "text": "from .strategy_candidate_engine_v3 import generate_strategy_candidates"
+      }
+    ],
+    "agents.trading_core.candidate_engine_v2": [
+      {
+        "file": "agents\\trading_core\\jarvis_decision_agent_v2.py",
+        "line": 10,
+        "text": "from .candidate_engine_v2 import generate_candidate"
+      }
+    ],
+    "agents.trading_core.news_engine": [
+      {
+        "file": "jarvis_trading_agent_v1\\agents\\trading_core\\cli.py",
+        "line": 8,
+        "text": "from .news_engine import NewsEngine"
+      },
+      {
+        "file": "jarvis_trading_agent_v1\\agents\\trading_core\\jarvis_trading_agent.py",
+        "line": 11,
+        "text": "from .news_engine import NewsEngine"
+      },
+      {
+        "file": "agents\\trading_core\\cli.py",
+        "line": 8,
+        "text": "from .news_engine import NewsEngine"
+      },
+      {
+        "file": "agents\\trading_core\\cli_v2.py",
+        "line": 8,
+        "text": "from .news_engine_v2 import NewsEngineV2"
+      },
+      {
+        "file": "agents\\trading_core\\jarvis_trading_agent.py",
+        "line": 11,
+        "text": "from .news_engine import NewsEngine"
+      },
+      {
+        "file": "agents\\trading_core\\jarvis_trading_core_v2\\agents\\trading_core\\core.py",
+        "line": 10,
+        "text": "from .news_engine import NewsEngine"
+      },
+      {
+        "file": "agents\\jarvis_trading_core_v1\\agents\\trading_core\\core.py",
+        "line": 9,
+        "text": "from .news_engine import NewsEngine"
+      }
+    ],
+    "agents.trading_core.news_engine_v2": [
+      {
+        "file": "agents\\trading_core\\cli_v2.py",
+        "line": 8,
+        "text": "from .news_engine_v2 import NewsEngineV2"
+      }
+    ],
+    "agents.trading_core.option_confirmation": [
+      {
+        "file": "jarvis_trading_agent_v1\\agents\\trading_core\\cli.py",
+        "line": 9,
+        "text": "from .option_confirmation import OptionConfirmation"
+      },
+      {
+        "file": "jarvis_trading_agent_v1\\agents\\trading_core\\jarvis_trading_agent.py",
+        "line": 9,
+        "text": "from .option_confirmation import OptionConfirmation"
+      },
+      {
+        "file": "agents\\trading_core\\cli.py",
+        "line": 9,
+        "text": "from .option_confirmation import OptionConfirmation"
+      },
+      {
+        "file": "agents\\trading_core\\cli_v2.py",
+        "line": 7,
+        "text": "from .option_confirmation_v2 import OptionConfirmationV2"
+      },
+      {
+        "file": "agents\\trading_core\\jarvis_trading_agent.py",
+        "line": 9,
+        "text": "from .option_confirmation import OptionConfirmation"
+      },
+      {
+        "file": "agents\\trading_core\\trade_decision_engine_v1.py",
+        "line": 7,
+        "text": "from .option_confirmation_v2 import OptionConfirmationV2"
+      },
+      {
+        "file": "agents\\trading_core\\trade_decision_engine_v1.py",
+        "line": 96,
+        "text": "def option_confirmation("
+      },
+      {
+        "file": "agents\\trading_core\\trade_decision_engine_v1.py",
+        "line": 139,
+        "text": "opt_probe = self.option_confirmation(symbol)"
+      },
+      {
+        "file": "agents\\trading_core\\trade_decision_engine_v1.py",
+        "line": 182,
+        "text": "option = self.option_confirmation(symbol)"
+      }
+    ],
+    "agents.trading_core.option_confirmation_v2": [
+      {
+        "file": "agents\\trading_core\\cli_v2.py",
+        "line": 7,
+        "text": "from .option_confirmation_v2 import OptionConfirmationV2"
+      },
+      {
+        "file": "agents\\trading_core\\trade_decision_engine_v1.py",
+        "line": 7,
+        "text": "from .option_confirmation_v2 import OptionConfirmationV2"
+      }
+    ],
+    "agents.trading_core.paper_broker": [
+      {
+        "file": "agents\\paper_broker.py",
+        "line": 1375,
+        "text": "paper_broker = PaperBroker()"
+      },
+      {
+        "file": "workstation\\paper_runtime.py",
+        "line": 20,
+        "text": "from agents.paper_broker import Order, PaperBroker, Position, Trade"
+      },
+      {
+        "file": "workstation\\paper_runtime_before_healthfix_20260818_031527.py",
+        "line": 20,
+        "text": "from agents.paper_broker import Order, PaperBroker, Position, Trade"
+      },
+      {
+        "file": "jarvis_trading_agent_v1\\agents\\trading_core\\cli.py",
+        "line": 10,
+        "text": "from .paper_broker import PaperBroker"
+      },
+      {
+        "file": "jarvis_trading_agent_v1\\agents\\trading_core\\jarvis_trading_agent.py",
+        "line": 10,
+        "text": "from .paper_broker import PaperBroker"
+      },
+      {
+        "file": "agents\\trading_core\\cli.py",
+        "line": 10,
+        "text": "from .paper_broker import PaperBroker"
+      },
+      {
+        "file": "agents\\trading_core\\jarvis_trading_agent.py",
+        "line": 10,
+        "text": "from .paper_broker import PaperBroker"
+      }
+    ],
+    "agents.trading_core.pattern_engine": [
+      {
+        "file": "agents\\backtest_engine.py",
+        "line": 46,
+        "text": "from agents.pattern_engine import ("
+      },
+      {
+        "file": "agents\\backtest_engine.py",
+        "line": 47,
+        "text": "pattern_engine,"
+      },
+      {
+        "file": "agents\\backtest_engine.py",
+        "line": 849,
+        "text": "pattern_engine.analyze("
+      },
+      {
+        "file": "agents\\backtest_engine_v2.py",
+        "line": 32,
+        "text": "from agents.pattern_engine import pattern_engine"
+      },
+      {
+        "file": "agents\\backtest_engine_v2.py",
+        "line": 474,
+        "text": "pattern_engine.analyze("
+      },
+      {
+        "file": "agents\\pattern_engine.py",
+        "line": 1118,
+        "text": "pattern_engine = PatternEngine()"
+      },
+      {
+        "file": "agents\\pattern_engine.py",
+        "line": 1129,
+        "text": "return pattern_engine.analyze("
+      },
+      {
+        "file": "agents\\strategy_comparison.py",
+        "line": 13,
+        "text": "from agents.pattern_engine import pattern_engine"
+      },
+      {
+        "file": "agents\\strategy_comparison.py",
+        "line": 365,
+        "text": "pattern_engine.analyze("
+      },
+      {
+        "file": "agents\\strategy_research_runner.py",
+        "line": 55,
+        "text": "from agents.pattern_engine import ("
+      },
+      {
+        "file": "agents\\strategy_research_runner.py",
+        "line": 56,
+        "text": "pattern_engine,"
+      },
+      {
+        "file": "agents\\strategy_research_runner.py",
+        "line": 247,
+        "text": "pattern_engine.analyze("
+      },
+      {
+        "file": "agents\\trading_agent.py",
+        "line": 18,
+        "text": "from agents.pattern_engine import ("
+      },
+      {
+        "file": "agents\\trading_agent.py",
+        "line": 19,
+        "text": "pattern_engine,"
+      },
+      {
+        "file": "agents\\trading_agent.py",
+        "line": 240,
+        "text": "pattern_engine.analyze("
+      },
+      {
+        "file": "agents\\trading_intelligence_agent.py",
+        "line": 28,
+        "text": "from agents.pattern_engine import pattern_engine"
+      },
+      {
+        "file": "agents\\trading_intelligence_agent.py",
+        "line": 85,
+        "text": "patterns = pattern_engine.analyze("
+      },
+      {
+        "file": "agents\\trading_mission_agent.py",
+        "line": 1054,
+        "text": "from agents.pattern_engine import ("
+      },
+      {
+        "file": "agents\\trading_mission_agent.py",
+        "line": 1055,
+        "text": "pattern_engine,"
+      },
+      {
+        "file": "agents\\trading_mission_agent.py",
+        "line": 1059,
+        "text": "pattern_engine.analyze("
+      },
+      {
+        "file": "workstation\\trading_intelligence.py",
+        "line": 13,
+        "text": "from agents.pattern_engine import analyze_patterns"
+      },
+      {
+        "file": "agents\\trading_core\\live_monitor.py",
+        "line": 15,
+        "text": "from .pattern_engine import detect_fvg, detect_liquidity, detect_orb, volume_anomaly"
+      },
+      {
+        "file": "agents\\trading_core\\signal_engine.py",
+        "line": 7,
+        "text": "from .pattern_engine import detect_fvg, detect_liquidity, detect_orb, volume_anomaly"
+      }
+    ],
+    "agents.trading_core.risk_engine": [
+      {
+        "file": "agents\\backtest_engine.py",
+        "line": 54,
+        "text": "from agents.risk_engine import ("
+      },
+      {
+        "file": "agents\\backtest_engine.py",
+        "line": 55,
+        "text": "risk_engine,"
+      },
+      {
+        "file": "agents\\backtest_engine.py",
+        "line": 948,
+        "text": "risk_engine.evaluate_trade("
+      },
+      {
+        "file": "agents\\backtest_engine_v2.py",
+        "line": 34,
+        "text": "from agents.risk_engine import RiskEngine"
+      },
+      {
+        "file": "agents\\backtest_engine_v2.py",
+        "line": 117,
+        "text": "self.risk_engine = RiskEngine("
+      },
+      {
+        "file": "agents\\backtest_engine_v2.py",
+        "line": 551,
+        "text": "self.risk_engine.evaluate_trade("
+      },
+      {
+        "file": "agents\\mean_reversion_research_runner.py",
+        "line": 14,
+        "text": "from agents.risk_engine import RiskEngine"
+      },
+      {
+        "file": "agents\\mean_reversion_research_runner.py",
+        "line": 49,
+        "text": "self.risk_engine = RiskEngine("
+      },
+      {
+        "file": "agents\\mean_reversion_research_runner.py",
+        "line": 396,
+        "text": "self.risk_engine.evaluate_trade("
+      },
+      {
+        "file": "agents\\momentum_research_runner.py",
+        "line": 14,
+        "text": "from agents.risk_engine import RiskEngine"
+      },
+      {
+        "file": "agents\\momentum_research_runner.py",
+        "line": 43,
+        "text": "self.risk_engine = RiskEngine("
+      },
+      {
+        "file": "agents\\momentum_research_runner.py",
+        "line": 369,
+        "text": "self.risk_engine.evaluate_trade("
+      },
+      {
+        "file": "agents\\risk_engine.py",
+        "line": 166,
+        "text": "risk_engine = RiskEngine()"
+      },
+      {
+        "file": "agents\\strategy_comparison.py",
+        "line": 19,
+        "text": "from agents.risk_engine import RiskEngine"
+      },
+      {
+        "file": "agents\\strategy_comparison.py",
+        "line": 57,
+        "text": "self.risk_engine = RiskEngine("
+      },
+      {
+        "file": "agents\\strategy_comparison.py",
+        "line": 479,
+        "text": "self.risk_engine.evaluate_trade("
+      },
+      {
+        "file": "agents\\strategy_research_runner.py",
+        "line": 839,
+        "text": "self.backtester.risk_engine.evaluate_trade("
+      },
+      {
+        "file": "agents\\trading_agent.py",
+        "line": 26,
+        "text": "from agents.risk_engine import ("
+      },
+      {
+        "file": "agents\\trading_agent.py",
+        "line": 27,
+        "text": "risk_engine,"
+      },
+      {
+        "file": "agents\\trading_agent.py",
+        "line": 326,
+        "text": "risk_engine.evaluate_trade("
+      },
+      {
+        "file": "agents\\trend_research_runner.py",
+        "line": 25,
+        "text": "from agents.risk_engine import RiskEngine"
+      },
+      {
+        "file": "agents\\trend_research_runner.py",
+        "line": 62,
+        "text": "self.risk_engine = RiskEngine("
+      },
+      {
+        "file": "agents\\trend_research_runner.py",
+        "line": 405,
+        "text": "self.risk_engine.evaluate_trade("
+      },
+      {
+        "file": "agents\\trading_core\\core.py",
+        "line": 16,
+        "text": "from .risk_engine import position_size"
+      },
+      {
+        "file": "agents\\trading_core\\jarvis_trading_core_v2\\agents\\trading_core\\core.py",
+        "line": 13,
+        "text": "from .risk_engine import position_size"
+      },
+      {
+        "file": "agents\\jarvis_trading_core_v1\\agents\\trading_core\\core.py",
+        "line": 12,
+        "text": "from .risk_engine import position_size"
+      }
+    ],
+    "agents.trading_core.signal_engine": [
+      {
+        "file": "agents\\backtest_engine.py",
+        "line": 50,
+        "text": "from agents.signal_engine import ("
+      },
+      {
+        "file": "agents\\backtest_engine.py",
+        "line": 51,
+        "text": "signal_engine,"
+      },
+      {
+        "file": "agents\\backtest_engine.py",
+        "line": 870,
+        "text": "signal_engine.generate_signal("
+      },
+      {
+        "file": "agents\\backtest_engine_v2.py",
+        "line": 33,
+        "text": "from agents.signal_engine import signal_engine"
+      },
+      {
+        "file": "agents\\backtest_engine_v2.py",
+        "line": 490,
+        "text": "signal_engine.generate_signal("
+      },
+      {
+        "file": "agents\\option_chain_signal_engine.py",
+        "line": 676,
+        "text": "option_chain_signal_engine = ("
+      },
+      {
+        "file": "agents\\option_chain_signal_engine.py",
+        "line": 691,
+        "text": "option_chain_signal_engine.analyze("
+      },
+      {
+        "file": "agents\\option_chain_signal_engine.py",
+        "line": 787,
+        "text": "option_chain_signal_engine.format_signal("
+      },
+      {
+        "file": "agents\\paper_monitor.py",
+        "line": 47,
+        "text": "from agents.paper_signal_engine import ("
+      },
+      {
+        "file": "agents\\paper_monitor.py",
+        "line": 48,
+        "text": "paper_signal_engine,"
+      },
+      {
+        "file": "agents\\paper_monitor.py",
+        "line": 633,
+        "text": "paper_signal_engine.create_signal("
+      },
+      {
+        "file": "agents\\paper_signal_engine.py",
+        "line": 1401,
+        "text": "paper_signal_engine = ("
+      },
+      {
+        "file": "agents\\paper_signal_engine.py",
+        "line": 1423,
+        "text": "paper_signal_engine.create_signal("
+      },
+      {
+        "file": "agents\\paper_signal_engine.py",
+        "line": 1513,
+        "text": "paper_signal_engine.format_result("
+      },
+      {
+        "file": "agents\\regime_aware_signal_engine.py",
+        "line": 1118,
+        "text": "regime_aware_signal_engine = ("
+      },
+      {
+        "file": "agents\\regime_aware_signal_engine.py",
+        "line": 1134,
+        "text": "regime_aware_signal_engine.generate_signal("
+      },
+      {
+        "file": "agents\\regime_aware_signal_engine.py",
+        "line": 1269,
+        "text": "regime_aware_signal_engine.format_signal("
+      },
+      {
+        "file": "agents\\signal_engine.py",
+        "line": 737,
+        "text": "signal_engine = SignalEngine()"
+      },
+      {
+        "file": "agents\\signal_engine.py",
+        "line": 749,
+        "text": "return signal_engine.generate_signal("
+      },
+      {
+        "file": "agents\\strategy_comparison.py",
+        "line": 14,
+        "text": "from agents.signal_engine import signal_engine"
+      },
+      {
+        "file": "agents\\strategy_comparison.py",
+        "line": 16,
+        "text": "from agents.regime_aware_signal_engine import ("
+      },
+      {
+        "file": "agents\\strategy_comparison.py",
+        "line": 17,
+        "text": "regime_aware_signal_engine,"
+      },
+      {
+        "file": "agents\\strategy_comparison.py",
+        "line": 405,
+        "text": "signal_engine.generate_signal("
+      },
+      {
+        "file": "agents\\strategy_comparison.py",
+        "line": 414,
+        "text": "regime_aware_signal_engine.generate_signal("
+      },
+      {
+        "file": "agents\\strategy_research_runner.py",
+        "line": 63,
+        "text": "from agents.regime_aware_signal_engine import ("
+      },
+      {
+        "file": "agents\\strategy_research_runner.py",
+        "line": 64,
+        "text": "regime_aware_signal_engine,"
+      },
+      {
+        "file": "agents\\strategy_research_runner.py",
+        "line": 112,
+        "text": "regime_aware_signal_engine.generate_signal("
+      },
+      {
+        "file": "agents\\trading_agent.py",
+        "line": 22,
+        "text": "from agents.signal_engine import ("
+      },
+      {
+        "file": "agents\\trading_agent.py",
+        "line": 23,
+        "text": "signal_engine,"
+      },
+      {
+        "file": "agents\\trading_agent.py",
+        "line": 271,
+        "text": "signal_engine.generate_signal("
+      },
+      {
+        "file": "agents\\trading_intelligence_agent.py",
+        "line": 30,
+        "text": "from agents.regime_aware_signal_engine import ("
+      },
+      {
+        "file": "agents\\trading_intelligence_agent.py",
+        "line": 31,
+        "text": "regime_aware_signal_engine,"
+      },
+      {
+        "file": "agents\\trading_intelligence_agent.py",
+        "line": 116,
+        "text": "regime_aware_signal_engine.generate_signal("
+      },
+      {
+        "file": "agents\\trading_core\\core.py",
+        "line": 18,
+        "text": "from .signal_engine import analyze_trigger_package"
+      }
+    ],
+    "agents.trading_core.strategy_engine": [
+      {
+        "file": "agents\\option_strategy_engine.py",
+        "line": 590,
+        "text": "option_strategy_engine = ("
+      },
+      {
+        "file": "agents\\option_strategy_engine.py",
+        "line": 609,
+        "text": "option_strategy_engine.rank_strategies("
+      },
+      {
+        "file": "agents\\option_strategy_engine.py",
+        "line": 670,
+        "text": "option_strategy_engine.format_ranking("
+      },
+      {
+        "file": "agents\\paper_signal_engine.py",
+        "line": 813,
+        "text": "strategy_engine = ("
+      },
+      {
+        "file": "agents\\paper_signal_engine.py",
+        "line": 820,
+        "text": "strategy_engine.signal("
+      },
+      {
+        "file": "agents\\trading_core\\core.py",
+        "line": 17,
+        "text": "from .strategy_engine import build_setups"
+      },
+      {
+        "file": "agents\\trading_core\\live_monitor.py",
+        "line": 17,
+        "text": "from .strategy_engine import build_setups"
+      },
+      {
+        "file": "agents\\trading_core\\jarvis_trading_core_v2\\agents\\trading_core\\core.py",
+        "line": 14,
+        "text": "from .strategy_engine import build_setups"
+      },
+      {
+        "file": "agents\\jarvis_trading_core_v1\\agents\\trading_core\\core.py",
+        "line": 13,
+        "text": "from .strategy_engine import build_setups"
+      }
+    ],
+    "agents.strategy_engine": [
+      {
+        "file": "agents\\option_strategy_engine.py",
+        "line": 590,
+        "text": "option_strategy_engine = ("
+      },
+      {
+        "file": "agents\\option_strategy_engine.py",
+        "line": 609,
+        "text": "option_strategy_engine.rank_strategies("
+      },
+      {
+        "file": "agents\\option_strategy_engine.py",
+        "line": 670,
+        "text": "option_strategy_engine.format_ranking("
+      },
+      {
+        "file": "agents\\paper_signal_engine.py",
+        "line": 813,
+        "text": "strategy_engine = ("
+      },
+      {
+        "file": "agents\\paper_signal_engine.py",
+        "line": 820,
+        "text": "strategy_engine.signal("
+      },
+      {
+        "file": "agents\\trading_core\\core.py",
+        "line": 17,
+        "text": "from .strategy_engine import build_setups"
+      },
+      {
+        "file": "agents\\trading_core\\live_monitor.py",
+        "line": 17,
+        "text": "from .strategy_engine import build_setups"
+      },
+      {
+        "file": "agents\\trading_core\\jarvis_trading_core_v2\\agents\\trading_core\\core.py",
+        "line": 14,
+        "text": "from .strategy_engine import build_setups"
+      },
+      {
+        "file": "agents\\jarvis_trading_core_v1\\agents\\trading_core\\core.py",
+        "line": 13,
+        "text": "from .strategy_engine import build_setups"
+      }
+    ],
+    "agents.upstox_live_stream": [
+      {
+        "file": "agents\\live_intraday_router.py",
+        "line": 104,
+        "text": "from agents.upstox_live_stream import ("
+      },
+      {
+        "file": "agents\\upstox_live_stream.py",
+        "line": 1552,
+        "text": "upstox_live_stream = UpstoxLiveStream()"
+      },
+      {
+        "file": "agents\\upstox_live_stream.py",
+        "line": 1572,
+        "text": "upstox_live_stream.start()"
+      },
+      {
+        "file": "agents\\upstox_live_stream.py",
+        "line": 1616,
+        "text": "upstox_live_stream"
+      },
+      {
+        "file": "agents\\upstox_live_stream.py",
+        "line": 1650,
+        "text": "upstox_live_stream.stop()"
+      },
+      {
+        "file": "agents\\upstox_live_stream_v4_backup.py",
+        "line": 333,
+        "text": "upstox_live_stream = UpstoxLiveStreamV4()"
+      },
+      {
+        "file": "workstation\\jarvis_workstation_v2\\app.py",
+        "line": 39,
+        "text": "from agents.upstox_live_stream import upstox_live_stream"
+      },
+      {
+        "file": "workstation\\jarvis_workstation_v2\\app.py",
+        "line": 40,
+        "text": "result = upstox_live_stream.start()"
+      },
+      {
+        "file": "workstation\\jarvis_workstation_v2\\app.py",
+        "line": 82,
+        "text": "from agents.upstox_live_stream import upstox_live_stream"
+      },
+      {
+        "file": "workstation\\jarvis_workstation_v2\\app.py",
+        "line": 83,
+        "text": "store = upstox_live_stream.store"
+      },
+      {
+        "file": "workstation\\jarvis_workstation_v2\\app.py",
+        "line": 89,
+        "text": "snap = upstox_live_stream.snapshot(symbol)"
+      },
+      {
+        "file": "workstation\\jarvis_workstation_v2\\app.py",
+        "line": 214,
+        "text": "from agents.upstox_live_stream import upstox_live_stream"
+      },
+      {
+        "file": "workstation\\jarvis_workstation_v2\\app.py",
+        "line": 215,
+        "text": "upstox_live_stream.stop()"
+      },
+      {
+        "file": "workstation\\jarvis_workstation_v3\\app.py",
+        "line": 35,
+        "text": "from agents.upstox_live_stream import upstox_live_stream"
+      },
+      {
+        "file": "workstation\\jarvis_workstation_v3\\app.py",
+        "line": 36,
+        "text": "result = upstox_live_stream.start()"
+      },
+      {
+        "file": "workstation\\jarvis_workstation_v3\\app.py",
+        "line": 78,
+        "text": "from agents.upstox_live_stream import upstox_live_stream"
+      },
+      {
+        "file": "workstation\\jarvis_workstation_v3\\app.py",
+        "line": 79,
+        "text": "store = upstox_live_stream.store"
+      },
+      {
+        "file": "workstation\\jarvis_workstation_v3\\app.py",
+        "line": 84,
+        "text": "snap = upstox_live_stream.snapshot(symbol)"
+      },
+      {
+        "file": "workstation\\jarvis_workstation_v3\\app.py",
+        "line": 201,
+        "text": "from agents.upstox_live_stream import upstox_live_stream"
+      },
+      {
+        "file": "workstation\\jarvis_workstation_v3\\app.py",
+        "line": 202,
+        "text": "upstox_live_stream.stop()"
+      },
+      {
+        "file": "jarvis_trading_agent_v1\\agents\\trading_core\\upstox_live_stream_v4.py",
+        "line": 333,
+        "text": "upstox_live_stream = UpstoxLiveStreamV4()"
+      },
+      {
+        "file": "agents\\trading_core\\data_bus.py",
+        "line": 66,
+        "text": "mod = importlib.import_module(\"agents.upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\trading_core\\data_bus.py",
+        "line": 67,
+        "text": "stream = getattr(mod, \"upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\trading_core\\data_bus.py",
+        "line": 83,
+        "text": "mod = importlib.import_module(\"agents.upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\trading_core\\data_bus.py",
+        "line": 84,
+        "text": "stream = getattr(mod, \"upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\trading_core\\live_bus.py",
+        "line": 22,
+        "text": "mod = importlib.import_module(\"agents.upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\trading_core\\live_bus.py",
+        "line": 23,
+        "text": "stream = getattr(mod, \"upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\trading_core\\live_bus.py",
+        "line": 48,
+        "text": "mod = importlib.import_module(\"agents.upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\trading_core\\live_bus.py",
+        "line": 49,
+        "text": "stream = getattr(mod, \"upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\trading_core\\live_monitor.py",
+        "line": 158,
+        "text": "from agents.upstox_live_stream import upstox_live_stream"
+      },
+      {
+        "file": "agents\\trading_core\\live_monitor.py",
+        "line": 159,
+        "text": "self.stream = upstox_live_stream"
+      },
+      {
+        "file": "agents\\trading_core\\upstox_live_stream_v4.py",
+        "line": 333,
+        "text": "upstox_live_stream = UpstoxLiveStreamV4()"
+      },
+      {
+        "file": "agents\\trading_core\\jarvis_trading_core_v2\\agents\\trading_core\\data_bus.py",
+        "line": 68,
+        "text": "module = importlib.import_module(\"agents.upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\trading_core\\jarvis_trading_core_v2\\agents\\trading_core\\data_bus.py",
+        "line": 69,
+        "text": "stream = getattr(module, \"upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\trading_core\\jarvis_trading_core_v2\\agents\\trading_core\\data_bus.py",
+        "line": 76,
+        "text": "module = importlib.import_module(\"agents.upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\trading_core\\jarvis_trading_core_v2\\agents\\trading_core\\data_bus.py",
+        "line": 77,
+        "text": "stream = getattr(module, \"upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\jarvis_trading_core_v1\\agents\\trading_core\\data_bus.py",
+        "line": 68,
+        "text": "module = importlib.import_module(\"agents.upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\jarvis_trading_core_v1\\agents\\trading_core\\data_bus.py",
+        "line": 69,
+        "text": "stream = getattr(module, \"upstox_live_stream\")"
+      }
+    ]
+  }
+}

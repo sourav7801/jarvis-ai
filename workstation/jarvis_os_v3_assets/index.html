@@ -1,0 +1,1179 @@
+<!doctype html>
+
+<html lang="en">
+
+<head>
+
+<meta charset="utf-8">
+
+<meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+>
+
+<title>
+JARVIS OS V3.1
+</title>
+
+<link
+    rel="stylesheet"
+    href="/styles.css"
+>
+
+</head>
+
+
+<body data-core-state="ready">
+
+
+<div id="ambient"></div>
+
+
+<header id="topbar">
+
+    <div class="brand">
+
+        <div class="logo">
+            J
+        </div>
+
+        <div>
+
+            <div class="brandName">
+                J A R V I S
+            </div>
+
+            <div class="brandSub">
+                OMNI OPERATING COMMAND CENTER · V3.1
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <nav>
+
+        <button data-layout="command">
+            COMMAND
+        </button>
+
+        <button data-open="chart">
+            CHART TERMINAL
+        </button>
+
+        <button data-open="quant">
+            QUANT
+        </button>
+
+        <button data-open="research">
+            INTELLIGENCE
+        </button>
+
+        <button data-open="missions">
+            MISSIONS
+        </button>
+
+        <button data-open="paper">
+            PAPER
+        </button>
+
+        <button data-open="apps">
+            APPS
+        </button>
+
+        <button data-open="system">
+            SYSTEM
+        </button>
+
+    </nav>
+
+
+    <div class="topStatus">
+
+        <span
+            class="status green"
+            id="voiceState"
+        >
+            ● VOICE READY
+        </span>
+
+        <span class="status amber">
+            ● APPROVAL GATE
+        </span>
+
+        <span class="status red">
+            ● EXECUTION LOCKED
+        </span>
+
+        <button id="fullscreenButton">
+            ⛶
+        </button>
+
+    </div>
+
+</header>
+
+
+<section id="masterConsole">
+
+    <div class="consoleHeading">
+
+        <span>
+            MASTER JARVIS
+        </span>
+
+        <small id="masterState">
+            READY
+        </small>
+
+    </div>
+
+
+    <div id="conversation">
+
+        <div class="conversationItem jarvis">
+
+            <div class="speaker">
+                JARVIS
+            </div>
+
+            <div class="message">
+
+                Master intelligence online.
+                Tell me what outcome you want.
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div id="commandRow">
+
+        <button id="listenButton">
+            ◉ LISTEN
+        </button>
+
+        <input
+            id="commandInput"
+            autocomplete="off"
+            placeholder="e.g. Jarvis, open crude oil, 15m chart, analyze it, check news and find the strongest paper setup."
+        >
+
+        <button id="executeButton">
+            EXECUTE
+        </button>
+
+        <button id="stopButton">
+            STOP
+        </button>
+
+    </div>
+
+</section>
+
+
+<main id="desktop">
+
+
+<!-- ====================================================== -->
+<!-- MASTER CORE -->
+<!-- ====================================================== -->
+
+<section
+    class="jarvisWindow coreWindow"
+    data-window="core"
+    id="win-core"
+>
+
+<header class="windowHeader">
+
+    <span>
+        JARVIS ORCHESTRATION CORE
+    </span>
+
+    <div class="windowControls">
+
+        <button data-minimize>
+            —
+        </button>
+
+        <button data-maximize>
+            □
+        </button>
+
+    </div>
+
+</header>
+
+
+<div class="windowBody coreBody">
+
+    <div class="coreVisual">
+
+        <canvas id="coreCanvas"></canvas>
+
+        <div class="coreCenter">
+
+            <strong>
+                J
+            </strong>
+
+            <small id="coreText">
+                ONLINE
+            </small>
+
+        </div>
+
+    </div>
+
+
+    <div class="coreInfo">
+
+        <div class="eyebrow">
+            MASTER INTELLIGENCE
+        </div>
+
+        <h1>
+            One voice.<br>
+            Every system.
+        </h1>
+
+        <p id="coreMission">
+
+            Waiting for your command.
+
+        </p>
+
+
+        <div class="coreMetrics">
+
+            <div>
+                <b id="agentCount">
+                    —
+                </b>
+                <span>
+                    AGENTS
+                </span>
+            </div>
+
+            <div>
+                <b id="activeRoute">
+                    MASTER
+                </b>
+                <span>
+                    ROUTE
+                </span>
+            </div>
+
+            <div>
+                <b class="redText">
+                    LOCKED
+                </b>
+                <span>
+                    LIVE EXECUTION
+                </span>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+</section>
+
+
+<!-- ====================================================== -->
+<!-- NATIVE CHART TERMINAL -->
+<!-- ====================================================== -->
+
+<section
+    class="jarvisWindow chartWindow"
+    data-window="chart"
+    id="win-chart"
+>
+
+<header class="windowHeader">
+
+    <span>
+        LIVE CHART TERMINAL
+    </span>
+
+    <div class="windowControls">
+
+        <button data-minimize>
+            —
+        </button>
+
+        <button data-maximize>
+            □
+        </button>
+
+        <button data-close>
+            ×
+        </button>
+
+    </div>
+
+</header>
+
+
+<div class="windowBody chartBody">
+
+    <div class="chartToolbar">
+
+        <select id="chartSymbol">
+
+            <option>
+                NIFTY
+            </option>
+
+            <option>
+                BANKNIFTY
+            </option>
+
+            <option>
+                SENSEX
+            </option>
+
+            <option>
+                CRUDEOIL
+            </option>
+
+            <option>
+                GOLD
+            </option>
+
+            <option>
+                SILVER
+            </option>
+
+            <option>
+                NATURALGAS
+            </option>
+
+            <option>
+                BTC
+            </option>
+
+            <option>
+                ETH
+            </option>
+
+            <option>
+                SOL
+            </option>
+
+        </select>
+
+
+        <div
+            class="timeframes"
+            id="timeframes"
+        >
+
+            <button data-timeframe="1m">
+                1m
+            </button>
+
+            <button data-timeframe="5m">
+                5m
+            </button>
+
+            <button
+                data-timeframe="15m"
+                class="selected"
+            >
+                15m
+            </button>
+
+            <button data-timeframe="1h">
+                1h
+            </button>
+
+            <button data-timeframe="4h">
+                4h
+            </button>
+
+            <button data-timeframe="1d">
+                1D
+            </button>
+
+        </div>
+
+
+        <button id="refreshChart">
+            REFRESH
+        </button>
+
+
+        <button data-command="Analyze the current selected market and explain the strongest research setup.">
+            ANALYZE
+        </button>
+
+    </div>
+
+
+    <div class="chartHeader">
+
+        <div>
+
+            <div
+                class="eyebrow"
+                id="chartProvider"
+            >
+                VERIFIED DATA
+            </div>
+
+            <h2 id="chartTitle">
+                NIFTY · 15m
+            </h2>
+
+        </div>
+
+
+        <div id="chartPrice">
+            —
+        </div>
+
+    </div>
+
+
+    <div id="chartGrid">
+
+        <div class="chartPane">
+
+            <canvas
+                class="chartCanvas"
+                id="chartCanvas0"
+            ></canvas>
+
+            <div
+                class="chartStatus"
+                id="chartStatus0"
+            >
+                Loading verified candles…
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+</section>
+
+
+<!-- ====================================================== -->
+<!-- QUANT -->
+<!-- ====================================================== -->
+
+<section
+    class="jarvisWindow quantWindow"
+    data-window="quant"
+    id="win-quant"
+>
+
+<header class="windowHeader">
+
+    <span>
+        QUANT / STRATEGY LAB
+    </span>
+
+    <div class="windowControls">
+
+        <button data-minimize>—</button>
+        <button data-maximize>□</button>
+        <button data-close>×</button>
+
+    </div>
+
+</header>
+
+
+<div class="windowBody">
+
+    <div class="quantHero">
+
+        <div>
+
+            <div class="eyebrow">
+                RESEARCH ENGINE
+            </div>
+
+            <h2 id="quantEngine">
+                ENGINE READY
+            </h2>
+
+        </div>
+
+
+        <span class="safeBadge">
+            PAPER / RESEARCH
+        </span>
+
+    </div>
+
+
+    <div class="metricCards">
+
+        <div>
+
+            <span>
+                SPOT
+            </span>
+
+            <b id="metricSpot">
+                —
+            </b>
+
+        </div>
+
+        <div>
+
+            <span>
+                ATM IV
+            </span>
+
+            <b id="metricIV">
+                —
+            </b>
+
+        </div>
+
+        <div>
+
+            <span>
+                PCR OI
+            </span>
+
+            <b id="metricPCR">
+                —
+            </b>
+
+        </div>
+
+        <div>
+
+            <span>
+                HISTORY
+            </span>
+
+            <b id="metricHistory">
+                —
+            </b>
+
+        </div>
+
+    </div>
+
+
+    <div class="flowPath">
+
+        <span>
+            DETECT
+        </span>
+
+        <i>
+            →
+        </i>
+
+        <span>
+            REGIME
+        </span>
+
+        <i>
+            →
+        </i>
+
+        <span>
+            SCORE
+        </span>
+
+        <i>
+            →
+        </i>
+
+        <span>
+            VALIDATE
+        </span>
+
+        <i>
+            →
+        </i>
+
+        <span>
+            EXPLAIN
+        </span>
+
+    </div>
+
+
+    <button
+        class="actionButton"
+        data-command="Analyze NIFTY with all available trading intelligence, multi-timeframe evidence and derivatives data. Give me the strongest research setup only if evidence supports one."
+    >
+        RUN NIFTY ANALYSIS
+    </button>
+
+
+    <button
+        class="actionButton"
+        data-command="Analyze crude oil with all available market, technical and news evidence. Find the strongest research setup."
+    >
+        ANALYZE CRUDE OIL
+    </button>
+
+</div>
+
+</section>
+
+
+<!-- ====================================================== -->
+<!-- RESEARCH -->
+<!-- ====================================================== -->
+
+<section
+    class="jarvisWindow researchWindow"
+    data-window="research"
+    id="win-research"
+>
+
+<header class="windowHeader">
+
+    <span>
+        WEB INTELLIGENCE
+    </span>
+
+    <div class="windowControls">
+
+        <button data-minimize>—</button>
+        <button data-maximize>□</button>
+        <button data-close>×</button>
+
+    </div>
+
+</header>
+
+
+<div class="windowBody">
+
+    <div class="researchPath">
+
+        SEARCH
+        <span>→</span>
+        READ
+        <span>→</span>
+        COMPARE
+        <span>→</span>
+        CITE
+
+    </div>
+
+
+    <div class="researchButtons">
+
+        <button
+            class="actionButton"
+            data-command="Research the most important market-moving developments right now. Compare reliable sources and explain the likely market impact."
+        >
+            MARKET INTELLIGENCE
+        </button>
+
+
+        <button
+            class="actionButton"
+            data-command="Research crude oil right now. Compare supply, demand, OPEC, inventory and geopolitical catalysts and explain the likely market impact."
+        >
+            CRUDE OIL
+        </button>
+
+
+        <button
+            class="actionButton"
+            data-command="Research the latest AI developments and summarize only the most important changes with sources."
+        >
+            AI INTELLIGENCE
+        </button>
+
+    </div>
+
+
+    <div
+        class="feed"
+        id="researchFeed"
+    >
+
+        Master JARVIS will place research
+        results here as result cards.
+
+    </div>
+
+</div>
+
+</section>
+
+
+<!-- ====================================================== -->
+<!-- PAPER -->
+<!-- ====================================================== -->
+
+<section
+    class="jarvisWindow paperWindow"
+    data-window="paper"
+    id="win-paper"
+>
+
+<header class="windowHeader">
+
+    <span>
+        PAPER EXECUTION DESK
+    </span>
+
+    <div class="windowControls">
+
+        <button data-minimize>—</button>
+        <button data-maximize>□</button>
+        <button data-close>×</button>
+
+    </div>
+
+</header>
+
+
+<div class="windowBody">
+
+    <div class="paperStatus">
+        SYNTHETIC EXECUTION ONLY
+    </div>
+
+    <p>
+
+        Strategy simulation and paper positions.
+        Broker execution remains locked.
+
+    </p>
+
+
+    <div class="paperControls">
+
+        <button
+            class="actionButton"
+            data-command="Show my current paper trading portfolio, positions, P and L and risk exposure."
+        >
+            PORTFOLIO
+        </button>
+
+
+        <button
+            class="actionButton"
+            data-command="Scan all supported markets for qualified paper setups using the current risk gates."
+        >
+            SCAN
+        </button>
+
+
+        <button
+            class="dangerButton"
+            data-command="Flatten all synthetic paper positions only."
+        >
+            FLATTEN PAPER
+        </button>
+
+    </div>
+
+</div>
+
+</section>
+
+
+<!-- ====================================================== -->
+<!-- MISSIONS / AGENTS -->
+<!-- ====================================================== -->
+
+<section
+    class="jarvisWindow missionsWindow"
+    data-window="missions"
+    id="win-missions"
+>
+
+<header class="windowHeader">
+
+    <span>
+        MISSION CONTROL / AGENT MESH
+    </span>
+
+    <div class="windowControls">
+
+        <button data-minimize>—</button>
+        <button data-maximize>□</button>
+        <button data-close>×</button>
+
+    </div>
+
+</header>
+
+
+<div class="windowBody">
+
+    <div
+        class="agentMesh"
+        id="agentMesh"
+    ></div>
+
+
+    <div class="sectionTitle">
+        ACTIVITY
+    </div>
+
+    <div
+        class="feed"
+        id="activityFeed"
+    ></div>
+
+</div>
+
+</section>
+
+
+<!-- ====================================================== -->
+<!-- APPROVALS / EVIDENCE -->
+<!-- ====================================================== -->
+
+<section
+    class="jarvisWindow evidenceWindow"
+    data-window="evidence"
+    id="win-evidence"
+>
+
+<header class="windowHeader">
+
+    <span>
+        APPROVALS / EVIDENCE
+    </span>
+
+    <div class="windowControls">
+
+        <button data-minimize>—</button>
+        <button data-maximize>□</button>
+        <button data-close>×</button>
+
+    </div>
+
+</header>
+
+
+<div class="windowBody evidenceSplit">
+
+    <div>
+
+        <div class="sectionTitle">
+            APPROVAL QUEUE
+        </div>
+
+        <div
+            class="feed"
+            id="approvalFeed"
+        ></div>
+
+    </div>
+
+
+    <div>
+
+        <div class="sectionTitle">
+            EVIDENCE TIMELINE
+        </div>
+
+        <div
+            class="feed"
+            id="evidenceFeed"
+        ></div>
+
+    </div>
+
+</div>
+
+</section>
+
+
+<!-- ====================================================== -->
+<!-- APPLICATION LAUNCHER -->
+<!-- ====================================================== -->
+
+<section
+    class="jarvisWindow appsWindow"
+    data-window="apps"
+    id="win-apps"
+>
+
+<header class="windowHeader">
+
+    <span>
+        APPLICATION LAUNCHER
+    </span>
+
+    <div class="windowControls">
+
+        <button data-minimize>—</button>
+        <button data-maximize>□</button>
+        <button data-close>×</button>
+
+    </div>
+
+</header>
+
+
+<div class="windowBody">
+
+    <div class="appGrid">
+
+        <button
+            data-command="Open Notepad."
+        >
+            <strong>
+                N
+            </strong>
+            NOTEPAD
+        </button>
+
+
+        <button
+            data-command="Open Calculator."
+        >
+            <strong>
+                +
+            </strong>
+            CALCULATOR
+        </button>
+
+
+        <button
+            data-command="Open my default web browser."
+        >
+            <strong>
+                ◎
+            </strong>
+            BROWSER
+        </button>
+
+
+        <button
+            data-command="Open Visual Studio Code."
+        >
+            <strong>
+                &lt;/&gt;
+            </strong>
+            VS CODE
+        </button>
+
+
+        <button
+            data-command="Open the C:\Jarvis folder."
+        >
+            <strong>
+                ▣
+            </strong>
+            JARVIS FILES
+        </button>
+
+
+        <button
+            data-command="Show system information."
+        >
+            <strong>
+                ⚙
+            </strong>
+            SYSTEM INFO
+        </button>
+
+    </div>
+
+</div>
+
+</section>
+
+
+<!-- ====================================================== -->
+<!-- SYSTEM -->
+<!-- ====================================================== -->
+
+<section
+    class="jarvisWindow systemWindow"
+    data-window="system"
+    id="win-system"
+>
+
+<header class="windowHeader">
+
+    <span>
+        SYSTEM CORE
+    </span>
+
+    <div class="windowControls">
+
+        <button data-minimize>—</button>
+        <button data-maximize>□</button>
+        <button data-close>×</button>
+
+    </div>
+
+</header>
+
+
+<div
+    class="windowBody systemGrid"
+    id="systemGrid"
+>
+    Loading…
+</div>
+
+</section>
+
+
+<!-- ====================================================== -->
+<!-- LEGACY OPTIONAL -->
+<!-- ====================================================== -->
+
+<section
+    class="jarvisWindow legacyWindow"
+    data-window="legacy"
+    id="win-legacy"
+>
+
+<header class="windowHeader">
+
+    <span>
+        LEGACY JARVIS V2 WORKSPACE
+    </span>
+
+    <div class="windowControls">
+
+        <button data-minimize>—</button>
+        <button data-maximize>□</button>
+        <button data-close>×</button>
+
+    </div>
+
+</header>
+
+
+<div class="windowBody legacyBody">
+
+    Legacy workspace is now optional.
+    V3.1 core functionality no longer depends on port 8787.
+
+    <button
+        class="actionButton"
+        data-command="Open the legacy JARVIS workspace if it is available."
+    >
+        OPEN LEGACY
+    </button>
+
+</div>
+
+</section>
+
+
+</main>
+
+
+<footer id="dock">
+
+    <div class="masterStatus">
+
+        <span class="greenDot"></span>
+
+        <strong>
+            MASTER JARVIS
+        </strong>
+
+        <span id="readyState">
+            READY
+        </span>
+
+    </div>
+
+
+    <div class="dockApps">
+
+        <button data-open="core">
+            CORE
+        </button>
+
+        <button data-open="chart">
+            CHART
+        </button>
+
+        <button data-open="quant">
+            QUANT
+        </button>
+
+        <button data-open="paper">
+            PAPER
+        </button>
+
+        <button data-open="research">
+            INTEL
+        </button>
+
+        <button data-open="missions">
+            MISSIONS
+        </button>
+
+        <button data-open="apps">
+            APPS
+        </button>
+
+        <button data-open="evidence">
+            EVIDENCE
+        </button>
+
+        <button data-open="system">
+            SYSTEM
+        </button>
+
+    </div>
+
+
+    <div class="layoutDock">
+
+        <button data-layout="command">
+            COMMAND
+        </button>
+
+        <button data-layout="trading">
+            TRADING
+        </button>
+
+        <button data-layout="research">
+            RESEARCH
+        </button>
+
+        <button data-layout="mission">
+            MISSION
+        </button>
+
+        <button id="saveWorkspace">
+            SAVE
+        </button>
+
+    </div>
+
+</footer>
+
+
+<script>
+window.JARVIS_TOKEN =
+    "__JARVIS_TOKEN__";
+</script>
+
+<script src="/app.js"></script>
+
+
+</body>
+
+</html>

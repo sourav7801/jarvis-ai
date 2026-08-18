@@ -1,0 +1,774 @@
+======================================================================================
+                     JARVIS DEPENDENCY + DUPLICATION AUDIT
+======================================================================================
+
+BASELINE
+--------------------------------------------------------------------------------------
+Known test baseline before this audit: 201/201 passing
+Python modules scanned: 248
+Agent-directory modules: 136
+Production-reachable modules: 57
+Agent modules production-reachable: 25
+
+CLASSIFICATION SUMMARY
+--------------------------------------------------------------------------------------
+KEEP       13
+MOVE       16
+MERGE      32
+ARCHIVE    18
+REVIEW     57
+
+PRODUCTION ROOTS
+--------------------------------------------------------------------------------------
+agents.head_agent
+agents.market_data_agent
+agents.trading_agent
+agents.trading_intelligence_agent
+agents.trading_mission_agent
+agents.web_intelligence_agent
+main
+omni.agent_registry
+omni.company_os
+omni.control_plane
+omni.dispatch
+omni.mission_control
+workstation.app
+
+KEEP ? CANONICAL / PRODUCTION
+--------------------------------------------------------------------------------------
+agents.chat_agent
+  agents\chat_agent.py
+  reason: Canonical top-level operational/specialist agent.
+agents.coding_agent
+  agents\coding_agent.py
+  reason: Canonical top-level operational/specialist agent.
+agents.data_agent
+  agents\data_agent.py
+  reason: Reachable from production runtime.
+agents.fyers_auth_manager
+  agents\fyers_auth_manager.py
+  reason: Reachable from production runtime.
+agents.head_agent
+  agents\head_agent.py
+  reason: Canonical top-level operational/specialist agent.
+agents.market_data_agent
+  agents\market_data_agent.py
+  reason: Canonical top-level operational/specialist agent.
+agents.office_agent
+  agents\office_agent.py
+  reason: Canonical top-level operational/specialist agent.
+agents.research_agent
+  agents\research_agent.py
+  reason: Canonical top-level operational/specialist agent.
+agents.trading_agent
+  agents\trading_agent.py
+  reason: Canonical top-level operational/specialist agent.
+agents.trading_intelligence_agent
+  agents\trading_intelligence_agent.py
+  reason: Canonical top-level operational/specialist agent.
+agents.trading_mission_agent
+  agents\trading_mission_agent.py
+  reason: Canonical top-level operational/specialist agent.
+agents.universal_operator_agent
+  agents\universal_operator_agent.py
+  reason: Canonical top-level operational/specialist agent.
+agents.web_intelligence_agent
+  agents\web_intelligence_agent.py
+  reason: Canonical top-level operational/specialist agent.
+
+MOVE ? PRODUCTION ENGINES/SERVICES CURRENTLY UNDER agents/
+--------------------------------------------------------------------------------------
+agents.confidence_engine
+  agents\confidence_engine.py
+  imported by: agents.regime_aware_signal_engine
+  reason: Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.
+agents.edge_validation_engine
+  agents\edge_validation_engine.py
+  imported by: agents.paper_signal_engine, agents.trading_mission_agent
+  reason: Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.
+agents.fyers_data_adapter
+  agents\fyers_data_adapter.py
+  imported by: agents.fyers_live_stream, agents.market_data_agent, tests.test_fyers_integration, workstation.app, workstation.market_runtime, workstation.paper_market_data, workstation.trading_intelligence
+  reason: Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.
+agents.fyers_live_stream
+  agents\fyers_live_stream.py
+  imported by: tests.test_fyers_integration, workstation.market_runtime
+  reason: Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.
+agents.mtf_confluence_engine
+  agents\mtf_confluence_engine.py
+  imported by: agents.trading_intelligence_agent
+  reason: Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.
+agents.paper_broker
+  agents\paper_broker.py
+  imported by: workstation.paper_runtime
+  reason: Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.
+agents.pattern_engine
+  agents\pattern_engine.py
+  imported by: agents.backtest_engine, agents.backtest_engine_v2, agents.strategy_comparison, agents.strategy_research_runner, agents.trading_agent, agents.trading_intelligence_agent, agents.trading_mission_agent, workstation.trading_intelligence
+  reason: Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.
+agents.regime_aware_signal_engine
+  agents\regime_aware_signal_engine.py
+  imported by: agents.strategy_comparison, agents.strategy_research_runner, agents.trading_intelligence_agent
+  reason: Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.
+agents.regime_detector
+  agents\regime_detector.py
+  imported by: agents.strategy_comparison, agents.strategy_research_runner, agents.trading_intelligence_agent, agents.trading_mission_agent
+  reason: Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.
+agents.research_edge_engine
+  agents\research_edge_engine.py
+  imported by: agents.edge_validation_engine, agents.mean_reversion_research_runner, agents.momentum_research_runner, agents.paper_signal_engine, agents.research_matrix_runner, agents.strategy_research_runner, agents.trading_intelligence_agent, agents.trend_research_runner
+  reason: Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.
+agents.risk_engine
+  agents\risk_engine.py
+  imported by: agents.backtest_engine, agents.backtest_engine_v2, agents.mean_reversion_research_runner, agents.momentum_research_runner, agents.strategy_comparison, agents.trading_agent, agents.trend_research_runner
+  reason: Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.
+agents.signal_engine
+  agents\signal_engine.py
+  imported by: agents.backtest_engine, agents.backtest_engine_v2, agents.strategy_comparison, agents.trading_agent
+  reason: Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.
+agents.strategy_lab
+  agents\strategy_lab.py
+  imported by: agents.trading_intelligence_agent
+  reason: Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.
+agents.technical_engine
+  agents\technical_engine.py
+  imported by: agents.backtest_engine, agents.backtest_engine_v2, agents.strategy_comparison, agents.strategy_research_runner, agents.trading_agent, agents.trading_intelligence_agent, agents.trading_mission_agent
+  reason: Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.
+agents.trade_plan_engine
+  agents\trade_plan_engine.py
+  imported by: agents.trading_mission_agent
+  reason: Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.
+agents.trade_setup_verifier
+  agents\trade_setup_verifier.py
+  imported by: agents.trading_mission_agent
+  reason: Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.
+
+MERGE ? OVERLAPPING VERSION / FAMILY IMPLEMENTATIONS
+--------------------------------------------------------------------------------------
+agents.backtest_engine
+  agents\backtest_engine.py
+  production: False
+  reason: Overlaps module family 'backtest_engine'. Family members: agents.backtest_engine, agents.backtest_engine_v2
+agents.backtest_engine_v2
+  agents\backtest_engine_v2.py
+  production: False
+  reason: Overlaps module family 'backtest_engine'. Family members: agents.backtest_engine, agents.backtest_engine_v2
+agents.research_matrix_runner
+  agents\research_matrix_runner.py
+  production: False
+  reason: Overlaps module family 'research_matrix_runner'. Family members: agents.research_matrix_runner, agents.research_matrix_runner_v2
+agents.research_matrix_runner_v2
+  agents\research_matrix_runner_v2.py
+  production: False
+  reason: Overlaps module family 'research_matrix_runner'. Family members: agents.research_matrix_runner, agents.research_matrix_runner_v2
+agents.strategy_engine
+  agents\strategy_engine.py
+  production: False
+  reason: Overlaps module family 'strategy_engine'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.strategy_engine, agents.strategy_engine, agents.trading_core.strategy_engine
+agents.trading_core
+  agents\trading_core\__init__.py
+  production: False
+  reason: Overlaps module family 'trading_core'. Family members: agents.jarvis_trading_core_v1.agents.trading_core, agents.trading_core, agents.trading_core.jarvis_trading_core_v2.agents.trading_core
+agents.trading_core.analysis_engine
+  agents\trading_core\analysis_engine.py
+  production: False
+  reason: Overlaps module family 'analysis_engine'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.analysis_engine, agents.trading_core.analysis_engine
+agents.trading_core.candidate_engine
+  agents\trading_core\candidate_engine.py
+  production: False
+  reason: Overlaps module family 'candidate_engine'. Family members: agents.trading_core.candidate_engine, agents.trading_core.candidate_engine_v2
+agents.trading_core.candidate_engine_v2
+  agents\trading_core\candidate_engine_v2.py
+  production: False
+  reason: Overlaps module family 'candidate_engine'. Family members: agents.trading_core.candidate_engine, agents.trading_core.candidate_engine_v2
+agents.trading_core.cli
+  agents\trading_core\cli.py
+  production: False
+  reason: Overlaps module family 'cli'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.cli, agents.trading_core.cli, agents.trading_core.cli_v2, agents.trading_core.jarvis_trading_core_v2.agents.trading_core.cli
+agents.trading_core.cli_v2
+  agents\trading_core\cli_v2.py
+  production: False
+  reason: Overlaps module family 'cli'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.cli, agents.trading_core.cli, agents.trading_core.cli_v2, agents.trading_core.jarvis_trading_core_v2.agents.trading_core.cli
+agents.trading_core.context_engine
+  agents\trading_core\context_engine.py
+  production: False
+  reason: Overlaps module family 'context_engine'. Family members: agents.trading_core.context_engine, agents.trading_core.jarvis_trading_core_v2.agents.trading_core.context_engine
+agents.trading_core.core
+  agents\trading_core\core.py
+  production: False
+  reason: Overlaps module family 'core'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.core, agents.trading_core.core, agents.trading_core.jarvis_trading_core_v2.agents.trading_core.core
+agents.trading_core.data_bus
+  agents\trading_core\data_bus.py
+  production: False
+  reason: Overlaps module family 'data_bus'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.data_bus, agents.trading_core.data_bus, agents.trading_core.jarvis_trading_core_v2.agents.trading_core.data_bus
+agents.trading_core.indicators
+  agents\trading_core\indicators.py
+  production: False
+  reason: Overlaps module family 'indicators'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.indicators, agents.trading_core.indicators
+agents.trading_core.instrument_registry
+  agents\trading_core\instrument_registry.py
+  production: False
+  reason: Overlaps module family 'instrument_registry'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.instrument_registry, agents.trading_core.instrument_registry
+agents.trading_core.jarvis_decision_agent_v1
+  agents\trading_core\jarvis_decision_agent_v1.py
+  production: False
+  reason: Overlaps module family 'jarvis_decision_agent'. Family members: agents.trading_core.jarvis_decision_agent_v1, agents.trading_core.jarvis_decision_agent_v2
+agents.trading_core.jarvis_decision_agent_v2
+  agents\trading_core\jarvis_decision_agent_v2.py
+  production: False
+  reason: Overlaps module family 'jarvis_decision_agent'. Family members: agents.trading_core.jarvis_decision_agent_v1, agents.trading_core.jarvis_decision_agent_v2
+agents.trading_core.models
+  agents\trading_core\models.py
+  production: False
+  reason: Overlaps module family 'models'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.models, agents.trading_core.models
+agents.trading_core.news_engine
+  agents\trading_core\news_engine.py
+  production: False
+  reason: Overlaps module family 'news_engine'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.news_engine, agents.trading_core.news_engine, agents.trading_core.news_engine_v2
+agents.trading_core.news_engine_v2
+  agents\trading_core\news_engine_v2.py
+  production: False
+  reason: Overlaps module family 'news_engine'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.news_engine, agents.trading_core.news_engine, agents.trading_core.news_engine_v2
+agents.trading_core.option_confirmation
+  agents\trading_core\option_confirmation.py
+  production: False
+  reason: Overlaps module family 'option_confirmation'. Family members: agents.trading_core.option_confirmation, agents.trading_core.option_confirmation_v2
+agents.trading_core.option_confirmation_v2
+  agents\trading_core\option_confirmation_v2.py
+  production: False
+  reason: Overlaps module family 'option_confirmation'. Family members: agents.trading_core.option_confirmation, agents.trading_core.option_confirmation_v2
+agents.trading_core.paper_broker
+  agents\trading_core\paper_broker.py
+  production: False
+  reason: Overlaps module family 'paper_broker'. Family members: agents.paper_broker, agents.trading_core.paper_broker
+agents.trading_core.paper_engine
+  agents\trading_core\paper_engine.py
+  production: False
+  reason: Overlaps module family 'paper_engine'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.paper_engine, agents.trading_core.paper_engine
+agents.trading_core.pattern_engine
+  agents\trading_core\pattern_engine.py
+  production: False
+  reason: Overlaps module family 'pattern_engine'. Family members: agents.pattern_engine, agents.trading_core.pattern_engine
+agents.trading_core.policy
+  agents\trading_core\policy.py
+  production: False
+  reason: Overlaps module family 'policy'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.policy, agents.trading_core.policy
+agents.trading_core.risk_engine
+  agents\trading_core\risk_engine.py
+  production: False
+  reason: Overlaps module family 'risk_engine'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.risk_engine, agents.risk_engine, agents.trading_core.risk_engine
+agents.trading_core.signal_engine
+  agents\trading_core\signal_engine.py
+  production: False
+  reason: Overlaps module family 'signal_engine'. Family members: agents.signal_engine, agents.trading_core.signal_engine
+agents.trading_core.strategy_engine
+  agents\trading_core\strategy_engine.py
+  production: False
+  reason: Overlaps module family 'strategy_engine'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.strategy_engine, agents.strategy_engine, agents.trading_core.strategy_engine
+agents.trading_core.upstox_live_stream_v4
+  agents\trading_core\upstox_live_stream_v4.py
+  production: False
+  reason: Overlaps module family 'upstox_live_stream'. Family members: agents.trading_core.upstox_live_stream_v4, agents.upstox_live_stream
+agents.upstox_live_stream
+  agents\upstox_live_stream.py
+  production: False
+  reason: Overlaps module family 'upstox_live_stream'. Family members: agents.trading_core.upstox_live_stream_v4, agents.upstox_live_stream
+
+ARCHIVE ? VERSIONED AND NOT PRODUCTION-REACHABLE
+--------------------------------------------------------------------------------------
+agents.jarvis_trading_core_v1.agents.trading_core
+  agents\jarvis_trading_core_v1\agents\trading_core\__init__.py
+  reason: Nested versioned trading-core generation and not production-reachable.
+agents.jarvis_trading_core_v1.agents.trading_core.analysis_engine
+  agents\jarvis_trading_core_v1\agents\trading_core\analysis_engine.py
+  reason: Nested versioned trading-core generation and not production-reachable.
+agents.jarvis_trading_core_v1.agents.trading_core.cli
+  agents\jarvis_trading_core_v1\agents\trading_core\cli.py
+  reason: Nested versioned trading-core generation and not production-reachable.
+agents.jarvis_trading_core_v1.agents.trading_core.core
+  agents\jarvis_trading_core_v1\agents\trading_core\core.py
+  reason: Nested versioned trading-core generation and not production-reachable.
+agents.jarvis_trading_core_v1.agents.trading_core.data_bus
+  agents\jarvis_trading_core_v1\agents\trading_core\data_bus.py
+  reason: Nested versioned trading-core generation and not production-reachable.
+agents.jarvis_trading_core_v1.agents.trading_core.indicators
+  agents\jarvis_trading_core_v1\agents\trading_core\indicators.py
+  reason: Nested versioned trading-core generation and not production-reachable.
+agents.jarvis_trading_core_v1.agents.trading_core.instrument_registry
+  agents\jarvis_trading_core_v1\agents\trading_core\instrument_registry.py
+  reason: Nested versioned trading-core generation and not production-reachable.
+agents.jarvis_trading_core_v1.agents.trading_core.models
+  agents\jarvis_trading_core_v1\agents\trading_core\models.py
+  reason: Nested versioned trading-core generation and not production-reachable.
+agents.jarvis_trading_core_v1.agents.trading_core.news_engine
+  agents\jarvis_trading_core_v1\agents\trading_core\news_engine.py
+  reason: Nested versioned trading-core generation and not production-reachable.
+agents.jarvis_trading_core_v1.agents.trading_core.paper_engine
+  agents\jarvis_trading_core_v1\agents\trading_core\paper_engine.py
+  reason: Nested versioned trading-core generation and not production-reachable.
+agents.jarvis_trading_core_v1.agents.trading_core.policy
+  agents\jarvis_trading_core_v1\agents\trading_core\policy.py
+  reason: Nested versioned trading-core generation and not production-reachable.
+agents.jarvis_trading_core_v1.agents.trading_core.risk_engine
+  agents\jarvis_trading_core_v1\agents\trading_core\risk_engine.py
+  reason: Nested versioned trading-core generation and not production-reachable.
+agents.jarvis_trading_core_v1.agents.trading_core.strategy_engine
+  agents\jarvis_trading_core_v1\agents\trading_core\strategy_engine.py
+  reason: Nested versioned trading-core generation and not production-reachable.
+agents.trading_core.jarvis_trading_core_v2.agents.trading_core
+  agents\trading_core\jarvis_trading_core_v2\agents\trading_core\__init__.py
+  reason: Nested versioned trading-core generation and not production-reachable.
+agents.trading_core.jarvis_trading_core_v2.agents.trading_core.cli
+  agents\trading_core\jarvis_trading_core_v2\agents\trading_core\cli.py
+  reason: Nested versioned trading-core generation and not production-reachable.
+agents.trading_core.jarvis_trading_core_v2.agents.trading_core.context_engine
+  agents\trading_core\jarvis_trading_core_v2\agents\trading_core\context_engine.py
+  reason: Nested versioned trading-core generation and not production-reachable.
+agents.trading_core.jarvis_trading_core_v2.agents.trading_core.core
+  agents\trading_core\jarvis_trading_core_v2\agents\trading_core\core.py
+  reason: Nested versioned trading-core generation and not production-reachable.
+agents.trading_core.jarvis_trading_core_v2.agents.trading_core.data_bus
+  agents\trading_core\jarvis_trading_core_v2\agents\trading_core\data_bus.py
+  reason: Nested versioned trading-core generation and not production-reachable.
+
+REVIEW ? NOT PROVEN SAFE TO REMOVE
+--------------------------------------------------------------------------------------
+agents
+  agents\__init__.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.analysis_planner
+  agents\analysis_planner.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.breakout_research_runner
+  agents\breakout_research_runner.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.breakout_strategy
+  agents\breakout_strategy.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.broker_intraday_adapter
+  agents\broker_intraday_adapter.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.company_department_agent
+  agents\company_department_agent.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.debug_5m_data
+  agents\debug_5m_data.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.execution_engine
+  agents\execution_engine.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.health_agent
+  agents\health_agent.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.intraday_data_router
+  agents\intraday_data_router.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.intraday_setup_engine
+  agents\intraday_setup_engine.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.live_intraday_router
+  agents\live_intraday_router.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.market_regime_engine
+  agents\market_regime_engine.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.market_session_gate
+  agents\market_session_gate.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.market_universe
+  agents\market_universe.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.mean_reversion_research_runner
+  agents\mean_reversion_research_runner.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.mean_reversion_strategy
+  agents\mean_reversion_strategy.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.momentum_research_runner
+  agents\momentum_research_runner.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.momentum_strategy
+  agents\momentum_strategy.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.option_chain_engine
+  agents\option_chain_engine.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.option_chain_signal_engine
+  agents\option_chain_signal_engine.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.option_decision_engine
+  agents\option_decision_engine.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.option_journal
+  agents\option_journal.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.option_mission_engine
+  agents\option_mission_engine.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.option_paper_execution_engine
+  agents\option_paper_execution_engine.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.option_paper_monitor
+  agents\option_paper_monitor.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.option_strategy_engine
+  agents\option_strategy_engine.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.option_trade_journal_adapter
+  agents\option_trade_journal_adapter.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.option_trade_plan_engine
+  agents\option_trade_plan_engine.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.options_engine
+  agents\options_engine.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.paper_monitor
+  agents\paper_monitor.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.paper_position_engine
+  agents\paper_position_engine.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.paper_signal_engine
+  agents\paper_signal_engine.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.portfolio_engine
+  agents\portfolio_engine.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.scalping_research_engine
+  agents\scalping_research_engine.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.strategy_comparison
+  agents\strategy_comparison.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.strategy_research_runner
+  agents\strategy_research_runner.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.trading_core.candidate_diagnostics
+  agents\trading_core\candidate_diagnostics.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.trading_core.edge_gate
+  agents\trading_core\edge_gate.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.trading_core.jarvis_strategy_paper_v3
+  agents\trading_core\jarvis_strategy_paper_v3.py
+  production: False
+  tests: False
+  reason: Versioned module not detected as production-reachable.
+agents.trading_core.jarvis_trading_agent
+  agents\trading_core\jarvis_trading_agent.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.trading_core.live_bus
+  agents\trading_core\live_bus.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.trading_core.live_monitor
+  agents\trading_core\live_monitor.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.trading_core.market_state_label
+  agents\trading_core\market_state_label.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.trading_core.market_structure
+  agents\trading_core\market_structure.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.trading_core.option_adapter
+  agents\trading_core\option_adapter.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.trading_core.paper_execution_v2
+  agents\trading_core\paper_execution_v2.py
+  production: False
+  tests: False
+  reason: Versioned module not detected as production-reachable.
+agents.trading_core.research_gate
+  agents\trading_core\research_gate.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.trading_core.strategy_candidate_engine_v3
+  agents\trading_core\strategy_candidate_engine_v3.py
+  production: False
+  tests: False
+  reason: Versioned module not detected as production-reachable.
+agents.trading_core.trade_decision_engine_v1
+  agents\trading_core\trade_decision_engine_v1.py
+  production: False
+  tests: False
+  reason: Versioned module not detected as production-reachable.
+agents.trading_core.voice_event_bridge
+  agents\trading_core\voice_event_bridge.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.trading_core.workstation_bridge
+  agents\trading_core\workstation_bridge.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.trading_journal
+  agents\trading_journal.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.trend_following_strategy
+  agents\trend_following_strategy.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.trend_research_runner
+  agents\trend_research_runner.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.upstox_auth_manager
+  agents\upstox_auth_manager.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+agents.upstox_historical_loader
+  agents\upstox_historical_loader.py
+  production: False
+  tests: False
+  reason: No production import path detected.
+
+IDENTICAL FILE GROUPS
+--------------------------------------------------------------------------------------
+IDENTICAL:
+  agents.breakout_research_runner
+  agents.momentum_strategy
+IDENTICAL:
+  agents
+  agents.execution_engine
+  agents.strategy_engine
+IDENTICAL:
+  agents.jarvis_trading_core_v1.agents.trading_core.analysis_engine
+  agents.trading_core.analysis_engine
+IDENTICAL:
+  agents.trading_core.context_engine
+  agents.trading_core.jarvis_trading_core_v2.agents.trading_core.context_engine
+IDENTICAL:
+  agents.jarvis_trading_core_v1.agents.trading_core.indicators
+  agents.trading_core.indicators
+IDENTICAL:
+  agents.jarvis_trading_core_v1.agents.trading_core.paper_engine
+  agents.trading_core.paper_engine
+IDENTICAL:
+  agents.jarvis_trading_core_v1.agents.trading_core.policy
+  agents.trading_core.policy
+IDENTICAL:
+  agents.jarvis_trading_core_v1.agents.trading_core.risk_engine
+  agents.trading_core.risk_engine
+IDENTICAL:
+  agents.jarvis_trading_core_v1.agents.trading_core.strategy_engine
+  agents.trading_core.strategy_engine
+IDENTICAL:
+  agents.trading_core
+  agents.trading_core.jarvis_trading_core_v2.agents.trading_core
+
+VERSION / NAME FAMILIES
+--------------------------------------------------------------------------------------
+analysis_engine:
+   agents.jarvis_trading_core_v1.agents.trading_core.analysis_engine
+   agents.trading_core.analysis_engine
+backtest_engine:
+   agents.backtest_engine
+   agents.backtest_engine_v2
+candidate_engine:
+   agents.trading_core.candidate_engine
+   agents.trading_core.candidate_engine_v2
+cli:
+   agents.jarvis_trading_core_v1.agents.trading_core.cli
+   agents.trading_core.cli
+   agents.trading_core.cli_v2
+   agents.trading_core.jarvis_trading_core_v2.agents.trading_core.cli
+context_engine:
+   agents.trading_core.context_engine
+   agents.trading_core.jarvis_trading_core_v2.agents.trading_core.context_engine
+core:
+   agents.jarvis_trading_core_v1.agents.trading_core.core
+   agents.trading_core.core
+   agents.trading_core.jarvis_trading_core_v2.agents.trading_core.core
+data_bus:
+   agents.jarvis_trading_core_v1.agents.trading_core.data_bus
+   agents.trading_core.data_bus
+   agents.trading_core.jarvis_trading_core_v2.agents.trading_core.data_bus
+indicators:
+   agents.jarvis_trading_core_v1.agents.trading_core.indicators
+   agents.trading_core.indicators
+instrument_registry:
+   agents.jarvis_trading_core_v1.agents.trading_core.instrument_registry
+   agents.trading_core.instrument_registry
+jarvis_decision_agent:
+   agents.trading_core.jarvis_decision_agent_v1
+   agents.trading_core.jarvis_decision_agent_v2
+models:
+   agents.jarvis_trading_core_v1.agents.trading_core.models
+   agents.trading_core.models
+news_engine:
+   agents.jarvis_trading_core_v1.agents.trading_core.news_engine
+   agents.trading_core.news_engine
+   agents.trading_core.news_engine_v2
+option_confirmation:
+   agents.trading_core.option_confirmation
+   agents.trading_core.option_confirmation_v2
+paper_broker:
+ * agents.paper_broker
+   agents.trading_core.paper_broker
+paper_engine:
+   agents.jarvis_trading_core_v1.agents.trading_core.paper_engine
+   agents.trading_core.paper_engine
+pattern_engine:
+ * agents.pattern_engine
+   agents.trading_core.pattern_engine
+policy:
+   agents.jarvis_trading_core_v1.agents.trading_core.policy
+   agents.trading_core.policy
+research_matrix_runner:
+   agents.research_matrix_runner
+   agents.research_matrix_runner_v2
+risk_engine:
+   agents.jarvis_trading_core_v1.agents.trading_core.risk_engine
+ * agents.risk_engine
+   agents.trading_core.risk_engine
+signal_engine:
+ * agents.signal_engine
+   agents.trading_core.signal_engine
+strategy_engine:
+   agents.jarvis_trading_core_v1.agents.trading_core.strategy_engine
+   agents.strategy_engine
+   agents.trading_core.strategy_engine
+trading_core:
+   agents.jarvis_trading_core_v1.agents.trading_core
+   agents.trading_core
+   agents.trading_core.jarvis_trading_core_v2.agents.trading_core
+upstox_live_stream:
+   agents.trading_core.upstox_live_stream_v4
+   agents.upstox_live_stream
+
+TOP IMPORTED AGENT MODULES
+--------------------------------------------------------------------------------------
+ 17  agents.market_data_agent
+  8  agents.pattern_engine
+  8  agents.research_edge_engine
+  7  agents.fyers_data_adapter
+  7  agents.risk_engine
+  7  agents.technical_engine
+  6  agents.jarvis_trading_core_v1.agents.trading_core.models
+  5  agents.broker_intraday_adapter
+  5  agents.trading_core.models
+  4  agents.fyers_auth_manager
+  4  agents.regime_detector
+  4  agents.signal_engine
+  4  agents.upstox_live_stream
+  4  agents.trading_core.live_monitor
+  3  agents.regime_aware_signal_engine
+  3  agents.universal_operator_agent
+  3  agents
+  3  agents.trading_core.analysis_engine
+  3  agents.trading_core.research_gate
+  3  agents.trading_core.trade_decision_engine_v1
+  2  agents.edge_validation_engine
+  2  agents.fyers_live_stream
+  2  agents.head_agent
+  2  agents.intraday_data_router
+  2  agents.market_regime_engine
+  2  agents.market_session_gate
+  2  agents.web_intelligence_agent
+  2  agents.trading_core.data_bus
+  2  agents.trading_core.edge_gate
+  2  agents.trading_core.indicators
+
+======================================================================================
+IMPORTANT
+======================================================================================
+This audit makes NO file changes.
+ARCHIVE/MERGE classifications are recommendations only.
+Do not delete anything until imports and 201-test baseline are revalidated after each move.

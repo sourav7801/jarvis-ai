@@ -1,0 +1,156 @@
+﻿# =========================
+# Python environments
+# =========================
+.venv/
+.venv-*/
+venv/
+env/
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# =========================
+# Secrets / credentials
+# =========================
+.env
+.env.*
+!.env.example
+
+secrets/
+credentials/
+
+*.pem
+*.key
+*.p12
+*.pfx
+
+*access_token*
+*refresh_token*
+*fyers_token*
+*token.json
+*token.txt
+
+credentials.json
+secrets.json
+secret.json
+
+# =========================
+# Local databases / runtime
+# =========================
+*.sqlite
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+
+data/**/*.sqlite
+data/**/*.sqlite3
+data/**/*.db
+
+logs/
+runtime/
+sessions/
+state/
+
+# =========================
+# Backup/archive files
+# =========================
+archive/
+archives/
+backup/
+backups/
+
+*.bak
+*.backup
+*.old
+
+# =========================
+# Generated binaries
+# =========================
+*.exe
+*.dll
+*.pdb
+
+workstation/native_voice/*.exe
+
+# =========================
+# Node / editors / OS
+# =========================
+node_modules/
+
+.vscode/
+.idea/
+
+Thumbs.db
+Desktop.ini
+
+# =========================
+# Temporary files
+# =========================
+tmp/
+temp/
+.cache/
+*.tmp
+*.temp
+
+# ============================================================
+# GOOGLE / OAUTH LOCAL CREDENTIALS
+# ============================================================
+
+config/google/
+**/client_secret.json
+**/client_secrets.json
+**/credentials.json
+**/oauth_token.json
+
+# ============================================================
+# JARVIS GENERATED APPROVAL / RUNTIME DATA
+# ============================================================
+
+data/approvals/
+data/approval_batches/
+
+# Other generated runtime datasets
+data/runtime/
+data/sessions/
+data/cache/
+
+# ============================================================
+# LOCAL USER / MACHINE STATE
+# ============================================================
+
+*.session
+*.pid
+
+
+# ============================================================
+# BROKER / APPLICATION LOGS
+# ============================================================
+
+*.log
+fyers*.log
+
+# ============================================================
+# LOCAL JARVIS MEMORY
+# ============================================================
+
+memory.json
+
+# ============================================================
+# RUNTIME / GENERATED DATA
+# Keep source code in Git; runtime state stays local.
+# ============================================================
+
+data/
+
+
+jarvis_provider_architecture_audit.json
+
+
+docs/FYERS_SETUP.md

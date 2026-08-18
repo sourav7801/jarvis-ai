@@ -1,0 +1,2816 @@
+{
+  "summary": {
+    "python_modules_scanned": 248,
+    "agent_modules": 136,
+    "production_reachable_modules": 57,
+    "agent_modules_production_reachable": 25,
+    "classification_counts": {
+      "REVIEW": 57,
+      "MERGE": 32,
+      "KEEP": 13,
+      "MOVE": 16,
+      "ARCHIVE": 18
+    }
+  },
+  "roots": [
+    "agents.head_agent",
+    "agents.market_data_agent",
+    "agents.trading_agent",
+    "agents.trading_intelligence_agent",
+    "agents.trading_mission_agent",
+    "agents.web_intelligence_agent",
+    "main",
+    "omni.agent_registry",
+    "omni.company_os",
+    "omni.control_plane",
+    "omni.dispatch",
+    "omni.mission_control",
+    "workstation.app"
+  ],
+  "classifications": {
+    "agents": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.broker_intraday_adapter",
+        "agents.jarvis_trading_core_v1.agents.trading_core",
+        "agents.trading_core"
+      ],
+      "path": "agents\\__init__.py",
+      "classes": [],
+      "functions": [],
+      "imports": []
+    },
+    "agents.analysis_planner": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\analysis_planner.py",
+      "classes": [],
+      "functions": [
+        "normalize",
+        "contains_any",
+        "wants_excel",
+        "wants_html",
+        "wants_dashboard",
+        "wants_analysis",
+        "extract_requested_items",
+        "default_analysis_items",
+        "build_analysis_plan",
+        "create_analysis_plan",
+        "format_plan"
+      ],
+      "imports": []
+    },
+    "agents.backtest_engine": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'backtest_engine'. Family members: agents.backtest_engine, agents.backtest_engine_v2",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\backtest_engine.py",
+      "classes": [
+        "BacktestTrade",
+        "BacktestEngine"
+      ],
+      "functions": [
+        "backtest"
+      ],
+      "imports": [
+        "agents.pattern_engine",
+        "agents.risk_engine",
+        "agents.signal_engine",
+        "agents.technical_engine"
+      ]
+    },
+    "agents.backtest_engine_v2": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'backtest_engine'. Family members: agents.backtest_engine, agents.backtest_engine_v2",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.strategy_research_runner"
+      ],
+      "path": "agents\\backtest_engine_v2.py",
+      "classes": [
+        "V2Trade",
+        "BacktestEngineV2"
+      ],
+      "functions": [
+        "backtest_v2"
+      ],
+      "imports": [
+        "agents.pattern_engine",
+        "agents.risk_engine",
+        "agents.signal_engine",
+        "agents.technical_engine"
+      ]
+    },
+    "agents.breakout_research_runner": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\breakout_research_runner.py",
+      "classes": [
+        "MomentumStrategy"
+      ],
+      "functions": [
+        "analyze_momentum"
+      ],
+      "imports": [
+        "agents.market_data_agent"
+      ]
+    },
+    "agents.breakout_strategy": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\breakout_strategy.py",
+      "classes": [
+        "BreakoutStrategy"
+      ],
+      "functions": [
+        "analyze_breakout"
+      ],
+      "imports": [
+        "agents.market_data_agent"
+      ]
+    },
+    "agents.broker_intraday_adapter": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.intraday_data_router",
+        "agents.live_intraday_router",
+        "agents.trading_core.upstox_live_stream_v4",
+        "agents.upstox_live_stream",
+        "jarvis_trading_agent_v1.agents.trading_core.upstox_live_stream_v4"
+      ],
+      "path": "agents\\broker_intraday_adapter.py",
+      "classes": [],
+      "functions": [
+        "now",
+        "normalize_dataframe",
+        "fetch_zerodha",
+        "fetch_upstox",
+        "get_intraday_data"
+      ],
+      "imports": [
+        "agents"
+      ]
+    },
+    "agents.chat_agent": {
+      "category": "KEEP",
+      "reason": "Canonical top-level operational/specialist agent.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\chat_agent.py",
+      "classes": [
+        "ChatAgent"
+      ],
+      "functions": [
+        "chat"
+      ],
+      "imports": []
+    },
+    "agents.coding_agent": {
+      "category": "KEEP",
+      "reason": "Canonical top-level operational/specialist agent.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\coding_agent.py",
+      "classes": [
+        "CodingAgent"
+      ],
+      "functions": [
+        "coding"
+      ],
+      "imports": []
+    },
+    "agents.company_department_agent": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\company_department_agent.py",
+      "classes": [],
+      "functions": [
+        "_analyze",
+        "strategy",
+        "product",
+        "engineering",
+        "data_ai",
+        "design",
+        "security",
+        "legal",
+        "finance",
+        "operations",
+        "marketing",
+        "sales",
+        "customer_success",
+        "people",
+        "quality"
+      ],
+      "imports": []
+    },
+    "agents.confidence_engine": {
+      "category": "MOVE",
+      "reason": "Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.",
+      "production_reachable": true,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.regime_aware_signal_engine"
+      ],
+      "path": "agents\\confidence_engine.py",
+      "classes": [
+        "ConfidenceEngine"
+      ],
+      "functions": [
+        "calculate_confidence"
+      ],
+      "imports": []
+    },
+    "agents.data_agent": {
+      "category": "KEEP",
+      "reason": "Reachable from production runtime.",
+      "production_reachable": true,
+      "test_reachable": true,
+      "imported_by": [
+        "main"
+      ],
+      "path": "agents\\data_agent.py",
+      "classes": [],
+      "functions": [
+        "has_pending_selection",
+        "clear_pending_selection",
+        "log",
+        "debug",
+        "normalize",
+        "safe_string",
+        "json_safe",
+        "human_size",
+        "timestamp",
+        "ensure_output_dir",
+        "requested_formats",
+        "extract_windows_path",
+        "is_supported_file",
+        "file_type",
+        "discover_datasets",
+        "get_excel_sheets",
+        "load_csv",
+        "load_json",
+        "load_parquet",
+        "load_excel",
+        "load_dataset",
+        "detect_roles",
+        "detect_column_type",
+        "profile_columns",
+        "missing_analysis",
+        "duplicate_analysis",
+        "quality_score",
+        "numeric_summary",
+        "outlier_analysis",
+        "correlations",
+        "trend_analysis",
+        "top_products",
+        "regional_performance",
+        "profit_analysis",
+        "categorical_analysis",
+        "generate_insights",
+        "analyze_dataframe",
+        "create_excel_report",
+        "create_html_dashboard",
+        "generate_reports",
+        "format_result",
+        "choose_dataset",
+        "selection_message",
+        "resolve_pending_selection",
+        "data_analyze",
+        "analyze",
+        "research_data"
+      ],
+      "imports": []
+    },
+    "agents.debug_5m_data": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\debug_5m_data.py",
+      "classes": [],
+      "functions": [
+        "inspect"
+      ],
+      "imports": [
+        "agents.intraday_data_router"
+      ]
+    },
+    "agents.edge_validation_engine": {
+      "category": "MOVE",
+      "reason": "Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.",
+      "production_reachable": true,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.paper_signal_engine",
+        "agents.trading_mission_agent"
+      ],
+      "path": "agents\\edge_validation_engine.py",
+      "classes": [
+        "EdgeValidationEngine"
+      ],
+      "functions": [
+        "validate_research_matrix"
+      ],
+      "imports": [
+        "agents.research_edge_engine"
+      ]
+    },
+    "agents.execution_engine": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\execution_engine.py",
+      "classes": [],
+      "functions": [],
+      "imports": []
+    },
+    "agents.fyers_auth_manager": {
+      "category": "KEEP",
+      "reason": "Reachable from production runtime.",
+      "production_reachable": true,
+      "test_reachable": true,
+      "imported_by": [
+        "agents.fyers_data_adapter",
+        "agents.fyers_live_stream",
+        "tests.test_fyers_integration",
+        "workstation.market_runtime"
+      ],
+      "path": "agents\\fyers_auth_manager.py",
+      "classes": [
+        "FyersSettings"
+      ],
+      "functions": [
+        "_default_token_file",
+        "_sdk_model",
+        "save_token",
+        "load_token",
+        "_session",
+        "generate_login_url",
+        "extract_auth_code",
+        "exchange_auth_code",
+        "create_client",
+        "websocket_access_token",
+        "is_configured",
+        "interactive_login_settings",
+        "notify_running_workstation",
+        "login",
+        "main"
+      ],
+      "imports": []
+    },
+    "agents.fyers_data_adapter": {
+      "category": "MOVE",
+      "reason": "Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.",
+      "production_reachable": true,
+      "test_reachable": true,
+      "imported_by": [
+        "agents.fyers_live_stream",
+        "agents.market_data_agent",
+        "tests.test_fyers_integration",
+        "workstation.app",
+        "workstation.market_runtime",
+        "workstation.paper_market_data",
+        "workstation.trading_intelligence"
+      ],
+      "path": "agents\\fyers_data_adapter.py",
+      "classes": [],
+      "functions": [
+        "normalize_symbol",
+        "resolution_for",
+        "_calendar_days_for_bars",
+        "_windows",
+        "_response_error",
+        "candles_to_frame",
+        "get_intraday_data",
+        "get_quote",
+        "main"
+      ],
+      "imports": [
+        "agents.fyers_auth_manager"
+      ]
+    },
+    "agents.fyers_live_stream": {
+      "category": "MOVE",
+      "reason": "Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.",
+      "production_reachable": true,
+      "test_reachable": true,
+      "imported_by": [
+        "tests.test_fyers_integration",
+        "workstation.market_runtime"
+      ],
+      "path": "agents\\fyers_live_stream.py",
+      "classes": [
+        "FyersLiveStream"
+      ],
+      "functions": [
+        "_official_socket_factory",
+        "main"
+      ],
+      "imports": [
+        "agents.fyers_auth_manager",
+        "agents.fyers_data_adapter"
+      ]
+    },
+    "agents.head_agent": {
+      "category": "KEEP",
+      "reason": "Canonical top-level operational/specialist agent.",
+      "production_reachable": true,
+      "test_reachable": true,
+      "imported_by": [
+        "main",
+        "tests.test_foundation"
+      ],
+      "path": "agents\\head_agent.py",
+      "classes": [
+        "HeadAgent"
+      ],
+      "functions": [
+        "detect_department",
+        "route"
+      ],
+      "imports": []
+    },
+    "agents.health_agent": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\health_agent.py",
+      "classes": [],
+      "functions": [
+        "health"
+      ],
+      "imports": []
+    },
+    "agents.intraday_data_router": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.debug_5m_data",
+        "agents.intraday_setup_engine"
+      ],
+      "path": "agents\\intraday_data_router.py",
+      "classes": [
+        "IntradayDataRouter"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.broker_intraday_adapter",
+        "agents.market_data_agent"
+      ]
+    },
+    "agents.intraday_setup_engine": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.option_paper_monitor"
+      ],
+      "path": "agents\\intraday_setup_engine.py",
+      "classes": [
+        "IntradaySetupEngine"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.intraday_data_router"
+      ]
+    },
+    "agents.jarvis_trading_core_v1.agents.trading_core": {
+      "category": "ARCHIVE",
+      "reason": "Nested versioned trading-core generation and not production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\jarvis_trading_core_v1\\agents\\trading_core\\__init__.py",
+      "classes": [],
+      "functions": [],
+      "imports": [
+        "agents"
+      ]
+    },
+    "agents.jarvis_trading_core_v1.agents.trading_core.analysis_engine": {
+      "category": "ARCHIVE",
+      "reason": "Nested versioned trading-core generation and not production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.jarvis_trading_core_v1.agents.trading_core.core"
+      ],
+      "path": "agents\\jarvis_trading_core_v1\\agents\\trading_core\\analysis_engine.py",
+      "classes": [],
+      "functions": [
+        "analyze"
+      ],
+      "imports": [
+        "agents.jarvis_trading_core_v1.agents.trading_core.indicators",
+        "agents.jarvis_trading_core_v1.agents.trading_core.models"
+      ]
+    },
+    "agents.jarvis_trading_core_v1.agents.trading_core.cli": {
+      "category": "ARCHIVE",
+      "reason": "Nested versioned trading-core generation and not production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\jarvis_trading_core_v1\\agents\\trading_core\\cli.py",
+      "classes": [],
+      "functions": [
+        "main"
+      ],
+      "imports": [
+        "agents.jarvis_trading_core_v1.agents.trading_core.core"
+      ]
+    },
+    "agents.jarvis_trading_core_v1.agents.trading_core.core": {
+      "category": "ARCHIVE",
+      "reason": "Nested versioned trading-core generation and not production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.jarvis_trading_core_v1.agents.trading_core.cli"
+      ],
+      "path": "agents\\jarvis_trading_core_v1\\agents\\trading_core\\core.py",
+      "classes": [
+        "TradingCore"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.jarvis_trading_core_v1.agents.trading_core.analysis_engine",
+        "agents.jarvis_trading_core_v1.agents.trading_core.data_bus",
+        "agents.jarvis_trading_core_v1.agents.trading_core.models",
+        "agents.jarvis_trading_core_v1.agents.trading_core.news_engine",
+        "agents.jarvis_trading_core_v1.agents.trading_core.paper_engine",
+        "agents.jarvis_trading_core_v1.agents.trading_core.policy",
+        "agents.jarvis_trading_core_v1.agents.trading_core.risk_engine",
+        "agents.jarvis_trading_core_v1.agents.trading_core.strategy_engine"
+      ]
+    },
+    "agents.jarvis_trading_core_v1.agents.trading_core.data_bus": {
+      "category": "ARCHIVE",
+      "reason": "Nested versioned trading-core generation and not production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.jarvis_trading_core_v1.agents.trading_core.core"
+      ],
+      "path": "agents\\jarvis_trading_core_v1\\agents\\trading_core\\data_bus.py",
+      "classes": [
+        "DataBus"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.jarvis_trading_core_v1.agents.trading_core.indicators": {
+      "category": "ARCHIVE",
+      "reason": "Nested versioned trading-core generation and not production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.jarvis_trading_core_v1.agents.trading_core.analysis_engine",
+        "agents.jarvis_trading_core_v1.agents.trading_core.strategy_engine"
+      ],
+      "path": "agents\\jarvis_trading_core_v1\\agents\\trading_core\\indicators.py",
+      "classes": [],
+      "functions": [
+        "prepare"
+      ],
+      "imports": []
+    },
+    "agents.jarvis_trading_core_v1.agents.trading_core.instrument_registry": {
+      "category": "ARCHIVE",
+      "reason": "Nested versioned trading-core generation and not production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\jarvis_trading_core_v1\\agents\\trading_core\\instrument_registry.py",
+      "classes": [
+        "Instrument"
+      ],
+      "functions": [
+        "get_instrument"
+      ],
+      "imports": []
+    },
+    "agents.jarvis_trading_core_v1.agents.trading_core.models": {
+      "category": "ARCHIVE",
+      "reason": "Nested versioned trading-core generation and not production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.jarvis_trading_core_v1.agents.trading_core.analysis_engine",
+        "agents.jarvis_trading_core_v1.agents.trading_core.core",
+        "agents.jarvis_trading_core_v1.agents.trading_core.news_engine",
+        "agents.jarvis_trading_core_v1.agents.trading_core.paper_engine",
+        "agents.jarvis_trading_core_v1.agents.trading_core.risk_engine",
+        "agents.jarvis_trading_core_v1.agents.trading_core.strategy_engine"
+      ],
+      "path": "agents\\jarvis_trading_core_v1\\agents\\trading_core\\models.py",
+      "classes": [
+        "MarketData",
+        "Regime",
+        "Setup",
+        "PaperPosition",
+        "NewsItem",
+        "TradingContext"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.jarvis_trading_core_v1.agents.trading_core.news_engine": {
+      "category": "ARCHIVE",
+      "reason": "Nested versioned trading-core generation and not production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.jarvis_trading_core_v1.agents.trading_core.core"
+      ],
+      "path": "agents\\jarvis_trading_core_v1\\agents\\trading_core\\news_engine.py",
+      "classes": [
+        "NewsEngine"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.jarvis_trading_core_v1.agents.trading_core.models"
+      ]
+    },
+    "agents.jarvis_trading_core_v1.agents.trading_core.paper_engine": {
+      "category": "ARCHIVE",
+      "reason": "Nested versioned trading-core generation and not production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.jarvis_trading_core_v1.agents.trading_core.core"
+      ],
+      "path": "agents\\jarvis_trading_core_v1\\agents\\trading_core\\paper_engine.py",
+      "classes": [
+        "PaperEngine"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.jarvis_trading_core_v1.agents.trading_core.models"
+      ]
+    },
+    "agents.jarvis_trading_core_v1.agents.trading_core.policy": {
+      "category": "ARCHIVE",
+      "reason": "Nested versioned trading-core generation and not production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.jarvis_trading_core_v1.agents.trading_core.core"
+      ],
+      "path": "agents\\jarvis_trading_core_v1\\agents\\trading_core\\policy.py",
+      "classes": [],
+      "functions": [
+        "market_policy"
+      ],
+      "imports": [
+        "agents.market_regime_engine"
+      ]
+    },
+    "agents.jarvis_trading_core_v1.agents.trading_core.risk_engine": {
+      "category": "ARCHIVE",
+      "reason": "Nested versioned trading-core generation and not production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.jarvis_trading_core_v1.agents.trading_core.core"
+      ],
+      "path": "agents\\jarvis_trading_core_v1\\agents\\trading_core\\risk_engine.py",
+      "classes": [],
+      "functions": [
+        "position_size"
+      ],
+      "imports": [
+        "agents.jarvis_trading_core_v1.agents.trading_core.models"
+      ]
+    },
+    "agents.jarvis_trading_core_v1.agents.trading_core.strategy_engine": {
+      "category": "ARCHIVE",
+      "reason": "Nested versioned trading-core generation and not production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.jarvis_trading_core_v1.agents.trading_core.core"
+      ],
+      "path": "agents\\jarvis_trading_core_v1\\agents\\trading_core\\strategy_engine.py",
+      "classes": [],
+      "functions": [
+        "build_setups"
+      ],
+      "imports": [
+        "agents.jarvis_trading_core_v1.agents.trading_core.indicators",
+        "agents.jarvis_trading_core_v1.agents.trading_core.models"
+      ]
+    },
+    "agents.live_intraday_router": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.option_paper_monitor"
+      ],
+      "path": "agents\\live_intraday_router.py",
+      "classes": [
+        "LiveIntradayRouter"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.broker_intraday_adapter",
+        "agents.market_session_gate",
+        "agents.upstox_live_stream"
+      ]
+    },
+    "agents.market_data_agent": {
+      "category": "KEEP",
+      "reason": "Canonical top-level operational/specialist agent.",
+      "production_reachable": true,
+      "test_reachable": true,
+      "imported_by": [
+        "agents.breakout_research_runner",
+        "agents.breakout_strategy",
+        "agents.intraday_data_router",
+        "agents.mean_reversion_research_runner",
+        "agents.mean_reversion_strategy",
+        "agents.momentum_research_runner",
+        "agents.momentum_strategy",
+        "agents.paper_monitor",
+        "agents.paper_signal_engine",
+        "agents.strategy_comparison",
+        "agents.strategy_research_runner",
+        "agents.trading_agent",
+        "agents.trading_intelligence_agent",
+        "agents.trading_mission_agent",
+        "agents.trend_following_strategy",
+        "agents.trend_research_runner",
+        "tests.test_fyers_integration"
+      ],
+      "path": "agents\\market_data_agent.py",
+      "classes": [
+        "MarketDataRequest",
+        "MarketDataResult",
+        "MarketDataAgent"
+      ],
+      "functions": [
+        "get_market_data"
+      ],
+      "imports": [
+        "agents.fyers_data_adapter"
+      ]
+    },
+    "agents.market_regime_engine": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.jarvis_trading_core_v1.agents.trading_core.policy",
+        "agents.trading_core.policy"
+      ],
+      "path": "agents\\market_regime_engine.py",
+      "classes": [
+        "SessionState",
+        "ExpiryPhase",
+        "MomentumState",
+        "RegimeSnapshot"
+      ],
+      "functions": [
+        "_local_dt",
+        "_is_weekend",
+        "is_nse_trading_day",
+        "is_bse_trading_day",
+        "previous_trading_day",
+        "next_trading_day",
+        "session_state",
+        "last_tuesday_of_month",
+        "adjusted_expiry",
+        "next_nifty_expiry",
+        "next_banknifty_monthly_expiry",
+        "next_sensex_weekly_expiry",
+        "expiry_info",
+        "classify_momentum",
+        "banknifty_policy",
+        "preferred_market",
+        "build_snapshot",
+        "workstation_regime"
+      ],
+      "imports": []
+    },
+    "agents.market_session_gate": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.live_intraday_router",
+        "agents.option_paper_monitor"
+      ],
+      "path": "agents\\market_session_gate.py",
+      "classes": [
+        "MarketSessionGate"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.market_universe": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\market_universe.py",
+      "classes": [
+        "MarketInstrument",
+        "MarketUniverse"
+      ],
+      "functions": [
+        "resolve_instrument",
+        "describe_market"
+      ],
+      "imports": []
+    },
+    "agents.mean_reversion_research_runner": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\mean_reversion_research_runner.py",
+      "classes": [
+        "MeanReversionResearchRunner"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.market_data_agent",
+        "agents.mean_reversion_strategy",
+        "agents.research_edge_engine",
+        "agents.risk_engine"
+      ]
+    },
+    "agents.mean_reversion_strategy": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.mean_reversion_research_runner"
+      ],
+      "path": "agents\\mean_reversion_strategy.py",
+      "classes": [
+        "MeanReversionStrategy"
+      ],
+      "functions": [
+        "analyze_mean_reversion"
+      ],
+      "imports": [
+        "agents.market_data_agent"
+      ]
+    },
+    "agents.momentum_research_runner": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\momentum_research_runner.py",
+      "classes": [
+        "MomentumResearchRunner"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.market_data_agent",
+        "agents.momentum_strategy",
+        "agents.research_edge_engine",
+        "agents.risk_engine"
+      ]
+    },
+    "agents.momentum_strategy": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.momentum_research_runner"
+      ],
+      "path": "agents\\momentum_strategy.py",
+      "classes": [
+        "MomentumStrategy"
+      ],
+      "functions": [
+        "analyze_momentum"
+      ],
+      "imports": [
+        "agents.market_data_agent"
+      ]
+    },
+    "agents.mtf_confluence_engine": {
+      "category": "MOVE",
+      "reason": "Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.",
+      "production_reachable": true,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_intelligence_agent"
+      ],
+      "path": "agents\\mtf_confluence_engine.py",
+      "classes": [
+        "MultiTimeframeConfluenceEngine"
+      ],
+      "functions": [
+        "analyze_mtf"
+      ],
+      "imports": []
+    },
+    "agents.office_agent": {
+      "category": "KEEP",
+      "reason": "Canonical top-level operational/specialist agent.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\office_agent.py",
+      "classes": [
+        "OfficeAgent"
+      ],
+      "functions": [
+        "office"
+      ],
+      "imports": []
+    },
+    "agents.option_chain_engine": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.option_mission_engine"
+      ],
+      "path": "agents\\option_chain_engine.py",
+      "classes": [
+        "OptionChainEngine"
+      ],
+      "functions": [
+        "analyze_option_chain"
+      ],
+      "imports": []
+    },
+    "agents.option_chain_signal_engine": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\option_chain_signal_engine.py",
+      "classes": [
+        "OptionChainSignalEngine"
+      ],
+      "functions": [
+        "analyze_chain_signal"
+      ],
+      "imports": []
+    },
+    "agents.option_decision_engine": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.option_mission_engine"
+      ],
+      "path": "agents\\option_decision_engine.py",
+      "classes": [
+        "OptionDecisionEngine"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.option_journal": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.option_paper_execution_engine"
+      ],
+      "path": "agents\\option_journal.py",
+      "classes": [
+        "OptionJournal"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.option_mission_engine": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.option_paper_monitor"
+      ],
+      "path": "agents\\option_mission_engine.py",
+      "classes": [
+        "OptionMissionEngine"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.option_chain_engine",
+        "agents.option_decision_engine",
+        "agents.option_trade_plan_engine"
+      ]
+    },
+    "agents.option_paper_execution_engine": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.option_paper_monitor"
+      ],
+      "path": "agents\\option_paper_execution_engine.py",
+      "classes": [
+        "OptionPaperExecutionEngine"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.option_journal"
+      ]
+    },
+    "agents.option_paper_monitor": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\option_paper_monitor.py",
+      "classes": [
+        "OptionPaperMonitor"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.intraday_setup_engine",
+        "agents.live_intraday_router",
+        "agents.market_session_gate",
+        "agents.option_mission_engine",
+        "agents.option_paper_execution_engine"
+      ]
+    },
+    "agents.option_strategy_engine": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\option_strategy_engine.py",
+      "classes": [
+        "OptionStrategyEngine"
+      ],
+      "functions": [
+        "rank_option_strategies"
+      ],
+      "imports": []
+    },
+    "agents.option_trade_journal_adapter": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\option_trade_journal_adapter.py",
+      "classes": [
+        "OptionTradeJournalAdapter"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.trading_journal"
+      ]
+    },
+    "agents.option_trade_plan_engine": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.option_mission_engine"
+      ],
+      "path": "agents\\option_trade_plan_engine.py",
+      "classes": [
+        "OptionTradePlanEngine"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.options_engine": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\options_engine.py",
+      "classes": [
+        "OptionContract",
+        "Greeks",
+        "StrategyLeg",
+        "OptionsEngine"
+      ],
+      "functions": [
+        "normal_pdf",
+        "normal_cdf",
+        "analyze_option"
+      ],
+      "imports": []
+    },
+    "agents.paper_broker": {
+      "category": "MOVE",
+      "reason": "Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.",
+      "production_reachable": true,
+      "test_reachable": true,
+      "imported_by": [
+        "workstation.paper_runtime"
+      ],
+      "path": "agents\\paper_broker.py",
+      "classes": [
+        "Position",
+        "Order",
+        "Trade",
+        "PaperBroker"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.paper_monitor": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\paper_monitor.py",
+      "classes": [
+        "PaperMonitor"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.market_data_agent",
+        "agents.paper_position_engine",
+        "agents.paper_signal_engine"
+      ]
+    },
+    "agents.paper_position_engine": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.paper_monitor"
+      ],
+      "path": "agents\\paper_position_engine.py",
+      "classes": [
+        "PaperPositionEngine"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.paper_signal_engine": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.paper_monitor"
+      ],
+      "path": "agents\\paper_signal_engine.py",
+      "classes": [
+        "PaperSignalEngine"
+      ],
+      "functions": [
+        "create_paper_signal"
+      ],
+      "imports": [
+        "agents.edge_validation_engine",
+        "agents.market_data_agent",
+        "agents.research_edge_engine"
+      ]
+    },
+    "agents.pattern_engine": {
+      "category": "MOVE",
+      "reason": "Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.",
+      "production_reachable": true,
+      "test_reachable": true,
+      "imported_by": [
+        "agents.backtest_engine",
+        "agents.backtest_engine_v2",
+        "agents.strategy_comparison",
+        "agents.strategy_research_runner",
+        "agents.trading_agent",
+        "agents.trading_intelligence_agent",
+        "agents.trading_mission_agent",
+        "workstation.trading_intelligence"
+      ],
+      "path": "agents\\pattern_engine.py",
+      "classes": [
+        "PatternEngine"
+      ],
+      "functions": [
+        "analyze_patterns"
+      ],
+      "imports": []
+    },
+    "agents.portfolio_engine": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\portfolio_engine.py",
+      "classes": [
+        "PortfolioPosition",
+        "PortfolioEngine"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.regime_aware_signal_engine": {
+      "category": "MOVE",
+      "reason": "Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.",
+      "production_reachable": true,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.strategy_comparison",
+        "agents.strategy_research_runner",
+        "agents.trading_intelligence_agent"
+      ],
+      "path": "agents\\regime_aware_signal_engine.py",
+      "classes": [
+        "RegimeAwareSignalEngine"
+      ],
+      "functions": [
+        "generate_regime_aware_signal"
+      ],
+      "imports": [
+        "agents.confidence_engine"
+      ]
+    },
+    "agents.regime_detector": {
+      "category": "MOVE",
+      "reason": "Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.",
+      "production_reachable": true,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.strategy_comparison",
+        "agents.strategy_research_runner",
+        "agents.trading_intelligence_agent",
+        "agents.trading_mission_agent"
+      ],
+      "path": "agents\\regime_detector.py",
+      "classes": [
+        "MarketRegimeDetector"
+      ],
+      "functions": [
+        "detect_regime"
+      ],
+      "imports": []
+    },
+    "agents.research_agent": {
+      "category": "KEEP",
+      "reason": "Canonical top-level operational/specialist agent.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\research_agent.py",
+      "classes": [
+        "ResearchAgent",
+        "ResearchAgent"
+      ],
+      "functions": [
+        "research",
+        "research"
+      ],
+      "imports": []
+    },
+    "agents.research_edge_engine": {
+      "category": "MOVE",
+      "reason": "Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.",
+      "production_reachable": true,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.edge_validation_engine",
+        "agents.mean_reversion_research_runner",
+        "agents.momentum_research_runner",
+        "agents.paper_signal_engine",
+        "agents.research_matrix_runner",
+        "agents.strategy_research_runner",
+        "agents.trading_intelligence_agent",
+        "agents.trend_research_runner"
+      ],
+      "path": "agents\\research_edge_engine.py",
+      "classes": [
+        "ResearchEdgeEngine"
+      ],
+      "functions": [
+        "evaluate_edge"
+      ],
+      "imports": []
+    },
+    "agents.research_matrix_runner": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'research_matrix_runner'. Family members: agents.research_matrix_runner, agents.research_matrix_runner_v2",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\research_matrix_runner.py",
+      "classes": [
+        "ResearchMatrixRunner"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.research_edge_engine"
+      ]
+    },
+    "agents.research_matrix_runner_v2": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'research_matrix_runner'. Family members: agents.research_matrix_runner, agents.research_matrix_runner_v2",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\research_matrix_runner_v2.py",
+      "classes": [],
+      "functions": [
+        "now",
+        "load_json",
+        "save_json",
+        "run_scalping",
+        "find_records",
+        "dedupe",
+        "scalar",
+        "normalize_legacy",
+        "normalize_scalping",
+        "build_edge_db",
+        "main"
+      ],
+      "imports": []
+    },
+    "agents.risk_engine": {
+      "category": "MOVE",
+      "reason": "Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.",
+      "production_reachable": true,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.backtest_engine",
+        "agents.backtest_engine_v2",
+        "agents.mean_reversion_research_runner",
+        "agents.momentum_research_runner",
+        "agents.strategy_comparison",
+        "agents.trading_agent",
+        "agents.trend_research_runner"
+      ],
+      "path": "agents\\risk_engine.py",
+      "classes": [
+        "RiskDecision",
+        "RiskEngine"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.scalping_research_engine": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\scalping_research_engine.py",
+      "classes": [
+        "Trade"
+      ],
+      "functions": [
+        "safe_float",
+        "safe_int",
+        "pct",
+        "load_symbol_data",
+        "prepare_frame",
+        "ema",
+        "atr",
+        "rsi",
+        "vwap",
+        "add_indicators",
+        "add_context",
+        "add_orb",
+        "blank_signal_diagnostics",
+        "diagnose_signal",
+        "blank_trade_diagnostics",
+        "position_size",
+        "simulate_trade",
+        "run_backtest",
+        "calculate_metrics",
+        "parameter_grid",
+        "run_robustness",
+        "run_walk_forward",
+        "validation_gate",
+        "research_score",
+        "run_cell",
+        "prepare_symbol",
+        "run_matrix",
+        "main"
+      ],
+      "imports": [
+        "agents.upstox_historical_loader"
+      ]
+    },
+    "agents.signal_engine": {
+      "category": "MOVE",
+      "reason": "Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.",
+      "production_reachable": true,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.backtest_engine",
+        "agents.backtest_engine_v2",
+        "agents.strategy_comparison",
+        "agents.trading_agent"
+      ],
+      "path": "agents\\signal_engine.py",
+      "classes": [
+        "SignalEngine"
+      ],
+      "functions": [
+        "generate_signal"
+      ],
+      "imports": []
+    },
+    "agents.strategy_comparison": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\strategy_comparison.py",
+      "classes": [
+        "StrategyComparison"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.market_data_agent",
+        "agents.pattern_engine",
+        "agents.regime_aware_signal_engine",
+        "agents.regime_detector",
+        "agents.risk_engine",
+        "agents.signal_engine",
+        "agents.technical_engine"
+      ]
+    },
+    "agents.strategy_engine": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'strategy_engine'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.strategy_engine, agents.strategy_engine, agents.trading_core.strategy_engine",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\strategy_engine.py",
+      "classes": [],
+      "functions": [],
+      "imports": []
+    },
+    "agents.strategy_lab": {
+      "category": "MOVE",
+      "reason": "Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.",
+      "production_reachable": true,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_intelligence_agent"
+      ],
+      "path": "agents\\strategy_lab.py",
+      "classes": [
+        "StrategyLab"
+      ],
+      "functions": [
+        "rank_strategies"
+      ],
+      "imports": []
+    },
+    "agents.strategy_research_runner": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\strategy_research_runner.py",
+      "classes": [
+        "StrategyAdapter",
+        "RegimeAwareBaselineStrategy",
+        "StrategyResearchRunner"
+      ],
+      "functions": [
+        "research_strategy"
+      ],
+      "imports": [
+        "agents.backtest_engine_v2",
+        "agents.market_data_agent",
+        "agents.pattern_engine",
+        "agents.regime_aware_signal_engine",
+        "agents.regime_detector",
+        "agents.research_edge_engine",
+        "agents.technical_engine"
+      ]
+    },
+    "agents.technical_engine": {
+      "category": "MOVE",
+      "reason": "Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.",
+      "production_reachable": true,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.backtest_engine",
+        "agents.backtest_engine_v2",
+        "agents.strategy_comparison",
+        "agents.strategy_research_runner",
+        "agents.trading_agent",
+        "agents.trading_intelligence_agent",
+        "agents.trading_mission_agent"
+      ],
+      "path": "agents\\technical_engine.py",
+      "classes": [
+        "TechnicalEngine"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.trade_plan_engine": {
+      "category": "MOVE",
+      "reason": "Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.",
+      "production_reachable": true,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_mission_agent"
+      ],
+      "path": "agents\\trade_plan_engine.py",
+      "classes": [
+        "TradePlanEngine"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.trade_setup_verifier": {
+      "category": "MOVE",
+      "reason": "Production dependency, but structurally looks like an engine/service/tool rather than a top-level agent.",
+      "production_reachable": true,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_mission_agent"
+      ],
+      "path": "agents\\trade_setup_verifier.py",
+      "classes": [
+        "TradeSetupVerifier"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.trading_agent": {
+      "category": "KEEP",
+      "reason": "Canonical top-level operational/specialist agent.",
+      "production_reachable": true,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\trading_agent.py",
+      "classes": [
+        "TradingAgent"
+      ],
+      "functions": [
+        "trading"
+      ],
+      "imports": [
+        "agents.market_data_agent",
+        "agents.pattern_engine",
+        "agents.risk_engine",
+        "agents.signal_engine",
+        "agents.technical_engine"
+      ]
+    },
+    "agents.trading_core": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'trading_core'. Family members: agents.jarvis_trading_core_v1.agents.trading_core, agents.trading_core, agents.trading_core.jarvis_trading_core_v2.agents.trading_core",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.jarvis_trading_core_v2.agents.trading_core"
+      ],
+      "path": "agents\\trading_core\\__init__.py",
+      "classes": [],
+      "functions": [],
+      "imports": [
+        "agents"
+      ]
+    },
+    "agents.trading_core.analysis_engine": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'analysis_engine'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.analysis_engine, agents.trading_core.analysis_engine",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.context_engine",
+        "agents.trading_core.core",
+        "agents.trading_core.live_monitor"
+      ],
+      "path": "agents\\trading_core\\analysis_engine.py",
+      "classes": [],
+      "functions": [
+        "analyze"
+      ],
+      "imports": [
+        "agents.trading_core.indicators",
+        "agents.trading_core.models"
+      ]
+    },
+    "agents.trading_core.candidate_diagnostics": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.jarvis_decision_agent_v2"
+      ],
+      "path": "agents\\trading_core\\candidate_diagnostics.py",
+      "classes": [],
+      "functions": [
+        "explain_wait",
+        "status_label"
+      ],
+      "imports": []
+    },
+    "agents.trading_core.candidate_engine": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'candidate_engine'. Family members: agents.trading_core.candidate_engine, agents.trading_core.candidate_engine_v2",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.core"
+      ],
+      "path": "agents\\trading_core\\candidate_engine.py",
+      "classes": [],
+      "functions": [
+        "confirmation_state"
+      ],
+      "imports": [
+        "agents.trading_core.models"
+      ]
+    },
+    "agents.trading_core.candidate_engine_v2": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'candidate_engine'. Family members: agents.trading_core.candidate_engine, agents.trading_core.candidate_engine_v2",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.jarvis_decision_agent_v2"
+      ],
+      "path": "agents\\trading_core\\candidate_engine_v2.py",
+      "classes": [
+        "Candidate"
+      ],
+      "functions": [
+        "atr",
+        "_last_swing",
+        "_structure_flags",
+        "generate_candidate"
+      ],
+      "imports": []
+    },
+    "agents.trading_core.cli": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'cli'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.cli, agents.trading_core.cli, agents.trading_core.cli_v2, agents.trading_core.jarvis_trading_core_v2.agents.trading_core.cli",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\trading_core\\cli.py",
+      "classes": [],
+      "functions": [
+        "main"
+      ],
+      "imports": [
+        "agents.trading_core.instrument_registry",
+        "agents.trading_core.news_engine",
+        "agents.trading_core.option_confirmation",
+        "agents.trading_core.paper_broker",
+        "agents.trading_core.research_gate"
+      ]
+    },
+    "agents.trading_core.cli_v2": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'cli'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.cli, agents.trading_core.cli, agents.trading_core.cli_v2, agents.trading_core.jarvis_trading_core_v2.agents.trading_core.cli",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\trading_core\\cli_v2.py",
+      "classes": [],
+      "functions": [
+        "main"
+      ],
+      "imports": [
+        "agents.trading_core.news_engine_v2",
+        "agents.trading_core.option_confirmation_v2",
+        "agents.trading_core.research_gate"
+      ]
+    },
+    "agents.trading_core.context_engine": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'context_engine'. Family members: agents.trading_core.context_engine, agents.trading_core.jarvis_trading_core_v2.agents.trading_core.context_engine",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.core"
+      ],
+      "path": "agents\\trading_core\\context_engine.py",
+      "classes": [],
+      "functions": [
+        "build_context"
+      ],
+      "imports": [
+        "agents.trading_core.analysis_engine",
+        "agents.trading_core.data_bus"
+      ]
+    },
+    "agents.trading_core.core": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'core'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.core, agents.trading_core.core, agents.trading_core.jarvis_trading_core_v2.agents.trading_core.core",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\trading_core\\core.py",
+      "classes": [
+        "TradingCore"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.trading_core.analysis_engine",
+        "agents.trading_core.candidate_engine",
+        "agents.trading_core.context_engine",
+        "agents.trading_core.data_bus",
+        "agents.trading_core.edge_gate",
+        "agents.trading_core.live_bus",
+        "agents.trading_core.option_adapter",
+        "agents.trading_core.paper_engine",
+        "agents.trading_core.policy",
+        "agents.trading_core.risk_engine",
+        "agents.trading_core.signal_engine",
+        "agents.trading_core.strategy_engine"
+      ]
+    },
+    "agents.trading_core.data_bus": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'data_bus'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.data_bus, agents.trading_core.data_bus, agents.trading_core.jarvis_trading_core_v2.agents.trading_core.data_bus",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.context_engine",
+        "agents.trading_core.core"
+      ],
+      "path": "agents\\trading_core\\data_bus.py",
+      "classes": [
+        "DataBus"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.trading_core.edge_gate": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.core",
+        "agents.trading_core.live_monitor"
+      ],
+      "path": "agents\\trading_core\\edge_gate.py",
+      "classes": [],
+      "functions": [
+        "load_edge_database",
+        "find_edge"
+      ],
+      "imports": []
+    },
+    "agents.trading_core.indicators": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'indicators'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.indicators, agents.trading_core.indicators",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.analysis_engine",
+        "agents.trading_core.strategy_engine"
+      ],
+      "path": "agents\\trading_core\\indicators.py",
+      "classes": [],
+      "functions": [
+        "prepare"
+      ],
+      "imports": []
+    },
+    "agents.trading_core.instrument_registry": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'instrument_registry'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.instrument_registry, agents.trading_core.instrument_registry",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.cli"
+      ],
+      "path": "agents\\trading_core\\instrument_registry.py",
+      "classes": [
+        "Instrument"
+      ],
+      "functions": [
+        "get_instrument"
+      ],
+      "imports": []
+    },
+    "agents.trading_core.jarvis_decision_agent_v1": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'jarvis_decision_agent'. Family members: agents.trading_core.jarvis_decision_agent_v1, agents.trading_core.jarvis_decision_agent_v2",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\trading_core\\jarvis_decision_agent_v1.py",
+      "classes": [
+        "JarvisDecisionAgentV1"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.trading_core.live_monitor",
+        "agents.trading_core.trade_decision_engine_v1"
+      ]
+    },
+    "agents.trading_core.jarvis_decision_agent_v2": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'jarvis_decision_agent'. Family members: agents.trading_core.jarvis_decision_agent_v1, agents.trading_core.jarvis_decision_agent_v2",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\trading_core\\jarvis_decision_agent_v2.py",
+      "classes": [
+        "JarvisDecisionAgentV2"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.trading_core.candidate_diagnostics",
+        "agents.trading_core.candidate_engine_v2",
+        "agents.trading_core.live_monitor",
+        "agents.trading_core.trade_decision_engine_v1"
+      ]
+    },
+    "agents.trading_core.jarvis_strategy_paper_v3": {
+      "category": "REVIEW",
+      "reason": "Versioned module not detected as production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\trading_core\\jarvis_strategy_paper_v3.py",
+      "classes": [
+        "JarvisStrategyPaperV3"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.trading_core.live_monitor",
+        "agents.trading_core.market_state_label",
+        "agents.trading_core.paper_execution_v2",
+        "agents.trading_core.strategy_candidate_engine_v3",
+        "agents.trading_core.trade_decision_engine_v1"
+      ]
+    },
+    "agents.trading_core.jarvis_trading_agent": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\trading_core\\jarvis_trading_agent.py",
+      "classes": [
+        "JarvisTradingAgentV1"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.trading_core.live_monitor",
+        "agents.trading_core.news_engine",
+        "agents.trading_core.option_confirmation",
+        "agents.trading_core.paper_broker",
+        "agents.trading_core.workstation_bridge"
+      ]
+    },
+    "agents.trading_core.jarvis_trading_core_v2.agents.trading_core": {
+      "category": "ARCHIVE",
+      "reason": "Nested versioned trading-core generation and not production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.jarvis_trading_core_v2.agents.trading_core.context_engine",
+        "agents.trading_core.jarvis_trading_core_v2.agents.trading_core.core"
+      ],
+      "path": "agents\\trading_core\\jarvis_trading_core_v2\\agents\\trading_core\\__init__.py",
+      "classes": [],
+      "functions": [],
+      "imports": [
+        "agents.trading_core"
+      ]
+    },
+    "agents.trading_core.jarvis_trading_core_v2.agents.trading_core.cli": {
+      "category": "ARCHIVE",
+      "reason": "Nested versioned trading-core generation and not production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\trading_core\\jarvis_trading_core_v2\\agents\\trading_core\\cli.py",
+      "classes": [],
+      "functions": [
+        "main"
+      ],
+      "imports": [
+        "agents.trading_core.jarvis_trading_core_v2.agents.trading_core.core"
+      ]
+    },
+    "agents.trading_core.jarvis_trading_core_v2.agents.trading_core.context_engine": {
+      "category": "ARCHIVE",
+      "reason": "Nested versioned trading-core generation and not production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.jarvis_trading_core_v2.agents.trading_core.core"
+      ],
+      "path": "agents\\trading_core\\jarvis_trading_core_v2\\agents\\trading_core\\context_engine.py",
+      "classes": [],
+      "functions": [
+        "build_context"
+      ],
+      "imports": [
+        "agents.trading_core.jarvis_trading_core_v2.agents.trading_core",
+        "agents.trading_core.jarvis_trading_core_v2.agents.trading_core.data_bus"
+      ]
+    },
+    "agents.trading_core.jarvis_trading_core_v2.agents.trading_core.core": {
+      "category": "ARCHIVE",
+      "reason": "Nested versioned trading-core generation and not production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.jarvis_trading_core_v2.agents.trading_core.cli"
+      ],
+      "path": "agents\\trading_core\\jarvis_trading_core_v2\\agents\\trading_core\\core.py",
+      "classes": [
+        "TradingCore"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.trading_core.jarvis_trading_core_v2.agents.trading_core",
+        "agents.trading_core.jarvis_trading_core_v2.agents.trading_core.context_engine",
+        "agents.trading_core.jarvis_trading_core_v2.agents.trading_core.data_bus"
+      ]
+    },
+    "agents.trading_core.jarvis_trading_core_v2.agents.trading_core.data_bus": {
+      "category": "ARCHIVE",
+      "reason": "Nested versioned trading-core generation and not production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.jarvis_trading_core_v2.agents.trading_core.context_engine",
+        "agents.trading_core.jarvis_trading_core_v2.agents.trading_core.core"
+      ],
+      "path": "agents\\trading_core\\jarvis_trading_core_v2\\agents\\trading_core\\data_bus.py",
+      "classes": [
+        "DataBus"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.trading_core.live_bus": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.core"
+      ],
+      "path": "agents\\trading_core\\live_bus.py",
+      "classes": [
+        "LiveBus"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.trading_core.live_monitor": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.jarvis_decision_agent_v1",
+        "agents.trading_core.jarvis_decision_agent_v2",
+        "agents.trading_core.jarvis_strategy_paper_v3",
+        "agents.trading_core.jarvis_trading_agent"
+      ],
+      "path": "agents\\trading_core\\live_monitor.py",
+      "classes": [
+        "LiveMonitorV7"
+      ],
+      "functions": [
+        "ensure_dir",
+        "as_ist_index",
+        "floor_bar",
+        "wall_clock_last_closed_bar",
+        "latest_completed_data_bar",
+        "closed_frame",
+        "main"
+      ],
+      "imports": [
+        "agents.trading_core.analysis_engine",
+        "agents.trading_core.edge_gate",
+        "agents.trading_core.market_structure",
+        "agents.trading_core.pattern_engine",
+        "agents.trading_core.policy",
+        "agents.trading_core.strategy_engine",
+        "agents.upstox_live_stream"
+      ]
+    },
+    "agents.trading_core.market_state_label": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.jarvis_strategy_paper_v3"
+      ],
+      "path": "agents\\trading_core\\market_state_label.py",
+      "classes": [],
+      "functions": [
+        "classify_market_state",
+        "annotate"
+      ],
+      "imports": []
+    },
+    "agents.trading_core.market_structure": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.live_monitor",
+        "agents.trading_core.signal_engine"
+      ],
+      "path": "agents\\trading_core\\market_structure.py",
+      "classes": [],
+      "functions": [
+        "detect_structure"
+      ],
+      "imports": []
+    },
+    "agents.trading_core.models": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'models'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.models, agents.trading_core.models",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.analysis_engine",
+        "agents.trading_core.candidate_engine",
+        "agents.trading_core.paper_engine",
+        "agents.trading_core.risk_engine",
+        "agents.trading_core.strategy_engine"
+      ],
+      "path": "agents\\trading_core\\models.py",
+      "classes": [
+        "Regime",
+        "Setup",
+        "PaperPosition"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.trading_core.news_engine": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'news_engine'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.news_engine, agents.trading_core.news_engine, agents.trading_core.news_engine_v2",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.cli",
+        "agents.trading_core.jarvis_trading_agent"
+      ],
+      "path": "agents\\trading_core\\news_engine.py",
+      "classes": [
+        "NewsEngine"
+      ],
+      "functions": [
+        "clean",
+        "classify"
+      ],
+      "imports": []
+    },
+    "agents.trading_core.news_engine_v2": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'news_engine'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.news_engine, agents.trading_core.news_engine, agents.trading_core.news_engine_v2",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.cli_v2"
+      ],
+      "path": "agents\\trading_core\\news_engine_v2.py",
+      "classes": [
+        "NewsEngineV2"
+      ],
+      "functions": [
+        "clean",
+        "parse_pub_date",
+        "classify"
+      ],
+      "imports": []
+    },
+    "agents.trading_core.option_adapter": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.core"
+      ],
+      "path": "agents\\trading_core\\option_adapter.py",
+      "classes": [
+        "OptionAdapter"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.trading_core.option_confirmation": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'option_confirmation'. Family members: agents.trading_core.option_confirmation, agents.trading_core.option_confirmation_v2",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.cli",
+        "agents.trading_core.jarvis_trading_agent"
+      ],
+      "path": "agents\\trading_core\\option_confirmation.py",
+      "classes": [
+        "OptionConfirmation"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.trading_core.option_confirmation_v2": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'option_confirmation'. Family members: agents.trading_core.option_confirmation, agents.trading_core.option_confirmation_v2",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.cli_v2",
+        "agents.trading_core.trade_decision_engine_v1"
+      ],
+      "path": "agents\\trading_core\\option_confirmation_v2.py",
+      "classes": [
+        "OptionConfirmationV2"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.trading_core.paper_broker": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'paper_broker'. Family members: agents.paper_broker, agents.trading_core.paper_broker",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.cli",
+        "agents.trading_core.jarvis_trading_agent"
+      ],
+      "path": "agents\\trading_core\\paper_broker.py",
+      "classes": [
+        "PaperTrade",
+        "PaperBroker"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.trading_core.paper_engine": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'paper_engine'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.paper_engine, agents.trading_core.paper_engine",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.core"
+      ],
+      "path": "agents\\trading_core\\paper_engine.py",
+      "classes": [
+        "PaperEngine"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.trading_core.models"
+      ]
+    },
+    "agents.trading_core.paper_execution_v2": {
+      "category": "REVIEW",
+      "reason": "Versioned module not detected as production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.jarvis_strategy_paper_v3"
+      ],
+      "path": "agents\\trading_core\\paper_execution_v2.py",
+      "classes": [
+        "PaperPosition",
+        "PaperExecutionV2"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.trading_core.pattern_engine": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'pattern_engine'. Family members: agents.pattern_engine, agents.trading_core.pattern_engine",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.live_monitor",
+        "agents.trading_core.signal_engine"
+      ],
+      "path": "agents\\trading_core\\pattern_engine.py",
+      "classes": [],
+      "functions": [
+        "detect_orb",
+        "detect_fvg",
+        "detect_liquidity",
+        "volume_anomaly"
+      ],
+      "imports": []
+    },
+    "agents.trading_core.policy": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'policy'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.policy, agents.trading_core.policy",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.core",
+        "agents.trading_core.live_monitor"
+      ],
+      "path": "agents\\trading_core\\policy.py",
+      "classes": [],
+      "functions": [
+        "market_policy"
+      ],
+      "imports": [
+        "agents.market_regime_engine"
+      ]
+    },
+    "agents.trading_core.research_gate": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.cli",
+        "agents.trading_core.cli_v2",
+        "agents.trading_core.trade_decision_engine_v1"
+      ],
+      "path": "agents\\trading_core\\research_gate.py",
+      "classes": [
+        "ResearchGate"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.trading_core.risk_engine": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'risk_engine'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.risk_engine, agents.risk_engine, agents.trading_core.risk_engine",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.core"
+      ],
+      "path": "agents\\trading_core\\risk_engine.py",
+      "classes": [],
+      "functions": [
+        "position_size"
+      ],
+      "imports": [
+        "agents.trading_core.models"
+      ]
+    },
+    "agents.trading_core.signal_engine": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'signal_engine'. Family members: agents.signal_engine, agents.trading_core.signal_engine",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.core"
+      ],
+      "path": "agents\\trading_core\\signal_engine.py",
+      "classes": [],
+      "functions": [
+        "score_signal",
+        "analyze_trigger_package"
+      ],
+      "imports": [
+        "agents.trading_core.market_structure",
+        "agents.trading_core.pattern_engine"
+      ]
+    },
+    "agents.trading_core.strategy_candidate_engine_v3": {
+      "category": "REVIEW",
+      "reason": "Versioned module not detected as production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.jarvis_strategy_paper_v3"
+      ],
+      "path": "agents\\trading_core\\strategy_candidate_engine_v3.py",
+      "classes": [
+        "StrategyCandidate"
+      ],
+      "functions": [
+        "_atr",
+        "_vwap",
+        "_ema",
+        "_rsi",
+        "_swing",
+        "_structure",
+        "_make_candidate",
+        "generate_strategy_candidates"
+      ],
+      "imports": []
+    },
+    "agents.trading_core.strategy_engine": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'strategy_engine'. Family members: agents.jarvis_trading_core_v1.agents.trading_core.strategy_engine, agents.strategy_engine, agents.trading_core.strategy_engine",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.core",
+        "agents.trading_core.live_monitor"
+      ],
+      "path": "agents\\trading_core\\strategy_engine.py",
+      "classes": [],
+      "functions": [
+        "build_setups"
+      ],
+      "imports": [
+        "agents.trading_core.indicators",
+        "agents.trading_core.models"
+      ]
+    },
+    "agents.trading_core.trade_decision_engine_v1": {
+      "category": "REVIEW",
+      "reason": "Versioned module not detected as production-reachable.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.jarvis_decision_agent_v1",
+        "agents.trading_core.jarvis_decision_agent_v2",
+        "agents.trading_core.jarvis_strategy_paper_v3"
+      ],
+      "path": "agents\\trading_core\\trade_decision_engine_v1.py",
+      "classes": [
+        "TradeDecisionEngineV1"
+      ],
+      "functions": [
+        "parse_iso_date",
+        "is_previous_weekday",
+        "banknifty_window"
+      ],
+      "imports": [
+        "agents.trading_core.option_confirmation_v2",
+        "agents.trading_core.research_gate"
+      ]
+    },
+    "agents.trading_core.upstox_live_stream_v4": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'upstox_live_stream'. Family members: agents.trading_core.upstox_live_stream_v4, agents.upstox_live_stream",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\trading_core\\upstox_live_stream_v4.py",
+      "classes": [
+        "Candle",
+        "LiveStore",
+        "UpstoxLiveStreamV4"
+      ],
+      "functions": [
+        "load_token"
+      ],
+      "imports": [
+        "agents.broker_intraday_adapter"
+      ]
+    },
+    "agents.trading_core.voice_event_bridge": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\trading_core\\voice_event_bridge.py",
+      "classes": [],
+      "functions": [
+        "speak",
+        "run_forever"
+      ],
+      "imports": []
+    },
+    "agents.trading_core.workstation_bridge": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trading_core.jarvis_trading_agent"
+      ],
+      "path": "agents\\trading_core\\workstation_bridge.py",
+      "classes": [
+        "WorkstationBridge"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.trading_intelligence_agent": {
+      "category": "KEEP",
+      "reason": "Canonical top-level operational/specialist agent.",
+      "production_reachable": true,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\trading_intelligence_agent.py",
+      "classes": [
+        "TradingIntelligenceAgent"
+      ],
+      "functions": [
+        "analyze_market",
+        "analyze_multitimeframe"
+      ],
+      "imports": [
+        "agents.market_data_agent",
+        "agents.mtf_confluence_engine",
+        "agents.pattern_engine",
+        "agents.regime_aware_signal_engine",
+        "agents.regime_detector",
+        "agents.research_edge_engine",
+        "agents.strategy_lab",
+        "agents.technical_engine"
+      ]
+    },
+    "agents.trading_journal": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.option_trade_journal_adapter"
+      ],
+      "path": "agents\\trading_journal.py",
+      "classes": [
+        "TradingJournal"
+      ],
+      "functions": [],
+      "imports": []
+    },
+    "agents.trading_mission_agent": {
+      "category": "KEEP",
+      "reason": "Canonical top-level operational/specialist agent.",
+      "production_reachable": true,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\trading_mission_agent.py",
+      "classes": [
+        "SymbolConfig",
+        "MissionConfig",
+        "TradingMissionAgent"
+      ],
+      "functions": [
+        "handle_trading_command"
+      ],
+      "imports": [
+        "agents.edge_validation_engine",
+        "agents.market_data_agent",
+        "agents.pattern_engine",
+        "agents.regime_detector",
+        "agents.technical_engine",
+        "agents.trade_plan_engine",
+        "agents.trade_setup_verifier"
+      ]
+    },
+    "agents.trend_following_strategy": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.trend_research_runner"
+      ],
+      "path": "agents\\trend_following_strategy.py",
+      "classes": [
+        "TrendFollowingStrategy"
+      ],
+      "functions": [
+        "analyze_trend_following"
+      ],
+      "imports": [
+        "agents.market_data_agent"
+      ]
+    },
+    "agents.trend_research_runner": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\trend_research_runner.py",
+      "classes": [
+        "TrendResearchRunner"
+      ],
+      "functions": [],
+      "imports": [
+        "agents.market_data_agent",
+        "agents.research_edge_engine",
+        "agents.risk_engine",
+        "agents.trend_following_strategy"
+      ]
+    },
+    "agents.universal_operator_agent": {
+      "category": "KEEP",
+      "reason": "Canonical top-level operational/specialist agent.",
+      "production_reachable": true,
+      "test_reachable": true,
+      "imported_by": [
+        "main",
+        "tests.test_web_intelligence_agent",
+        "workstation.app"
+      ],
+      "path": "agents\\universal_operator_agent.py",
+      "classes": [],
+      "functions": [
+        "is_operator_request",
+        "operator"
+      ],
+      "imports": []
+    },
+    "agents.upstox_auth_manager": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [],
+      "path": "agents\\upstox_auth_manager.py",
+      "classes": [
+        "OAuthCallbackHandler"
+      ],
+      "functions": [
+        "validate_config",
+        "save_token",
+        "load_token",
+        "build_login_url",
+        "exchange_code",
+        "login",
+        "get_access_token"
+      ],
+      "imports": []
+    },
+    "agents.upstox_historical_loader": {
+      "category": "REVIEW",
+      "reason": "No production import path detected.",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.scalping_research_engine"
+      ],
+      "path": "agents\\upstox_historical_loader.py",
+      "classes": [],
+      "functions": [
+        "load_access_token",
+        "build_session",
+        "parse_date",
+        "fmt",
+        "search_sensex",
+        "resolve_instrument",
+        "fetch_chunk",
+        "candles_to_dataframe",
+        "get_historical",
+        "get_symbol_5m",
+        "get_symbol_15m",
+        "main"
+      ],
+      "imports": []
+    },
+    "agents.upstox_live_stream": {
+      "category": "MERGE",
+      "reason": "Overlaps module family 'upstox_live_stream'. Family members: agents.trading_core.upstox_live_stream_v4, agents.upstox_live_stream",
+      "production_reachable": false,
+      "test_reachable": false,
+      "imported_by": [
+        "agents.live_intraday_router",
+        "agents.trading_core.live_monitor",
+        "workstation.jarvis_workstation_v2.app",
+        "workstation.jarvis_workstation_v3.app"
+      ],
+      "path": "agents\\upstox_live_stream.py",
+      "classes": [
+        "LiveCandle",
+        "LiveStore",
+        "UpstoxLiveStream"
+      ],
+      "functions": [
+        "load_saved_access_token"
+      ],
+      "imports": [
+        "agents.broker_intraday_adapter"
+      ]
+    },
+    "agents.web_intelligence_agent": {
+      "category": "KEEP",
+      "reason": "Canonical top-level operational/specialist agent.",
+      "production_reachable": true,
+      "test_reachable": true,
+      "imported_by": [
+        "tests.test_web_intelligence_agent",
+        "workstation.app"
+      ],
+      "path": "agents\\web_intelligence_agent.py",
+      "classes": [
+        "BraveSearch",
+        "WikipediaSearch",
+        "FirecrawlKeylessSearch",
+        "_NirfTableParser",
+        "IndiaOfficialRankingSearch",
+        "WebIntelligenceAgent"
+      ],
+      "functions": [
+        "is_web_request",
+        "_strip_html",
+        "_json_request",
+        "_post_json_request",
+        "_text_request",
+        "_extract_query",
+        "_requested_limit",
+        "_relevant_excerpt",
+        "web_intelligence"
+      ],
+      "imports": [
+        "config",
+        "omni.runtime",
+        "omni.web_research",
+        "workstation.market_news"
+      ]
+    }
+  },
+  "identical_groups": [
+    [
+      "agents.breakout_research_runner",
+      "agents.momentum_strategy"
+    ],
+    [
+      "agents",
+      "agents.execution_engine",
+      "agents.strategy_engine"
+    ],
+    [
+      "agents.jarvis_trading_core_v1.agents.trading_core.analysis_engine",
+      "agents.trading_core.analysis_engine"
+    ],
+    [
+      "agents.trading_core.context_engine",
+      "agents.trading_core.jarvis_trading_core_v2.agents.trading_core.context_engine"
+    ],
+    [
+      "agents.jarvis_trading_core_v1.agents.trading_core.indicators",
+      "agents.trading_core.indicators"
+    ],
+    [
+      "agents.jarvis_trading_core_v1.agents.trading_core.paper_engine",
+      "agents.trading_core.paper_engine"
+    ],
+    [
+      "agents.jarvis_trading_core_v1.agents.trading_core.policy",
+      "agents.trading_core.policy"
+    ],
+    [
+      "agents.jarvis_trading_core_v1.agents.trading_core.risk_engine",
+      "agents.trading_core.risk_engine"
+    ],
+    [
+      "agents.jarvis_trading_core_v1.agents.trading_core.strategy_engine",
+      "agents.trading_core.strategy_engine"
+    ],
+    [
+      "agents.trading_core",
+      "agents.trading_core.jarvis_trading_core_v2.agents.trading_core"
+    ]
+  ],
+  "version_families": {
+    "backtest_engine": [
+      "agents.backtest_engine",
+      "agents.backtest_engine_v2"
+    ],
+    "paper_broker": [
+      "agents.paper_broker",
+      "agents.trading_core.paper_broker"
+    ],
+    "pattern_engine": [
+      "agents.pattern_engine",
+      "agents.trading_core.pattern_engine"
+    ],
+    "research_matrix_runner": [
+      "agents.research_matrix_runner",
+      "agents.research_matrix_runner_v2"
+    ],
+    "risk_engine": [
+      "agents.jarvis_trading_core_v1.agents.trading_core.risk_engine",
+      "agents.risk_engine",
+      "agents.trading_core.risk_engine"
+    ],
+    "signal_engine": [
+      "agents.signal_engine",
+      "agents.trading_core.signal_engine"
+    ],
+    "strategy_engine": [
+      "agents.jarvis_trading_core_v1.agents.trading_core.strategy_engine",
+      "agents.strategy_engine",
+      "agents.trading_core.strategy_engine"
+    ],
+    "upstox_live_stream": [
+      "agents.trading_core.upstox_live_stream_v4",
+      "agents.upstox_live_stream"
+    ],
+    "analysis_engine": [
+      "agents.jarvis_trading_core_v1.agents.trading_core.analysis_engine",
+      "agents.trading_core.analysis_engine"
+    ],
+    "candidate_engine": [
+      "agents.trading_core.candidate_engine",
+      "agents.trading_core.candidate_engine_v2"
+    ],
+    "cli": [
+      "agents.jarvis_trading_core_v1.agents.trading_core.cli",
+      "agents.trading_core.cli",
+      "agents.trading_core.cli_v2",
+      "agents.trading_core.jarvis_trading_core_v2.agents.trading_core.cli"
+    ],
+    "context_engine": [
+      "agents.trading_core.context_engine",
+      "agents.trading_core.jarvis_trading_core_v2.agents.trading_core.context_engine"
+    ],
+    "core": [
+      "agents.jarvis_trading_core_v1.agents.trading_core.core",
+      "agents.trading_core.core",
+      "agents.trading_core.jarvis_trading_core_v2.agents.trading_core.core"
+    ],
+    "data_bus": [
+      "agents.jarvis_trading_core_v1.agents.trading_core.data_bus",
+      "agents.trading_core.data_bus",
+      "agents.trading_core.jarvis_trading_core_v2.agents.trading_core.data_bus"
+    ],
+    "indicators": [
+      "agents.jarvis_trading_core_v1.agents.trading_core.indicators",
+      "agents.trading_core.indicators"
+    ],
+    "instrument_registry": [
+      "agents.jarvis_trading_core_v1.agents.trading_core.instrument_registry",
+      "agents.trading_core.instrument_registry"
+    ],
+    "jarvis_decision_agent": [
+      "agents.trading_core.jarvis_decision_agent_v1",
+      "agents.trading_core.jarvis_decision_agent_v2"
+    ],
+    "models": [
+      "agents.jarvis_trading_core_v1.agents.trading_core.models",
+      "agents.trading_core.models"
+    ],
+    "news_engine": [
+      "agents.jarvis_trading_core_v1.agents.trading_core.news_engine",
+      "agents.trading_core.news_engine",
+      "agents.trading_core.news_engine_v2"
+    ],
+    "option_confirmation": [
+      "agents.trading_core.option_confirmation",
+      "agents.trading_core.option_confirmation_v2"
+    ],
+    "paper_engine": [
+      "agents.jarvis_trading_core_v1.agents.trading_core.paper_engine",
+      "agents.trading_core.paper_engine"
+    ],
+    "policy": [
+      "agents.jarvis_trading_core_v1.agents.trading_core.policy",
+      "agents.trading_core.policy"
+    ],
+    "trading_core": [
+      "agents.jarvis_trading_core_v1.agents.trading_core",
+      "agents.trading_core",
+      "agents.trading_core.jarvis_trading_core_v2.agents.trading_core"
+    ]
+  }
+}

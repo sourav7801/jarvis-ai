@@ -1,0 +1,259 @@
+JARVIS CLEANUP SAFETY AUDIT
+===========================
+
+Files searched: 303
+Candidates checked: 22
+
+
+agents.jarvis_trading_core_v1
+--------------------------------------------------------------------------------
+pyproject.toml:58 "agents/jarvis_trading_core_v1",
+
+agents.trading_core.jarvis_trading_core_v2
+--------------------------------------------------------------------------------
+pyproject.toml:59 "agents/trading_core/jarvis_trading_core_v2",
+
+agents.backtest_engine
+--------------------------------------------------------------------------------
+agents\backtest_engine.py:1326 backtest_engine = BacktestEngine()
+agents\backtest_engine.py:1339 return backtest_engine.run(
+agents\backtest_engine_v2.py:1621 backtest_engine_v2 = (
+agents\backtest_engine_v2.py:1636 return backtest_engine_v2.run(
+agents\strategy_research_runner.py:43 from agents.backtest_engine_v2 import (
+
+agents.backtest_engine_v2
+--------------------------------------------------------------------------------
+agents\backtest_engine_v2.py:1621 backtest_engine_v2 = (
+agents\backtest_engine_v2.py:1636 return backtest_engine_v2.run(
+agents\strategy_research_runner.py:43 from agents.backtest_engine_v2 import (
+
+agents.research_matrix_runner
+--------------------------------------------------------------------------------
+agents\edge_validation_engine.py:1438 "python -m agents.research_matrix_runner"
+agents\research_matrix_runner.py:977 research_matrix_runner = (
+agents\research_matrix_runner.py:989 research_matrix_runner.run()
+agents\research_matrix_runner.py:995 research_matrix_runner.summary(
+
+agents.research_matrix_runner_v2
+--------------------------------------------------------------------------------
+NO REFERENCES FOUND
+
+agents.trading_core.candidate_engine
+--------------------------------------------------------------------------------
+agents\trading_core\core.py:8 from .candidate_engine import confirmation_state
+agents\trading_core\jarvis_decision_agent_v2.py:10 from .candidate_engine_v2 import generate_candidate
+agents\trading_core\jarvis_strategy_paper_v3.py:10 from .strategy_candidate_engine_v3 import generate_strategy_candidates
+
+agents.trading_core.candidate_engine_v2
+--------------------------------------------------------------------------------
+agents\trading_core\jarvis_decision_agent_v2.py:10 from .candidate_engine_v2 import generate_candidate
+
+agents.trading_core.jarvis_decision_agent_v1
+--------------------------------------------------------------------------------
+NO REFERENCES FOUND
+
+agents.trading_core.jarvis_decision_agent_v2
+--------------------------------------------------------------------------------
+NO REFERENCES FOUND
+
+agents.trading_core.news_engine
+--------------------------------------------------------------------------------
+jarvis_trading_agent_v1\agents\trading_core\cli.py:8 from .news_engine import NewsEngine
+jarvis_trading_agent_v1\agents\trading_core\jarvis_trading_agent.py:11 from .news_engine import NewsEngine
+agents\trading_core\cli.py:8 from .news_engine import NewsEngine
+agents\trading_core\cli_v2.py:8 from .news_engine_v2 import NewsEngineV2
+agents\trading_core\jarvis_trading_agent.py:11 from .news_engine import NewsEngine
+agents\trading_core\jarvis_trading_core_v2\agents\trading_core\core.py:10 from .news_engine import NewsEngine
+agents\jarvis_trading_core_v1\agents\trading_core\core.py:9 from .news_engine import NewsEngine
+
+agents.trading_core.news_engine_v2
+--------------------------------------------------------------------------------
+agents\trading_core\cli_v2.py:8 from .news_engine_v2 import NewsEngineV2
+
+agents.trading_core.option_confirmation
+--------------------------------------------------------------------------------
+jarvis_trading_agent_v1\agents\trading_core\cli.py:9 from .option_confirmation import OptionConfirmation
+jarvis_trading_agent_v1\agents\trading_core\jarvis_trading_agent.py:9 from .option_confirmation import OptionConfirmation
+agents\trading_core\cli.py:9 from .option_confirmation import OptionConfirmation
+agents\trading_core\cli_v2.py:7 from .option_confirmation_v2 import OptionConfirmationV2
+agents\trading_core\jarvis_trading_agent.py:9 from .option_confirmation import OptionConfirmation
+agents\trading_core\trade_decision_engine_v1.py:7 from .option_confirmation_v2 import OptionConfirmationV2
+agents\trading_core\trade_decision_engine_v1.py:96 def option_confirmation(
+agents\trading_core\trade_decision_engine_v1.py:139 opt_probe = self.option_confirmation(symbol)
+agents\trading_core\trade_decision_engine_v1.py:182 option = self.option_confirmation(symbol)
+
+agents.trading_core.option_confirmation_v2
+--------------------------------------------------------------------------------
+agents\trading_core\cli_v2.py:7 from .option_confirmation_v2 import OptionConfirmationV2
+agents\trading_core\trade_decision_engine_v1.py:7 from .option_confirmation_v2 import OptionConfirmationV2
+
+agents.trading_core.paper_broker
+--------------------------------------------------------------------------------
+agents\paper_broker.py:1375 paper_broker = PaperBroker()
+workstation\paper_runtime.py:20 from agents.paper_broker import Order, PaperBroker, Position, Trade
+workstation\paper_runtime_before_healthfix_20260818_031527.py:20 from agents.paper_broker import Order, PaperBroker, Position, Trade
+jarvis_trading_agent_v1\agents\trading_core\cli.py:10 from .paper_broker import PaperBroker
+jarvis_trading_agent_v1\agents\trading_core\jarvis_trading_agent.py:10 from .paper_broker import PaperBroker
+agents\trading_core\cli.py:10 from .paper_broker import PaperBroker
+agents\trading_core\jarvis_trading_agent.py:10 from .paper_broker import PaperBroker
+
+agents.trading_core.pattern_engine
+--------------------------------------------------------------------------------
+agents\backtest_engine.py:46 from agents.pattern_engine import (
+agents\backtest_engine.py:47 pattern_engine,
+agents\backtest_engine.py:849 pattern_engine.analyze(
+agents\backtest_engine_v2.py:32 from agents.pattern_engine import pattern_engine
+agents\backtest_engine_v2.py:474 pattern_engine.analyze(
+agents\pattern_engine.py:1118 pattern_engine = PatternEngine()
+agents\pattern_engine.py:1129 return pattern_engine.analyze(
+agents\strategy_comparison.py:13 from agents.pattern_engine import pattern_engine
+agents\strategy_comparison.py:365 pattern_engine.analyze(
+agents\strategy_research_runner.py:55 from agents.pattern_engine import (
+agents\strategy_research_runner.py:56 pattern_engine,
+agents\strategy_research_runner.py:247 pattern_engine.analyze(
+agents\trading_agent.py:18 from agents.pattern_engine import (
+agents\trading_agent.py:19 pattern_engine,
+agents\trading_agent.py:240 pattern_engine.analyze(
+agents\trading_intelligence_agent.py:28 from agents.pattern_engine import pattern_engine
+agents\trading_intelligence_agent.py:85 patterns = pattern_engine.analyze(
+agents\trading_mission_agent.py:1054 from agents.pattern_engine import (
+agents\trading_mission_agent.py:1055 pattern_engine,
+agents\trading_mission_agent.py:1059 pattern_engine.analyze(
+workstation\trading_intelligence.py:13 from agents.pattern_engine import analyze_patterns
+agents\trading_core\live_monitor.py:15 from .pattern_engine import detect_fvg, detect_liquidity, detect_orb, volume_anomaly
+agents\trading_core\signal_engine.py:7 from .pattern_engine import detect_fvg, detect_liquidity, detect_orb, volume_anomaly
+
+agents.trading_core.risk_engine
+--------------------------------------------------------------------------------
+agents\backtest_engine.py:54 from agents.risk_engine import (
+agents\backtest_engine.py:55 risk_engine,
+agents\backtest_engine.py:948 risk_engine.evaluate_trade(
+agents\backtest_engine_v2.py:34 from agents.risk_engine import RiskEngine
+agents\backtest_engine_v2.py:117 self.risk_engine = RiskEngine(
+agents\backtest_engine_v2.py:551 self.risk_engine.evaluate_trade(
+agents\mean_reversion_research_runner.py:14 from agents.risk_engine import RiskEngine
+agents\mean_reversion_research_runner.py:49 self.risk_engine = RiskEngine(
+agents\mean_reversion_research_runner.py:396 self.risk_engine.evaluate_trade(
+agents\momentum_research_runner.py:14 from agents.risk_engine import RiskEngine
+agents\momentum_research_runner.py:43 self.risk_engine = RiskEngine(
+agents\momentum_research_runner.py:369 self.risk_engine.evaluate_trade(
+agents\risk_engine.py:166 risk_engine = RiskEngine()
+agents\strategy_comparison.py:19 from agents.risk_engine import RiskEngine
+agents\strategy_comparison.py:57 self.risk_engine = RiskEngine(
+agents\strategy_comparison.py:479 self.risk_engine.evaluate_trade(
+agents\strategy_research_runner.py:839 self.backtester.risk_engine.evaluate_trade(
+agents\trading_agent.py:26 from agents.risk_engine import (
+agents\trading_agent.py:27 risk_engine,
+agents\trading_agent.py:326 risk_engine.evaluate_trade(
+agents\trend_research_runner.py:25 from agents.risk_engine import RiskEngine
+agents\trend_research_runner.py:62 self.risk_engine = RiskEngine(
+agents\trend_research_runner.py:405 self.risk_engine.evaluate_trade(
+agents\trading_core\core.py:16 from .risk_engine import position_size
+agents\trading_core\jarvis_trading_core_v2\agents\trading_core\core.py:13 from .risk_engine import position_size
+agents\jarvis_trading_core_v1\agents\trading_core\core.py:12 from .risk_engine import position_size
+
+agents.trading_core.signal_engine
+--------------------------------------------------------------------------------
+agents\backtest_engine.py:50 from agents.signal_engine import (
+agents\backtest_engine.py:51 signal_engine,
+agents\backtest_engine.py:870 signal_engine.generate_signal(
+agents\backtest_engine_v2.py:33 from agents.signal_engine import signal_engine
+agents\backtest_engine_v2.py:490 signal_engine.generate_signal(
+agents\option_chain_signal_engine.py:676 option_chain_signal_engine = (
+agents\option_chain_signal_engine.py:691 option_chain_signal_engine.analyze(
+agents\option_chain_signal_engine.py:787 option_chain_signal_engine.format_signal(
+agents\paper_monitor.py:47 from agents.paper_signal_engine import (
+agents\paper_monitor.py:48 paper_signal_engine,
+agents\paper_monitor.py:633 paper_signal_engine.create_signal(
+agents\paper_signal_engine.py:1401 paper_signal_engine = (
+agents\paper_signal_engine.py:1423 paper_signal_engine.create_signal(
+agents\paper_signal_engine.py:1513 paper_signal_engine.format_result(
+agents\regime_aware_signal_engine.py:1118 regime_aware_signal_engine = (
+agents\regime_aware_signal_engine.py:1134 regime_aware_signal_engine.generate_signal(
+agents\regime_aware_signal_engine.py:1269 regime_aware_signal_engine.format_signal(
+agents\signal_engine.py:737 signal_engine = SignalEngine()
+agents\signal_engine.py:749 return signal_engine.generate_signal(
+agents\strategy_comparison.py:14 from agents.signal_engine import signal_engine
+agents\strategy_comparison.py:16 from agents.regime_aware_signal_engine import (
+agents\strategy_comparison.py:17 regime_aware_signal_engine,
+agents\strategy_comparison.py:405 signal_engine.generate_signal(
+agents\strategy_comparison.py:414 regime_aware_signal_engine.generate_signal(
+agents\strategy_research_runner.py:63 from agents.regime_aware_signal_engine import (
+agents\strategy_research_runner.py:64 regime_aware_signal_engine,
+agents\strategy_research_runner.py:112 regime_aware_signal_engine.generate_signal(
+agents\trading_agent.py:22 from agents.signal_engine import (
+agents\trading_agent.py:23 signal_engine,
+agents\trading_agent.py:271 signal_engine.generate_signal(
+agents\trading_intelligence_agent.py:30 from agents.regime_aware_signal_engine import (
+agents\trading_intelligence_agent.py:31 regime_aware_signal_engine,
+agents\trading_intelligence_agent.py:116 regime_aware_signal_engine.generate_signal(
+agents\trading_core\core.py:18 from .signal_engine import analyze_trigger_package
+
+agents.trading_core.strategy_engine
+--------------------------------------------------------------------------------
+agents\option_strategy_engine.py:590 option_strategy_engine = (
+agents\option_strategy_engine.py:609 option_strategy_engine.rank_strategies(
+agents\option_strategy_engine.py:670 option_strategy_engine.format_ranking(
+agents\paper_signal_engine.py:813 strategy_engine = (
+agents\paper_signal_engine.py:820 strategy_engine.signal(
+agents\trading_core\core.py:17 from .strategy_engine import build_setups
+agents\trading_core\live_monitor.py:17 from .strategy_engine import build_setups
+agents\trading_core\jarvis_trading_core_v2\agents\trading_core\core.py:14 from .strategy_engine import build_setups
+agents\jarvis_trading_core_v1\agents\trading_core\core.py:13 from .strategy_engine import build_setups
+
+agents.strategy_engine
+--------------------------------------------------------------------------------
+agents\option_strategy_engine.py:590 option_strategy_engine = (
+agents\option_strategy_engine.py:609 option_strategy_engine.rank_strategies(
+agents\option_strategy_engine.py:670 option_strategy_engine.format_ranking(
+agents\paper_signal_engine.py:813 strategy_engine = (
+agents\paper_signal_engine.py:820 strategy_engine.signal(
+agents\trading_core\core.py:17 from .strategy_engine import build_setups
+agents\trading_core\live_monitor.py:17 from .strategy_engine import build_setups
+agents\trading_core\jarvis_trading_core_v2\agents\trading_core\core.py:14 from .strategy_engine import build_setups
+agents\jarvis_trading_core_v1\agents\trading_core\core.py:13 from .strategy_engine import build_setups
+
+agents.upstox_live_stream
+--------------------------------------------------------------------------------
+agents\live_intraday_router.py:104 from agents.upstox_live_stream import (
+agents\upstox_live_stream.py:1552 upstox_live_stream = UpstoxLiveStream()
+agents\upstox_live_stream.py:1572 upstox_live_stream.start()
+agents\upstox_live_stream.py:1616 upstox_live_stream
+agents\upstox_live_stream.py:1650 upstox_live_stream.stop()
+agents\upstox_live_stream_v4_backup.py:333 upstox_live_stream = UpstoxLiveStreamV4()
+workstation\jarvis_workstation_v2\app.py:39 from agents.upstox_live_stream import upstox_live_stream
+workstation\jarvis_workstation_v2\app.py:40 result = upstox_live_stream.start()
+workstation\jarvis_workstation_v2\app.py:82 from agents.upstox_live_stream import upstox_live_stream
+workstation\jarvis_workstation_v2\app.py:83 store = upstox_live_stream.store
+workstation\jarvis_workstation_v2\app.py:89 snap = upstox_live_stream.snapshot(symbol)
+workstation\jarvis_workstation_v2\app.py:214 from agents.upstox_live_stream import upstox_live_stream
+workstation\jarvis_workstation_v2\app.py:215 upstox_live_stream.stop()
+workstation\jarvis_workstation_v3\app.py:35 from agents.upstox_live_stream import upstox_live_stream
+workstation\jarvis_workstation_v3\app.py:36 result = upstox_live_stream.start()
+workstation\jarvis_workstation_v3\app.py:78 from agents.upstox_live_stream import upstox_live_stream
+workstation\jarvis_workstation_v3\app.py:79 store = upstox_live_stream.store
+workstation\jarvis_workstation_v3\app.py:84 snap = upstox_live_stream.snapshot(symbol)
+workstation\jarvis_workstation_v3\app.py:201 from agents.upstox_live_stream import upstox_live_stream
+workstation\jarvis_workstation_v3\app.py:202 upstox_live_stream.stop()
+jarvis_trading_agent_v1\agents\trading_core\upstox_live_stream_v4.py:333 upstox_live_stream = UpstoxLiveStreamV4()
+agents\trading_core\data_bus.py:66 mod = importlib.import_module("agents.upstox_live_stream")
+agents\trading_core\data_bus.py:67 stream = getattr(mod, "upstox_live_stream")
+agents\trading_core\data_bus.py:83 mod = importlib.import_module("agents.upstox_live_stream")
+agents\trading_core\data_bus.py:84 stream = getattr(mod, "upstox_live_stream")
+agents\trading_core\live_bus.py:22 mod = importlib.import_module("agents.upstox_live_stream")
+agents\trading_core\live_bus.py:23 stream = getattr(mod, "upstox_live_stream")
+agents\trading_core\live_bus.py:48 mod = importlib.import_module("agents.upstox_live_stream")
+agents\trading_core\live_bus.py:49 stream = getattr(mod, "upstox_live_stream")
+agents\trading_core\live_monitor.py:158 from agents.upstox_live_stream import upstox_live_stream
+agents\trading_core\live_monitor.py:159 self.stream = upstox_live_stream
+agents\trading_core\upstox_live_stream_v4.py:333 upstox_live_stream = UpstoxLiveStreamV4()
+agents\trading_core\jarvis_trading_core_v2\agents\trading_core\data_bus.py:68 module = importlib.import_module("agents.upstox_live_stream")
+agents\trading_core\jarvis_trading_core_v2\agents\trading_core\data_bus.py:69 stream = getattr(module, "upstox_live_stream")
+agents\trading_core\jarvis_trading_core_v2\agents\trading_core\data_bus.py:76 module = importlib.import_module("agents.upstox_live_stream")
+agents\trading_core\jarvis_trading_core_v2\agents\trading_core\data_bus.py:77 stream = getattr(module, "upstox_live_stream")
+agents\jarvis_trading_core_v1\agents\trading_core\data_bus.py:68 module = importlib.import_module("agents.upstox_live_stream")
+agents\jarvis_trading_core_v1\agents\trading_core\data_bus.py:69 stream = getattr(module, "upstox_live_stream")
+
+agents.trading_core.upstox_live_stream_v4
+--------------------------------------------------------------------------------
+NO REFERENCES FOUND

@@ -1,0 +1,446 @@
+{
+  "nautilus_version": "1.231.0",
+  "python": "3.13.14 (tags/v3.13.14:fd17997, Jun 10 2026, 13:03:48) [MSC v.1944 64 bit (AMD64)]",
+  "instrument_classes": {
+    "Equity": {
+      "module": "nautilus_trader.model.instruments.equity",
+      "name": "Equity",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.model.instruments.equity.Equity'>>",
+      "doc": "Equity(InstrumentId instrument_id, Symbol raw_symbol, Currency currency, int price_precision, Price price_increment, Quantity lot_size, uint64_t ts_event, uint64_t ts_init, Quantity max_quantity: Quantity | None = None, Quantity min_quantity: Quantity | None = None, margin_init: Decimal | None = None, margin_maint: Decimal | None = None, maker_fee: Decimal | None = None, taker_fee: Decimal | None = None, str isin: str | None = None, str tick_scheme_name=None, dict info=None) -> None\n\nRepresents a generic equity instrument.\n\nParameters\n----------\ninstrument_id : InstrumentId\n    The instrument ID.\nraw_symbol : Symbol\n    The raw/local/native symbol for the instrument, assigned by the venue.\ncurrency : Currency\n    The futures contract currency.\nprice_precision : int\n    The price decimal precision.\nprice_increment : Decimal\n    The minimum price increment (tick size).\nlot_size : Quantity\n    The rounded lot unit size (standard/board).\nts_event : uint64_t\n    UNIX timestamp (nanoseconds) when the data event occurred.\nts_init : uint64_t\n    UNIX timestamp (nanoseconds) when the data object was initialized.\nmargin_init : Decimal, optional\n    The initial (order) margin requirement in p"
+    },
+    "FuturesContract": {
+      "module": "nautilus_trader.model.instruments.futures_contract",
+      "name": "FuturesContract",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.model.instruments.futures_contract.FuturesContract'>>",
+      "doc": "FuturesContract(InstrumentId instrument_id, Symbol raw_symbol, AssetClass asset_class, Currency currency, int price_precision, Price price_increment, Quantity multiplier, Quantity lot_size, str underlying, uint64_t activation_ns, uint64_t expiration_ns, uint64_t ts_event, uint64_t ts_init, margin_init: Decimal | None = None, margin_maint: Decimal | None = None, maker_fee: Decimal | None = None, taker_fee: Decimal | None = None, str exchange=None, str tick_scheme_name=None, dict info=None) -> None\n\nRepresents a generic deliverable futures contract instrument.\n\nParameters\n----------\ninstrument_id : InstrumentId\n    The instrument ID.\nraw_symbol : Symbol\n    The raw/local/native symbol for the instrument, assigned by the venue.\nasset_class : AssetClass\n    The futures contract asset class.\ncurrency : Currency\n    The futures contract currency.\nprice_precision : int\n    The price decimal precision.\nprice_increment : Decimal\n    The minimum price increment (tick size).\nmultiplier : Quantity\n    The contract multiplier.\nlot_size : Quantity\n    The rounded lot unit size (standard/board).\nunderlying : str\n    The underlying asset.\nactivation_ns : uint64_t\n    UNIX timestamp (nanoseconds) f"
+    },
+    "OptionContract": {
+      "module": "nautilus_trader.model.instruments.option_contract",
+      "name": "OptionContract",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.model.instruments.option_contract.OptionContract'>>",
+      "doc": "OptionContract(InstrumentId instrument_id, Symbol raw_symbol, AssetClass asset_class, Currency currency, int price_precision, Price price_increment, Quantity multiplier, Quantity lot_size, str underlying, OptionKind option_kind, Price strike_price, uint64_t activation_ns, uint64_t expiration_ns, uint64_t ts_event, uint64_t ts_init, margin_init: Decimal | None = None, margin_maint: Decimal | None = None, maker_fee: Decimal | None = None, taker_fee: Decimal | None = None, str exchange=None, str tick_scheme_name=None, dict info=None) -> None\n\nRepresents a generic option contract instrument.\n\nParameters\n----------\ninstrument_id : InstrumentId\n    The instrument ID.\nraw_symbol : Symbol\n    The raw/local/native symbol for the instrument, assigned by the venue.\nasset_class : AssetClass\n    The option contract asset class.\ncurrency : Currency\n    The option contract currency.\nprice_precision : int\n    The price decimal precision.\nprice_increment : Price\n    The minimum price increment (tick size).\nmultiplier : Quantity\n    The option multiplier.\nlot_size : Quantity\n    The rounded lot unit size (standard/board).\nunderlying : str\n    The underlying asset.\noption_kind : OptionKind\n    The ki"
+    },
+    "CurrencyPair": {
+      "module": "nautilus_trader.model.instruments.currency_pair",
+      "name": "CurrencyPair",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.model.instruments.currency_pair.CurrencyPair'>>",
+      "doc": "CurrencyPair(InstrumentId instrument_id, Symbol raw_symbol, Currency base_currency, Currency quote_currency, int price_precision, int size_precision, Price price_increment, Quantity size_increment, uint64_t ts_event, uint64_t ts_init, multiplier=Quantity.from_int_c(1), Quantity lot_size: Quantity | None = None, Quantity max_quantity: Quantity | None = None, Quantity min_quantity: Quantity | None = None, Money max_notional: Money | None = None, Money min_notional: Money | None = None, Price max_price: Price | None = None, Price min_price: Price | None = None, margin_init: Decimal | None = None, margin_maint: Decimal | None = None, maker_fee: Decimal | None = None, taker_fee: Decimal | None = None, str tick_scheme_name=None, dict info=None) -> None\n\nRepresents a generic currency pair instrument in a spot/cash market.\n\nCan represent both Fiat FX and Cryptocurrency pairs.\n\nParameters\n----------\ninstrument_id : InstrumentId\n    The instrument ID for the instrument.\nraw_symbol : Symbol\n    The raw/local/native symbol for the instrument, assigned by the venue.\nbase_currency : Currency\n    The base currency.\nquote_currency : Currency\n    The quote currency.\nprice_precision : int\n    The pr"
+    },
+    "IndexInstrument": {
+      "module": "nautilus_trader.model.instruments.index",
+      "name": "IndexInstrument",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.model.instruments.index.IndexInstrument'>>",
+      "doc": "IndexInstrument(InstrumentId instrument_id, Symbol raw_symbol, Currency currency, int price_precision, int size_precision, Price price_increment, Quantity size_increment, uint64_t ts_event, uint64_t ts_init, str tick_scheme_name=None, dict info=None) -> None\n\nRepresents a **spot index** instrument (also known as a **cash index**).\n\nA spot index is calculated from its underlying constituents.\nIt is **not directly tradable**. To gain exposure you would typically use\nindex futures, ETFs, or CFDs.\n\nParameters\n----------\ninstrument_id : InstrumentId\n    The instrument ID.\nraw_symbol : Symbol\n    The raw/local/native symbol for the instrument, assigned by the venue.\ncurrency : Currency\n    The futures contract currency.\nprice_precision : int\n    The price decimal precision.\nprice_increment : Price\n    The minimum price increment (tick size).\nsize_precision : int\n    The trading size decimal precision.\nsize_increment : Quantity\n    The minimum size increment.\nts_event : uint64_t\n    UNIX timestamp (nanoseconds) when the data event occurred.\nts_init : uint64_t\n    UNIX timestamp (nanoseconds) when the data object was initialized.\ntick_scheme_name : str, optional\n    The name of the tick sc"
+    },
+    "FuturesSpread": {
+      "module": "nautilus_trader.model.instruments.futures_spread",
+      "name": "FuturesSpread",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.model.instruments.futures_spread.FuturesSpread'>>",
+      "doc": "FuturesSpread(InstrumentId instrument_id, Symbol raw_symbol, AssetClass asset_class, Currency currency, int price_precision, Price price_increment, Quantity multiplier, Quantity lot_size, str underlying, str strategy_type, uint64_t activation_ns, uint64_t expiration_ns, uint64_t ts_event, uint64_t ts_init, margin_init: Decimal | None = None, margin_maint: Decimal | None = None, maker_fee: Decimal | None = None, taker_fee: Decimal | None = None, str exchange=None, str tick_scheme_name=None, dict info=None) -> None\n\nRepresents a generic deliverable futures spread instrument.\n\nParameters\n----------\ninstrument_id : InstrumentId\n    The instrument ID.\nraw_symbol : Symbol\n    The raw/local/native symbol for the instrument, assigned by the venue.\nasset_class : AssetClass\n    The futures spread asset class.\ncurrency : Currency\n    The futures spread currency.\nprice_precision : int\n    The price decimal precision.\nprice_increment : Decimal\n    The minimum price increment (tick size).\nmultiplier : Quantity\n    The contract multiplier.\nlot_size : Quantity\n    The rounded lot unit size (standard/board).\nunderlying : str\n    The underlying asset.\nstrategy_type : str\n    The strategy type for th"
+    },
+    "OptionSpread": {
+      "module": "nautilus_trader.model.instruments.option_spread",
+      "name": "OptionSpread",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.model.instruments.option_spread.OptionSpread'>>",
+      "doc": "OptionSpread(InstrumentId instrument_id, Symbol raw_symbol, AssetClass asset_class, Currency currency, int price_precision, Price price_increment, Quantity multiplier, Quantity lot_size, str underlying, str strategy_type, uint64_t activation_ns, uint64_t expiration_ns, uint64_t ts_event, uint64_t ts_init, margin_init: Decimal | None = None, margin_maint: Decimal | None = None, maker_fee: Decimal | None = None, taker_fee: Decimal | None = None, str exchange=None, str tick_scheme_name=None, dict info=None) -> None\n\nRepresents a generic option spread instrument.\n\nParameters\n----------\ninstrument_id : InstrumentId\n    The instrument ID.\nraw_symbol : Symbol\n    The raw/local/native symbol for the instrument, assigned by the venue.\nasset_class : AssetClass\n    The option spread asset class.\ncurrency : Currency\n    The option spread currency.\nprice_precision : int\n    The price decimal precision.\nprice_increment : Price\n    The minimum price increment (tick size).\nmultiplier : Quantity\n    The option multiplier.\nlot_size : Quantity\n    The rounded lot unit size (standard/board).\nunderlying : str\n    The underlying asset.\nstrategy_type : str\n    The strategy type of the spread.\nactivation_"
+    }
+  },
+  "test_instrument_provider": {
+    "aapl_option": {
+      "module": "nautilus_trader.test_kit.providers",
+      "name": "aapl_option",
+      "signature": "() -> nautilus_trader.model.instruments.option_contract.OptionContract",
+      "doc": ""
+    },
+    "binary_option": {
+      "module": "nautilus_trader.test_kit.providers",
+      "name": "binary_option",
+      "signature": "() -> nautilus_trader.model.instruments.binary_option.BinaryOption",
+      "doc": ""
+    },
+    "btcusdt_future_binance": {
+      "module": "nautilus_trader.test_kit.providers",
+      "name": "btcusdt_future_binance",
+      "signature": "(activation: pandas.Timestamp | None = None, expiration: pandas.Timestamp | None = None) -> nautilus_trader.model.instruments.crypto_future.CryptoFuture",
+      "doc": "Return the Binance Futures BTCUSDT instrument for backtesting.\n\nParameters\n----------\nactivation : pd.Timestamp, optional\n    The activation (UTC) for the contract.\nexpiration : pd.Timestamp, optional\n    The expiration (UTC) for the contract.\n\nReturns\n-------\nCryptoFuture"
+    },
+    "commodity": {
+      "module": "nautilus_trader.test_kit.providers",
+      "name": "commodity",
+      "signature": "() -> nautilus_trader.model.instruments.commodity.Commodity",
+      "doc": ""
+    },
+    "crypto_futures_spread_inverse": {
+      "module": "nautilus_trader.test_kit.providers",
+      "name": "crypto_futures_spread_inverse",
+      "signature": "() -> nautilus_trader.model.instruments.crypto_futures_spread.CryptoFuturesSpread",
+      "doc": ""
+    },
+    "crypto_option": {
+      "module": "nautilus_trader.test_kit.providers",
+      "name": "crypto_option",
+      "signature": "() -> nautilus_trader.model.instruments.crypto_option.CryptoOption",
+      "doc": ""
+    },
+    "crypto_option_spread_inverse": {
+      "module": "nautilus_trader.test_kit.providers",
+      "name": "crypto_option_spread_inverse",
+      "signature": "() -> nautilus_trader.model.instruments.crypto_option_spread.CryptoOptionSpread",
+      "doc": ""
+    },
+    "default_fx_ccy": {
+      "module": "nautilus_trader.test_kit.providers",
+      "name": "default_fx_ccy",
+      "signature": "(symbol: str, venue: nautilus_trader.model.identifiers.Venue | None = None) -> nautilus_trader.model.instruments.currency_pair.CurrencyPair",
+      "doc": "Return a default FX currency pair instrument from the given symbol and venue.\n\nParameters\n----------\nsymbol : str\n    The currency pair symbol.\nvenue : Venue\n    The currency pair venue.\n\nReturns\n-------\nCurrencyPair\n\nRaises\n------\nValueError\n    If `symbol` length is not in range [6, 7]."
+    },
+    "equity": {
+      "module": "nautilus_trader.test_kit.providers",
+      "name": "equity",
+      "signature": "(symbol: str = 'AAPL', venue: str = 'XNAS') -> nautilus_trader.model.instruments.equity.Equity",
+      "doc": ""
+    },
+    "es_future": {
+      "module": "nautilus_trader.test_kit.providers",
+      "name": "es_future",
+      "signature": "(expiry_year: int, expiry_month: int, venue: nautilus_trader.model.identifiers.Venue | None = None) -> nautilus_trader.model.instruments.futures_contract.FuturesContract",
+      "doc": ""
+    },
+    "eurusd_future": {
+      "module": "nautilus_trader.test_kit.providers",
+      "name": "eurusd_future",
+      "signature": "(expiry_year: int, expiry_month: int, venue_name: str = 'XCME') -> nautilus_trader.model.instruments.futures_contract.FuturesContract",
+      "doc": ""
+    },
+    "future": {
+      "module": "nautilus_trader.test_kit.providers",
+      "name": "future",
+      "signature": "(symbol: str = 'ESZ1', underlying: str = 'ES', venue: str = 'GLBX', exchange: str = 'XCME') -> nautilus_trader.model.instruments.futures_contract.FuturesContract",
+      "doc": ""
+    },
+    "futures_spread": {
+      "module": "nautilus_trader.test_kit.providers",
+      "name": "futures_spread",
+      "signature": "() -> nautilus_trader.model.instruments.futures_spread.FuturesSpread",
+      "doc": ""
+    },
+    "index_instrument": {
+      "module": "nautilus_trader.test_kit.providers",
+      "name": "index_instrument",
+      "signature": "() -> nautilus_trader.model.instruments.index.IndexInstrument",
+      "doc": ""
+    },
+    "option_spread": {
+      "module": "nautilus_trader.test_kit.providers",
+      "name": "option_spread",
+      "signature": "() -> nautilus_trader.model.instruments.option_spread.OptionSpread",
+      "doc": ""
+    }
+  },
+  "execution_models": {
+    "nautilus_trader.backtest.models.fill:BestPriceFillModel": {
+      "module": "nautilus_trader.backtest.models.fill",
+      "name": "BestPriceFillModel",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.backtest.models.fill.BestPriceFillModel'>>",
+      "doc": "Fill model that executes all orders at the best available price.\n\nThis model simulates optimistic market conditions where every order gets filled\nimmediately at the best available price. Ideal for testing basic strategy logic."
+    },
+    "nautilus_trader.backtest.models.fill:CompetitionAwareFillModel": {
+      "module": "nautilus_trader.backtest.models.fill",
+      "name": "CompetitionAwareFillModel",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.backtest.models.fill.CompetitionAwareFillModel'>>",
+      "doc": "CompetitionAwareFillModel(double prob_fill_on_limit=1.0, double prob_slippage=0.0, random_seed=None, double liquidity_factor=0.3)\n\nFill model that simulates market competition effects.\n\nMakes only a percentage of visible liquidity actually available, reflecting\nrealistic conditions where multiple traders compete for the same liquidity."
+    },
+    "nautilus_trader.backtest.models.fee:FeeModel": {
+      "module": "nautilus_trader.backtest.models.fee",
+      "name": "FeeModel",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.backtest.models.fee.FeeModel'>>",
+      "doc": "Provides an abstract fee model for trades."
+    },
+    "nautilus_trader.backtest.models.fill:FillModel": {
+      "module": "nautilus_trader.backtest.models.fill",
+      "name": "FillModel",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.backtest.models.fill.FillModel'>>",
+      "doc": "FillModel(double prob_fill_on_limit=1.0, double prob_slippage=0.0, int random_seed: int | None = None, config=None) -> None\n\nProvides probabilistic modeling for order fill dynamics including probability\nof fills and slippage by order type.\n\nParameters\n----------\nprob_fill_on_limit : double\n    The probability of limit order filling if the market rests on its price.\nprob_slippage : double\n    The probability of order fill prices slipping by one tick.\nrandom_seed : int, optional\n    The random seed (if None then no random seed).\nconfig : FillModelConfig, optional\n    The configuration for the model.\n\nRaises\n------\nValueError\n    If any probability argument is not within range [0, 1].\nTypeError\n    If `random_seed` is not None and not of type `int`."
+    },
+    "nautilus_trader.backtest.models.fee:FixedFeeModel": {
+      "module": "nautilus_trader.backtest.models.fee",
+      "name": "FixedFeeModel",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.backtest.models.fee.FixedFeeModel'>>",
+      "doc": "FixedFeeModel(Money commission=None, bool charge_commission_once: bool = True, config=None) -> None\n\nProvides a fixed fee model for trades.\n\nParameters\n----------\ncommission : Money, optional\n    The fixed commission amount for trades.\ncharge_commission_once : bool, default True\n    Whether to charge the commission once per order or per fill.\nconfig : FixedFeeModelConfig, optional\n    The configuration for the model.\n\nRaises\n------\nValueError\n    If both ``commission`` **and** ``config`` are provided, **or** if both are ``None`` (exactly one must be supplied).\nValueError\n    If `commission` is not a positive amount."
+    },
+    "nautilus_trader.backtest.models.latency:LatencyModel": {
+      "module": "nautilus_trader.backtest.models.latency",
+      "name": "LatencyModel",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.backtest.models.latency.LatencyModel'>>",
+      "doc": "LatencyModel(uint64_t base_latency_nanos=NANOSECONDS_IN_MILLISECOND, uint64_t insert_latency_nanos=0, uint64_t update_latency_nanos=0, uint64_t cancel_latency_nanos=0, config=None) -> None\n\nProvides a latency model for simulated exchange message I/O.\n\nParameters\n----------\nbase_latency_nanos : int, default 1_000_000_000\n    The base latency (nanoseconds) for the model.\ninsert_latency_nanos : int, default 0\n    The order insert latency (nanoseconds) for the model.\nupdate_latency_nanos : int, default 0\n    The order update latency (nanoseconds) for the model.\ncancel_latency_nanos : int, default 0\n    The order cancel latency (nanoseconds) for the model.\nconfig : FillModelConfig, optional\n    The configuration for the model.\n\nRaises\n------\nValueError\n    If `base_latency_nanos` is negative (< 0).\nValueError\n    If `insert_latency_nanos` is negative (< 0).\nValueError\n    If `update_latency_nanos` is negative (< 0).\nValueError\n    If `cancel_latency_nanos` is negative (< 0)."
+    },
+    "nautilus_trader.accounting.margin_models:LeveragedMarginModel": {
+      "module": "nautilus_trader.accounting.margin_models",
+      "name": "LeveragedMarginModel",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.accounting.margin_models.LeveragedMarginModel'>>",
+      "doc": "Leveraged margin model that divides margin requirements by leverage.\n\nThis model represents the current Nautilus behavior and may be appropriate\nfor certain crypto exchanges or specific trading scenarios where leverage\ndirectly reduces margin requirements.\n\nFormula:\n- Initial Margin = (notional_value / leverage) * instrument.margin_init\n- Maintenance Margin = (notional_value / leverage) * instrument.margin_maint"
+    },
+    "nautilus_trader.backtest.models.fill:LimitOrderPartialFillModel": {
+      "module": "nautilus_trader.backtest.models.fill",
+      "name": "LimitOrderPartialFillModel",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.backtest.models.fill.LimitOrderPartialFillModel'>>",
+      "doc": "Fill model that simulates partial fills for limit orders.\n\nWhen price touches the limit level, only fills maximum 5 contracts of the order\nquantity, modeling typical limit order queue behavior."
+    },
+    "nautilus_trader.backtest.models.fee:MakerTakerFeeModel": {
+      "module": "nautilus_trader.backtest.models.fee",
+      "name": "MakerTakerFeeModel",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.backtest.models.fee.MakerTakerFeeModel'>>",
+      "doc": "MakerTakerFeeModel(config=None) -> None\n\nProvide a fee model for trades based on a maker/taker fee schedule\nand notional value of the trade.\n\nParameters\n----------\nconfig : MakerTakerFeeModelConfig, optional\n    The configuration for the fee model."
+    },
+    "nautilus_trader.accounting.margin_models:MarginModel": {
+      "module": "nautilus_trader.accounting.margin_models",
+      "name": "MarginModel",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.accounting.margin_models.MarginModel'>>",
+      "doc": "Abstract base class for margin calculation models.\n\nDifferent venues and instrument types may have varying approaches to\ncalculating margin requirements. This abstraction allows for flexible\nmargin calculation strategies."
+    },
+    "nautilus_trader.backtest.models.fill:MarketHoursFillModel": {
+      "module": "nautilus_trader.backtest.models.fill",
+      "name": "MarketHoursFillModel",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.backtest.models.fill.MarketHoursFillModel'>>",
+      "doc": "MarketHoursFillModel(double prob_fill_on_limit=1.0, double prob_slippage=0.0, random_seed=None)\n\nFill model that simulates varying market conditions based on time.\n\nImplements wider spreads during low liquidity periods (e.g., outside market hours).\nEssential for strategies that trade across different market sessions."
+    },
+    "nautilus_trader.backtest.models.fill:OneTickSlippageFillModel": {
+      "module": "nautilus_trader.backtest.models.fill",
+      "name": "OneTickSlippageFillModel",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.backtest.models.fill.OneTickSlippageFillModel'>>",
+      "doc": "Fill model that forces exactly one tick of slippage for all orders.\n\nThis model demonstrates how to create deterministic slippage by setting zero volume\nat best prices and unlimited volume one tick away."
+    },
+    "nautilus_trader.backtest.models.fee:PerContractFeeModel": {
+      "module": "nautilus_trader.backtest.models.fee",
+      "name": "PerContractFeeModel",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.backtest.models.fee.PerContractFeeModel'>>",
+      "doc": "PerContractFeeModel(Money commission=None, config=None) -> None\n\nProvides a fee model which charges a commission per contract traded.\n\nParameters\n----------\ncommission : Money, optional\n    The commission amount per contract.\nconfig : PerContractFeeModelConfig, optional\n    The configuration for the model.\n\nRaises\n------\nValueError\n    If both ``commission`` **and** ``config`` are provided, **or** if both are ``None`` (exactly one must be supplied).\nValueError\n    If `commission` is negative (< 0)."
+    },
+    "nautilus_trader.backtest.models.fill:ProbabilisticFillModel": {
+      "module": "nautilus_trader.backtest.models.fill",
+      "name": "ProbabilisticFillModel",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.backtest.models.fill.ProbabilisticFillModel'>>",
+      "doc": "Fill model that replicates the current probabilistic behavior.\n\nThis model demonstrates how to implement the existing FillModel's probabilistic\nbehavior using the new simulation approach: 50% chance of best price fill,\n50% chance of one tick slippage."
+    },
+    "nautilus_trader.backtest.models.fill:SizeAwareFillModel": {
+      "module": "nautilus_trader.backtest.models.fill",
+      "name": "SizeAwareFillModel",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.backtest.models.fill.SizeAwareFillModel'>>",
+      "doc": "Fill model that applies different execution models based on order size.\n\nSmall orders (<=10) get good liquidity at best prices. Large orders experience price\nimpact with partial fills at worse prices."
+    },
+    "nautilus_trader.accounting.margin_models:StandardMarginModel": {
+      "module": "nautilus_trader.accounting.margin_models",
+      "name": "StandardMarginModel",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.accounting.margin_models.StandardMarginModel'>>",
+      "doc": "Standard margin model that uses fixed percentages without leverage division.\n\nThis model matches traditional broker behavior (e.g., Interactive Brokers)\nwhere margin requirements are fixed percentages of notional value regardless\nof account leverage. Leverage affects buying power but not margin requirements.\n\nFormula:\n- Initial Margin = notional_value * instrument.margin_init\n- Maintenance Margin = notional_value * instrument.margin_maint"
+    },
+    "nautilus_trader.backtest.models.fill:ThreeTierFillModel": {
+      "module": "nautilus_trader.backtest.models.fill",
+      "name": "ThreeTierFillModel",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.backtest.models.fill.ThreeTierFillModel'>>",
+      "doc": "Fill model with three-tier pricing for realistic market depth simulation.\n\nDistributes 100-contract order fills across three price levels:\n- 50 contracts at best price\n- 30 contracts 1 tick worse\n- 20 contracts 2 ticks worse"
+    },
+    "nautilus_trader.backtest.models.fill:TwoTierFillModel": {
+      "module": "nautilus_trader.backtest.models.fill",
+      "name": "TwoTierFillModel",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.backtest.models.fill.TwoTierFillModel'>>",
+      "doc": "Fill model with two-tier pricing: first 10 contracts at best price, remainder one tick worse.\n\nThis model simulates basic market depth behavior and provides realistic simulation\nof basic market impact for small to medium orders."
+    },
+    "nautilus_trader.backtest.models.fill:VolumeSensitiveFillModel": {
+      "module": "nautilus_trader.backtest.models.fill",
+      "name": "VolumeSensitiveFillModel",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.backtest.models.fill.VolumeSensitiveFillModel'>>",
+      "doc": "VolumeSensitiveFillModel(double prob_fill_on_limit=1.0, double prob_slippage=0.0, random_seed=None)\n\nFill model that adjusts liquidity based on recent trading volume.\n\nCreates realistic market depth based on actual market activity by using recent bar\nvolume data to determine available liquidity."
+    },
+    "nautilus_trader.backtest.config:FeeModelConfig": {
+      "module": "nautilus_trader.backtest.config",
+      "name": "FeeModelConfig",
+      "signature": "()",
+      "doc": "Base configuration for ``FeeModel`` instances."
+    },
+    "nautilus_trader.backtest.config:FeeModelFactory": {
+      "module": "nautilus_trader.backtest.config",
+      "name": "FeeModelFactory",
+      "signature": "()",
+      "doc": "Provides fee model creation from importable configurations."
+    },
+    "nautilus_trader.backtest.config:FillModelConfig": {
+      "module": "nautilus_trader.backtest.config",
+      "name": "FillModelConfig",
+      "signature": "(prob_fill_on_limit: float = 1.0, prob_slippage: float = 0.0, random_seed: int | None = None)",
+      "doc": "Configuration for ``FillModel`` instances.\n\nParameters\n----------\nprob_fill_on_limit : float, default 1.0\n    The probability of limit order filling if the market rests on its price.\nprob_slippage : float, default 0.0\n    The probability of order fill prices slipping by one tick.\nrandom_seed : int, optional\n    The random seed (if None then no random seed)."
+    },
+    "nautilus_trader.backtest.config:FillModelFactory": {
+      "module": "nautilus_trader.backtest.config",
+      "name": "FillModelFactory",
+      "signature": "()",
+      "doc": "Provides fill model creation from importable configurations."
+    },
+    "nautilus_trader.backtest.config:FixedFeeModelConfig": {
+      "module": "nautilus_trader.backtest.config",
+      "name": "FixedFeeModelConfig",
+      "signature": "(commission: str, charge_commission_once: bool = True)",
+      "doc": "Configuration for ``FixedFeeModel`` instances.\n\nParameters\n----------\ncommission : Money | str\n    The fixed commission amount for trades.\ncharge_commission_once : bool, default True\n    Whether to charge the commission once per order or per fill."
+    },
+    "nautilus_trader.backtest.config:ImportableFeeModelConfig": {
+      "module": "nautilus_trader.backtest.config",
+      "name": "ImportableFeeModelConfig",
+      "signature": "(fee_model_path: str, config_path: str, config: dict[str, typing.Any])",
+      "doc": "Configuration for a fee model instance.\n\nParameters\n----------\nfee_model_path : str\n    The fully qualified name of the fee model class.\nconfig_path : str\n    The fully qualified name of the config class.\nconfig : dict[str, Any]\n    The fee model configuration."
+    },
+    "nautilus_trader.backtest.config:ImportableFillModelConfig": {
+      "module": "nautilus_trader.backtest.config",
+      "name": "ImportableFillModelConfig",
+      "signature": "(fill_model_path: str, config_path: str, config: dict[str, typing.Any])",
+      "doc": "Configuration for a fill model instance.\n\nParameters\n----------\nfill_model_path : str\n    The fully qualified name of the fill model class.\nconfig_path : str\n    The fully qualified name of the config class.\nconfig : dict[str, Any]\n    The fill model configuration."
+    },
+    "nautilus_trader.backtest.config:ImportableLatencyModelConfig": {
+      "module": "nautilus_trader.backtest.config",
+      "name": "ImportableLatencyModelConfig",
+      "signature": "(latency_model_path: str, config_path: str, config: dict[str, typing.Any])",
+      "doc": "Configuration for a latency model instance.\n\nParameters\n----------\nlatency_model_path : str\n    The fully qualified name of the latency model class.\nconfig_path : str\n    The fully qualified name of the config class.\nconfig : dict[str, Any]\n    The latency model configuration."
+    },
+    "nautilus_trader.backtest.config:LatencyModelConfig": {
+      "module": "nautilus_trader.backtest.config",
+      "name": "LatencyModelConfig",
+      "signature": "(base_latency_nanos: Annotated[int, msgspec.Meta(ge=0)] = 1000000000, insert_latency_nanos: Annotated[int, msgspec.Meta(ge=0)] = 0, update_latency_nanos: Annotated[int, msgspec.Meta(ge=0)] = 0, cancel_latency_nanos: Annotated[int, msgspec.Meta(ge=0)] = 0)",
+      "doc": "Configuration for ``LatencyModel`` instances.\n\nParameters\n----------\nbase_latency_nanos : int, default 1_000_000_000\n    The base latency (nanoseconds) for the model.\ninsert_latency_nanos : int, default 0\n    The order insert latency (nanoseconds) for the model.\nupdate_latency_nanos : int, default 0\n    The order update latency (nanoseconds) for the model.\ncancel_latency_nanos : int, default 0\n    The order cancel latency (nanoseconds) for the model."
+    },
+    "nautilus_trader.backtest.config:LatencyModelFactory": {
+      "module": "nautilus_trader.backtest.config",
+      "name": "LatencyModelFactory",
+      "signature": "()",
+      "doc": "Provides latency model creation from importable configurations."
+    },
+    "nautilus_trader.backtest.config:MakerTakerFeeModelConfig": {
+      "module": "nautilus_trader.backtest.config",
+      "name": "MakerTakerFeeModelConfig",
+      "signature": "()",
+      "doc": "Configuration for ``MakerTakerFeeModel`` instances.\n\nThis fee model uses the maker/taker fees defined on the instrument."
+    },
+    "nautilus_trader.backtest.config:MarginModelConfig": {
+      "module": "nautilus_trader.backtest.config",
+      "name": "MarginModelConfig",
+      "signature": "(model_type: str = 'leveraged', config: dict = <factory>)",
+      "doc": "Configuration for margin calculation models.\n\nParameters\n----------\nmodel_type : str, default 'leveraged'\n    The type of margin model to use. Options:\n    - \"standard\": Fixed percentages without leverage division (traditional brokers)\n    - \"leveraged\": Margin requirements reduced by leverage (current Nautilus behavior)\n    - Custom class path for custom models\nconfig : dict, optional\n    Additional configuration parameters for custom models."
+    },
+    "nautilus_trader.backtest.config:MarginModelFactory": {
+      "module": "nautilus_trader.backtest.config",
+      "name": "MarginModelFactory",
+      "signature": "()",
+      "doc": "Provides margin model creation from configurations."
+    },
+    "nautilus_trader.backtest.config:PerContractFeeModelConfig": {
+      "module": "nautilus_trader.backtest.config",
+      "name": "PerContractFeeModelConfig",
+      "signature": "(commission: str)",
+      "doc": "Configuration for ``PerContractFeeModel`` instances.\n\nParameters\n----------\ncommission : Money | str\n    The commission amount per contract."
+    }
+  },
+  "enums": {
+    "AssetClass": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7"
+    ],
+    "OptionKind": [
+      "1",
+      "2"
+    ],
+    "AccountType": [
+      "1",
+      "2",
+      "3",
+      "4"
+    ],
+    "OmsType": [
+      "0",
+      "1",
+      "2"
+    ],
+    "BookType": [
+      "1",
+      "2",
+      "3"
+    ],
+    "OrderSide": [
+      "0",
+      "1",
+      "2"
+    ]
+  },
+  "objects": {
+    "nautilus_trader.model.identifiers:InstrumentId": {
+      "module": "nautilus_trader.model.identifiers",
+      "name": "InstrumentId",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.model.identifiers.InstrumentId'>>",
+      "doc": "InstrumentId(Symbol symbol, Venue venue) -> None\n\nRepresents a valid instrument ID.\n\nThe symbol and venue combination should uniquely identify the instrument.\n\nParameters\n----------\nsymbol : Symbol\n    The instruments ticker symbol.\nvenue : Venue\n    The instruments trading venue."
+    },
+    "nautilus_trader.model.identifiers:Symbol": {
+      "module": "nautilus_trader.model.identifiers",
+      "name": "Symbol",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.model.identifiers.Symbol'>>",
+      "doc": "Symbol(str value) -> None\n\nRepresents a valid ticker symbol ID for a tradable instrument.\n\nParameters\n----------\nvalue : str\n    The ticker symbol ID value.\n\nRaises\n------\nValueError\n    If `value` is not a valid string.\n\nWarnings\n--------\nThe ID value must be unique for a trading venue.\n\nReferences\n----------\nhttps://en.wikipedia.org/wiki/Ticker_symbol"
+    },
+    "nautilus_trader.model.identifiers:Venue": {
+      "module": "nautilus_trader.model.identifiers",
+      "name": "Venue",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.model.identifiers.Venue'>>",
+      "doc": "Venue(str name) -> None\n\nRepresents a valid trading venue ID.\n\nParameters\n----------\nname : str\n    The venue ID value.\n\nRaises\n------\nValueError\n    If `name` is not a valid string."
+    },
+    "nautilus_trader.model.objects:Price": {
+      "module": "nautilus_trader.model.objects",
+      "name": "Price",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.model.objects.Price'>>",
+      "doc": "Price(double value, uint8_t precision) -> None\n\nRepresents a price in a market.\n\nThe number of decimal places may vary. For certain asset classes, prices may\nhave negative values. For example, prices for options instruments can be\nnegative under certain conditions.\n\nHandles up to 16 decimals of precision (in high-precision mode).\n\n- ``PRICE_MAX`` = 17_014_118_346_046\n- ``PRICE_MIN`` = -17_014_118_346_046\n\nParameters\n----------\nvalue : integer, float, string, or Decimal\n    The value of the price.\nprecision : uint8_t\n    The precision for the price. Use a precision of 0 for whole numbers\n    (no fractional units).\n\nRaises\n------\nValueError\n    If `value` is greater than 17_014_118_346_046.\nValueError\n    If `value` is less than -17_014_118_346_046.\nValueError\n    If `precision` is greater than 16.\nOverflowError\n    If `precision` is negative (< 0).\n\nReferences\n----------\nhttps://www.onixs.biz/fix-dictionary/5.0.SP2/index.html#Price"
+    },
+    "nautilus_trader.model.objects:Quantity": {
+      "module": "nautilus_trader.model.objects",
+      "name": "Quantity",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.model.objects.Quantity'>>",
+      "doc": "Quantity(double value, uint8_t precision) -> None\n\nRepresents a quantity with a non-negative value.\n\nCapable of storing either a whole number (no decimal places) of 'contracts'\nor 'shares' (instruments denominated in whole units) or a decimal value\ncontaining decimal places for instruments denominated in fractional units.\n\nHandles up to 16 decimals of precision (in high-precision mode).\n\n- ``QUANTITY_MAX`` = 34_028_236_692_093\n- ``QUANTITY_MIN`` = 0\n\nParameters\n----------\nvalue : integer, float, string, Decimal\n    The value of the quantity.\nprecision : uint8_t\n    The precision for the quantity. Use a precision of 0 for whole numbers\n    (no fractional units).\n\nRaises\n------\nValueError\n    If `value` is greater than 34_028_236_692_093.\nValueError\n    If `value` is negative (< 0).\nValueError\n    If `precision` is greater than 16.\nOverflowError\n    If `precision` is negative (< 0).\n\nReferences\n----------\nhttps://www.onixs.biz/fix-dictionary/5.0.SP2/index.html#Qty"
+    },
+    "nautilus_trader.model.objects:Money": {
+      "module": "nautilus_trader.model.objects",
+      "name": "Money",
+      "signature": "<unavailable: ValueError: no signature found for builtin type <class 'nautilus_trader.model.objects.Money'>>",
+      "doc": "Money(value, Currency currency) -> None\n\nRepresents an amount of money in a specified currency denomination.\n\n- ``MONEY_MAX`` = 17_014_118_346_046\n- ``MONEY_MIN`` = -17_014_118_346_046\n\nParameters\n----------\nvalue : integer, float, string, or Decimal\n    The amount of money in the currency denomination.\ncurrency : Currency\n    The currency of the money.\n\nRaises\n------\nValueError\n    If `value` is greater than 17_014_118_346_046.\nValueError\n    If `value` is less than -17_014_118_346_046."
+    },
+    "nautilus_trader.model.currencies:USD": {
+      "module": null,
+      "name": "Currency",
+      "signature": "<unavailable: TypeError: Currency(code='USD', precision=2, iso4217=840, name='United States dollar', currency_type=FIAT) is not a callable object>",
+      "doc": "Currency(str code, uint8_t precision, uint16_t iso4217, str name, CurrencyType currency_type) -> None\n\nRepresents a medium of exchange in a specified denomination with a fixed\ndecimal precision.\n\nHandles up to 16 decimals of precision (in high-precision mode).\n\nParameters\n----------\ncode : str\n    The currency code.\nprecision : uint8_t\n    The currency decimal precision.\niso4217 : uint16\n    The currency ISO 4217 code.\nname : str\n    The currency name.\ncurrency_type : CurrencyType\n    The currency type.\n\nRaises\n------\nValueError\n    If `code` is not a valid string.\nOverflowError\n    If `precision` is negative (< 0).\nValueError\n    If `precision` greater than 16.\nValueError\n    If `name` is not a valid string."
+    }
+  },
+  "safety": {
+    "network_request": false,
+    "backtest_run": false,
+    "broker_order": false,
+    "trading_node": false
+  },
+  "factory_smoke_tests": {
+    "default_fx_ccy": {
+      "success": true,
+      "type": "CurrencyPair",
+      "id": "EUR/USD.SIM",
+      "venue": "SIM"
+    },
+    "equity": {
+      "success": true,
+      "type": "Equity",
+      "id": "AAPL.XNAS",
+      "venue": "XNAS"
+    }
+  },
+  "add_venue": {
+    "module": "nautilus_trader.backtest.engine",
+    "name": "add_venue",
+    "signature": "(self, venue: 'Venue', oms_type: 'OmsType', account_type: 'AccountType', starting_balances: 'list[Money]', base_currency: 'Currency | None' = None, default_leverage: 'Decimal | None' = None, leverages: 'dict[InstrumentId, Decimal] | None' = None, margin_model: 'MarginModel' = None, modules: 'list[SimulationModule] | None' = None, fill_model: 'FillModel | None' = None, fee_model: 'FeeModel | None' = None, latency_model: 'LatencyModel | None' = None, book_type: 'BookType' = <BookType.L1_MBP: 1>, routing: 'bool' = False, reject_stop_orders: 'bool' = True, support_gtd_orders: 'bool' = True, support_contingent_orders: 'bool' = True, oto_trigger_mode: 'OtoTriggerMode' = <OtoTriggerMode.PARTIAL: 0>, use_position_ids: 'bool' = True, use_random_ids: 'bool' = False, use_reduce_only: 'bool' = True, use_message_queue: 'bool' = True, use_market_order_acks: 'bool' = False, bar_execution: 'bool' = True, bar_adaptive_high_low_ordering: 'bool' = False, trade_execution: 'bool' = True, liquidity_consumption: 'bool' = False, queue_position: 'bool' = False, allow_cash_borrowing: 'bool' = False, frozen_account: 'bool' = False, price_protection_points=None, settlement_prices: 'dict[InstrumentId, float] | None' = None) -> 'None'",
+    "doc": "BacktestEngine.add_venue(self, Venue venue: Venue, OmsType oms_type: OmsType, AccountType account_type: AccountType, list starting_balances: list[Money], Currency base_currency: Currency | None = None, default_leverage: Decimal | None = None, dict leverages: dict[InstrumentId, Decimal] | None = None, MarginModel margin_model: MarginModel = None, list modules: list[SimulationModule] | None = None, FillModel fill_model: FillModel | None = None, FeeModel fee_model: FeeModel | None = None, LatencyModel latency_model: LatencyModel | None = None, BookType book_type: BookType = BookType.L1_MBP, bool routing: bool = False, bool reject_stop_orders: bool = True, bool support_gtd_orders: bool = True, bool support_contingent_orders: bool = True, OtoTriggerMode oto_trigger_mode: OtoTriggerMode = OtoTriggerMode.PARTIAL, bool use_position_ids: bool = True, bool use_random_ids: bool = False, bool use_reduce_only: bool = True, bool use_message_queue: bool = True, bool use_market_order_acks: bool = False, bool bar_execution: bool = True, bool bar_adaptive_high_low_ordering: bool = False, bool trade_execution: bool = True, bool liquidity_consumption: bool = False, bool queue_position: bool = False, b"
+  }
+}

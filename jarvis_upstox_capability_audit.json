@@ -1,0 +1,1385 @@
+{
+  "baseline": {
+    "operational_agents": 22,
+    "canonical_provider": "FYERS",
+    "tests": "201/201"
+  },
+  "definitions": {
+    "agents.upstox_auth_manager": {
+      "exists": true,
+      "classes": [
+        "OAuthCallbackHandler"
+      ],
+      "functions": [
+        "validate_config",
+        "save_token",
+        "load_token",
+        "build_login_url",
+        "exchange_code",
+        "login",
+        "get_access_token"
+      ],
+      "env": [
+        "JARVIS_UPSTOX_TOKEN_FILE",
+        "UPSTOX_CLIENT_ID",
+        "UPSTOX_CLIENT_SECRET",
+        "UPSTOX_REDIRECT_URI"
+      ]
+    },
+    "agents.upstox_historical_loader": {
+      "exists": true,
+      "classes": [],
+      "functions": [
+        "load_access_token",
+        "build_session",
+        "parse_date",
+        "fmt",
+        "search_sensex",
+        "resolve_instrument",
+        "fetch_chunk",
+        "candles_to_dataframe",
+        "get_historical",
+        "get_symbol_5m",
+        "get_symbol_15m",
+        "main"
+      ],
+      "env": [
+        "JARVIS_UPSTOX_TOKEN_FILE",
+        "UPSTOX_ACCESS_TOKEN",
+        "UPSTOX_HISTORICAL_V3_CHUNKED"
+      ]
+    },
+    "agents.upstox_live_stream": {
+      "exists": true,
+      "classes": [
+        "LiveCandle",
+        "LiveStore",
+        "UpstoxLiveStream"
+      ],
+      "functions": [
+        "load_saved_access_token"
+      ],
+      "env": [
+        "JARVIS_UPSTOX_DEBUG_PAYLOADS",
+        "JARVIS_UPSTOX_STREAM_MODE",
+        "JARVIS_UPSTOX_TOKEN_FILE"
+      ]
+    },
+    "agents.broker_intraday_adapter": {
+      "exists": true,
+      "classes": [],
+      "functions": [
+        "now",
+        "normalize_dataframe",
+        "fetch_zerodha",
+        "fetch_upstox",
+        "get_intraday_data"
+      ],
+      "env": [
+        "UPSTOX_ACCESS_TOKEN"
+      ]
+    },
+    "agents.live_intraday_router": {
+      "exists": true,
+      "classes": [
+        "LiveIntradayRouter"
+      ],
+      "functions": [],
+      "env": [
+        "UPSTOX_HISTORY",
+        "UPSTOX_WEBSOCKET"
+      ]
+    },
+    "agents.trading_core.option_confirmation": {
+      "exists": true,
+      "classes": [
+        "OptionConfirmation"
+      ],
+      "functions": [],
+      "env": []
+    },
+    "agents.trading_core.option_confirmation_v2": {
+      "exists": true,
+      "classes": [
+        "OptionConfirmationV2"
+      ],
+      "functions": [],
+      "env": []
+    }
+  },
+  "references": {
+    "agents.upstox_auth_manager": [
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2563,
+        "text": "\"agents.upstox_auth_manager\": {"
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2569,
+        "text": "\"path\": \"agents\\\\upstox_auth_manager.py\","
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 1268,
+        "text": "\"file\": \"agents\\\\upstox_auth_manager.py\","
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 1466,
+        "text": "\"text\": \"\\\"python -m agents.upstox_auth_manager\\\"\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 1547,
+        "text": "\"text\": \"raise RuntimeError(\\\"No access token. Run agents.upstox_auth_manager first.\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3283,
+        "text": "\"text\": \"raise RuntimeError(\\\"No access token. Run agents.upstox_auth_manager first.\\\")\""
+      },
+      {
+        "file": "agents\\upstox_live_stream.py",
+        "line": 1346,
+        "text": "\"python -m agents.upstox_auth_manager\""
+      }
+    ],
+    "agents.upstox_historical_loader": [
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 1442,
+        "text": "\"agents.upstox_historical_loader\""
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2584,
+        "text": "\"agents.upstox_historical_loader\": {"
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2592,
+        "text": "\"path\": \"agents\\\\upstox_historical_loader.py\","
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 79,
+        "text": "\"text\": \"loader = importlib.import_module(\\\"agents.upstox_historical_loader\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 134,
+        "text": "\"text\": \"loader = importlib.import_module(\\\"agents.upstox_historical_loader\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 154,
+        "text": "\"text\": \"loader = importlib.import_module(\\\"agents.upstox_historical_loader\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 1096,
+        "text": "\"text\": \"#   agents.upstox_historical_loader\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 1100,
+        "text": "\"text\": \"from agents.upstox_historical_loader import (\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 1112,
+        "text": "\"text\": \"#   agents.upstox_historical_loader\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 1361,
+        "text": "\"file\": \"agents\\\\upstox_historical_loader.py\","
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3341,
+        "text": "\"text\": \"loader = importlib.import_module(\\\"agents.upstox_historical_loader\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3591,
+        "text": "\"text\": \"loader = importlib.import_module(\\\"agents.upstox_historical_loader\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3628,
+        "text": "\"text\": \"loader = importlib.import_module(\\\"agents.upstox_historical_loader\\\")\""
+      },
+      {
+        "file": "agents\\scalping_research_engine.py",
+        "line": 10,
+        "text": "#   agents.upstox_historical_loader"
+      },
+      {
+        "file": "agents\\scalping_research_engine.py",
+        "line": 272,
+        "text": "from agents.upstox_historical_loader import ("
+      },
+      {
+        "file": "agents\\scalping_research_engine.py",
+        "line": 3876,
+        "text": "#   agents.upstox_historical_loader"
+      },
+      {
+        "file": "agents\\trading_core\\data_bus.py",
+        "line": 38,
+        "text": "loader = importlib.import_module(\"agents.upstox_historical_loader\")"
+      }
+    ],
+    "agents.upstox_live_stream": [
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 8,
+        "text": "\"agents.trading_core.upstox_live_stream_v4\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 28,
+        "text": "\"agents.upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 790,
+        "text": "\"agents.upstox_live_stream\": ["
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 794,
+        "text": "\"text\": \"from agents.upstox_live_stream import (\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 797,
+        "text": "\"file\": \"agents\\\\upstox_live_stream.py\","
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 799,
+        "text": "\"text\": \"upstox_live_stream = UpstoxLiveStream()\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 802,
+        "text": "\"file\": \"agents\\\\upstox_live_stream.py\","
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 804,
+        "text": "\"text\": \"upstox_live_stream.start()\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 807,
+        "text": "\"file\": \"agents\\\\upstox_live_stream.py\","
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 809,
+        "text": "\"text\": \"upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 812,
+        "text": "\"file\": \"agents\\\\upstox_live_stream.py\","
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 814,
+        "text": "\"text\": \"upstox_live_stream.stop()\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 817,
+        "text": "\"file\": \"agents\\\\upstox_live_stream_v4_backup.py\","
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 819,
+        "text": "\"text\": \"upstox_live_stream = UpstoxLiveStreamV4()\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 824,
+        "text": "\"text\": \"from agents.upstox_live_stream import upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 829,
+        "text": "\"text\": \"result = upstox_live_stream.start()\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 834,
+        "text": "\"text\": \"from agents.upstox_live_stream import upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 839,
+        "text": "\"text\": \"store = upstox_live_stream.store\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 844,
+        "text": "\"text\": \"snap = upstox_live_stream.snapshot(symbol)\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 849,
+        "text": "\"text\": \"from agents.upstox_live_stream import upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 854,
+        "text": "\"text\": \"upstox_live_stream.stop()\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 859,
+        "text": "\"text\": \"from agents.upstox_live_stream import upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 864,
+        "text": "\"text\": \"result = upstox_live_stream.start()\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 869,
+        "text": "\"text\": \"from agents.upstox_live_stream import upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 874,
+        "text": "\"text\": \"store = upstox_live_stream.store\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 879,
+        "text": "\"text\": \"snap = upstox_live_stream.snapshot(symbol)\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 884,
+        "text": "\"text\": \"from agents.upstox_live_stream import upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 889,
+        "text": "\"text\": \"upstox_live_stream.stop()\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 892,
+        "text": "\"file\": \"jarvis_trading_agent_v1\\\\agents\\\\trading_core\\\\upstox_live_stream_v4.py\","
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 894,
+        "text": "\"text\": \"upstox_live_stream = UpstoxLiveStreamV4()\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 899,
+        "text": "\"text\": \"mod = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 904,
+        "text": "\"text\": \"stream = getattr(mod, \\\"upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 909,
+        "text": "\"text\": \"mod = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 914,
+        "text": "\"text\": \"stream = getattr(mod, \\\"upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 919,
+        "text": "\"text\": \"mod = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 924,
+        "text": "\"text\": \"stream = getattr(mod, \\\"upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 929,
+        "text": "\"text\": \"mod = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 934,
+        "text": "\"text\": \"stream = getattr(mod, \\\"upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 939,
+        "text": "\"text\": \"from agents.upstox_live_stream import upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 944,
+        "text": "\"text\": \"self.stream = upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 947,
+        "text": "\"file\": \"agents\\\\trading_core\\\\upstox_live_stream_v4.py\","
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 949,
+        "text": "\"text\": \"upstox_live_stream = UpstoxLiveStreamV4()\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 954,
+        "text": "\"text\": \"module = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 959,
+        "text": "\"text\": \"stream = getattr(module, \\\"upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 964,
+        "text": "\"text\": \"module = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 969,
+        "text": "\"text\": \"stream = getattr(module, \\\"upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 974,
+        "text": "\"text\": \"module = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 979,
+        "text": "\"text\": \"stream = getattr(module, \\\"upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 155,
+        "text": "\"agents.trading_core.upstox_live_stream_v4\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 156,
+        "text": "\"agents.upstox_live_stream\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 157,
+        "text": "\"jarvis_trading_agent_v1.agents.trading_core.upstox_live_stream_v4\""
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 751,
+        "text": "\"agents.upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2047,
+        "text": "\"agents.upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2395,
+        "text": "\"agents.trading_core.upstox_live_stream_v4\": {"
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2397,
+        "text": "\"reason\": \"Overlaps module family 'upstox_live_stream'. Family members: agents.trading_core.upstox_live_stream_v4, agents.upstox_live_stream\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2401,
+        "text": "\"path\": \"agents\\\\trading_core\\\\upstox_live_stream_v4.py\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2610,
+        "text": "\"agents.upstox_live_stream\": {"
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2612,
+        "text": "\"reason\": \"Overlaps module family 'upstox_live_stream'. Family members: agents.trading_core.upstox_live_stream_v4, agents.upstox_live_stream\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2621,
+        "text": "\"path\": \"agents\\\\upstox_live_stream.py\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2745,
+        "text": "\"upstox_live_stream\": ["
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2746,
+        "text": "\"agents.trading_core.upstox_live_stream_v4\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2747,
+        "text": "\"agents.upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 89,
+        "text": "\"text\": \"mod = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 99,
+        "text": "\"text\": \"mod = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 109,
+        "text": "\"text\": \"mod = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 119,
+        "text": "\"text\": \"mod = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 139,
+        "text": "\"text\": \"module = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 144,
+        "text": "\"text\": \"module = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 159,
+        "text": "\"text\": \"module = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 828,
+        "text": "\"text\": \"from agents.upstox_live_stream import (\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 1410,
+        "text": "\"file\": \"agents\\\\upstox_live_stream.py\","
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 1490,
+        "text": "\"text\": \"upstox_live_stream = UpstoxLiveStream()\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 1498,
+        "text": "\"text\": \"upstox_live_stream.start()\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 1502,
+        "text": "\"text\": \"upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 1506,
+        "text": "\"text\": \"upstox_live_stream.stop()\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 1511,
+        "text": "\"file\": \"agents\\\\upstox_live_stream_v4_backup.py\","
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 1567,
+        "text": "\"text\": \"upstox_live_stream = UpstoxLiveStreamV4()\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3056,
+        "text": "\"text\": \"from agents.upstox_live_stream import upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3060,
+        "text": "\"text\": \"result = upstox_live_stream.start()\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3068,
+        "text": "\"text\": \"from agents.upstox_live_stream import upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3072,
+        "text": "\"text\": \"store = upstox_live_stream.store\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3080,
+        "text": "\"text\": \"snap = upstox_live_stream.snapshot(symbol)\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3100,
+        "text": "\"text\": \"from agents.upstox_live_stream import upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3104,
+        "text": "\"text\": \"upstox_live_stream.stop()\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3121,
+        "text": "\"text\": \"from agents.upstox_live_stream import upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3125,
+        "text": "\"text\": \"result = upstox_live_stream.start()\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3133,
+        "text": "\"text\": \"from agents.upstox_live_stream import upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3137,
+        "text": "\"text\": \"store = upstox_live_stream.store\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3145,
+        "text": "\"text\": \"snap = upstox_live_stream.snapshot(symbol)\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3165,
+        "text": "\"text\": \"from agents.upstox_live_stream import upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3169,
+        "text": "\"text\": \"upstox_live_stream.stop()\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3247,
+        "text": "\"file\": \"jarvis_trading_agent_v1\\\\agents\\\\trading_core\\\\upstox_live_stream_v4.py\","
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3303,
+        "text": "\"text\": \"upstox_live_stream = UpstoxLiveStreamV4()\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3353,
+        "text": "\"text\": \"mod = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3357,
+        "text": "\"text\": \"stream = getattr(mod, \\\"upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3385,
+        "text": "\"text\": \"mod = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3389,
+        "text": "\"text\": \"stream = getattr(mod, \\\"upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3455,
+        "text": "\"text\": \"mod = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3459,
+        "text": "\"text\": \"stream = getattr(mod, \\\"upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3487,
+        "text": "\"text\": \"mod = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3491,
+        "text": "\"text\": \"stream = getattr(mod, \\\"upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3500,
+        "text": "\"text\": \"from agents.upstox_live_stream import upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3504,
+        "text": "\"text\": \"self.stream = upstox_live_stream\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3595,
+        "text": "\"text\": \"module = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3599,
+        "text": "\"text\": \"stream = getattr(module, \\\"upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3603,
+        "text": "\"text\": \"module = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3607,
+        "text": "\"text\": \"stream = getattr(module, \\\"upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3632,
+        "text": "\"text\": \"module = importlib.import_module(\\\"agents.upstox_live_stream\\\")\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3636,
+        "text": "\"text\": \"stream = getattr(module, \\\"upstox_live_stream\\\")\""
+      },
+      {
+        "file": "agents\\live_intraday_router.py",
+        "line": 104,
+        "text": "from agents.upstox_live_stream import ("
+      },
+      {
+        "file": "agents\\upstox_live_stream.py",
+        "line": 1552,
+        "text": "upstox_live_stream = UpstoxLiveStream()"
+      },
+      {
+        "file": "agents\\upstox_live_stream.py",
+        "line": 1572,
+        "text": "upstox_live_stream.start()"
+      },
+      {
+        "file": "agents\\upstox_live_stream.py",
+        "line": 1616,
+        "text": "upstox_live_stream"
+      },
+      {
+        "file": "agents\\upstox_live_stream.py",
+        "line": 1650,
+        "text": "upstox_live_stream.stop()"
+      },
+      {
+        "file": "agents\\trading_core\\data_bus.py",
+        "line": 66,
+        "text": "mod = importlib.import_module(\"agents.upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\trading_core\\data_bus.py",
+        "line": 67,
+        "text": "stream = getattr(mod, \"upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\trading_core\\data_bus.py",
+        "line": 83,
+        "text": "mod = importlib.import_module(\"agents.upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\trading_core\\data_bus.py",
+        "line": 84,
+        "text": "stream = getattr(mod, \"upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\trading_core\\live_bus.py",
+        "line": 22,
+        "text": "mod = importlib.import_module(\"agents.upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\trading_core\\live_bus.py",
+        "line": 23,
+        "text": "stream = getattr(mod, \"upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\trading_core\\live_bus.py",
+        "line": 48,
+        "text": "mod = importlib.import_module(\"agents.upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\trading_core\\live_bus.py",
+        "line": 49,
+        "text": "stream = getattr(mod, \"upstox_live_stream\")"
+      },
+      {
+        "file": "agents\\trading_core\\live_monitor.py",
+        "line": 158,
+        "text": "from agents.upstox_live_stream import upstox_live_stream"
+      },
+      {
+        "file": "agents\\trading_core\\live_monitor.py",
+        "line": 159,
+        "text": "self.stream = upstox_live_stream"
+      }
+    ],
+    "agents.broker_intraday_adapter": [
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 37,
+        "text": "\"agents.broker_intraday_adapter\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 147,
+        "text": "\"agents.broker_intraday_adapter\": {"
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 159,
+        "text": "\"path\": \"agents\\\\broker_intraday_adapter.py\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 487,
+        "text": "\"agents.broker_intraday_adapter\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 749,
+        "text": "\"agents.broker_intraday_adapter\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2411,
+        "text": "\"agents.broker_intraday_adapter\""
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2631,
+        "text": "\"agents.broker_intraday_adapter\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 231,
+        "text": "\"file\": \"agents\\\\broker_intraday_adapter.py\","
+      },
+      {
+        "file": "agents\\intraday_data_router.py",
+        "line": 382,
+        "text": "#   agents/broker_intraday_adapter.py"
+      },
+      {
+        "file": "agents\\intraday_data_router.py",
+        "line": 393,
+        "text": "from agents.broker_intraday_adapter import ("
+      },
+      {
+        "file": "agents\\live_intraday_router.py",
+        "line": 126,
+        "text": "from agents.broker_intraday_adapter import ("
+      },
+      {
+        "file": "agents\\upstox_live_stream.py",
+        "line": 703,
+        "text": "from agents.broker_intraday_adapter import ("
+      },
+      {
+        "file": "agents\\trading_core\\data_bus.py",
+        "line": 20,
+        "text": "(\"agents.broker_intraday_adapter\", \"get_intraday_data\")"
+      }
+    ],
+    "agents.live_intraday_router": [
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 792,
+        "text": "\"file\": \"agents\\\\live_intraday_router.py\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 154,
+        "text": "\"agents.live_intraday_router\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 735,
+        "text": "\"agents.live_intraday_router\": {"
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 743,
+        "text": "\"path\": \"agents\\\\live_intraday_router.py\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 835,
+        "text": "\"agents.live_intraday_router\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 1079,
+        "text": "\"agents.live_intraday_router\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2616,
+        "text": "\"agents.live_intraday_router\","
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 820,
+        "text": "\"file\": \"agents\\\\live_intraday_router.py\","
+      },
+      {
+        "file": "agents\\live_intraday_router.py",
+        "line": 722,
+        "text": "live_intraday_router = ("
+      },
+      {
+        "file": "agents\\live_intraday_router.py",
+        "line": 756,
+        "text": "live_intraday_router"
+      },
+      {
+        "file": "agents\\option_paper_monitor.py",
+        "line": 160,
+        "text": "from agents.live_intraday_router import ("
+      },
+      {
+        "file": "agents\\option_paper_monitor.py",
+        "line": 161,
+        "text": "live_intraday_router,"
+      },
+      {
+        "file": "agents\\option_paper_monitor.py",
+        "line": 179,
+        "text": "live_intraday_router,"
+      }
+    ],
+    "agents.trading_core.option_confirmation": [
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 20,
+        "text": "\"agents.trading_core.option_confirmation\","
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 21,
+        "text": "\"agents.trading_core.option_confirmation_v2\","
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 179,
+        "text": "\"agents.trading_core.option_confirmation\": ["
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 183,
+        "text": "\"text\": \"from .option_confirmation import OptionConfirmation\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 188,
+        "text": "\"text\": \"from .option_confirmation import OptionConfirmation\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 193,
+        "text": "\"text\": \"from .option_confirmation import OptionConfirmation\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 198,
+        "text": "\"text\": \"from .option_confirmation_v2 import OptionConfirmationV2\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 203,
+        "text": "\"text\": \"from .option_confirmation import OptionConfirmation\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 208,
+        "text": "\"text\": \"from .option_confirmation_v2 import OptionConfirmationV2\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 213,
+        "text": "\"text\": \"def option_confirmation(\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 218,
+        "text": "\"text\": \"opt_probe = self.option_confirmation(symbol)\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 223,
+        "text": "\"text\": \"option = self.option_confirmation(symbol)\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 226,
+        "text": "\"agents.trading_core.option_confirmation_v2\": ["
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 230,
+        "text": "\"text\": \"from .option_confirmation_v2 import OptionConfirmationV2\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 235,
+        "text": "\"text\": \"from .option_confirmation_v2 import OptionConfirmationV2\""
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 1713,
+        "text": "\"agents.trading_core.option_confirmation\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 1731,
+        "text": "\"agents.trading_core.option_confirmation_v2\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 1912,
+        "text": "\"agents.trading_core.option_confirmation\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2156,
+        "text": "\"agents.trading_core.option_confirmation\": {"
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2158,
+        "text": "\"reason\": \"Overlaps module family 'option_confirmation'. Family members: agents.trading_core.option_confirmation, agents.trading_core.option_confirmation_v2\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2165,
+        "text": "\"path\": \"agents\\\\trading_core\\\\option_confirmation.py\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2172,
+        "text": "\"agents.trading_core.option_confirmation_v2\": {"
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2174,
+        "text": "\"reason\": \"Overlaps module family 'option_confirmation'. Family members: agents.trading_core.option_confirmation, agents.trading_core.option_confirmation_v2\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2181,
+        "text": "\"path\": \"agents\\\\trading_core\\\\option_confirmation_v2.py\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2391,
+        "text": "\"agents.trading_core.option_confirmation_v2\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2798,
+        "text": "\"option_confirmation\": ["
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2799,
+        "text": "\"agents.trading_core.option_confirmation\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2800,
+        "text": "\"agents.trading_core.option_confirmation_v2\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3218,
+        "text": "\"file\": \"jarvis_trading_agent_v1\\\\agents\\\\trading_core\\\\option_confirmation.py\","
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3517,
+        "text": "\"file\": \"agents\\\\trading_core\\\\option_confirmation.py\","
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3546,
+        "text": "\"file\": \"agents\\\\trading_core\\\\option_confirmation_v2.py\","
+      },
+      {
+        "file": "agents\\trading_core\\cli.py",
+        "line": 9,
+        "text": "from .option_confirmation import OptionConfirmation"
+      },
+      {
+        "file": "agents\\trading_core\\cli_v2.py",
+        "line": 7,
+        "text": "from .option_confirmation_v2 import OptionConfirmationV2"
+      },
+      {
+        "file": "agents\\trading_core\\jarvis_trading_agent.py",
+        "line": 9,
+        "text": "from .option_confirmation import OptionConfirmation"
+      },
+      {
+        "file": "agents\\trading_core\\trade_decision_engine_v1.py",
+        "line": 7,
+        "text": "from .option_confirmation_v2 import OptionConfirmationV2"
+      },
+      {
+        "file": "agents\\trading_core\\trade_decision_engine_v1.py",
+        "line": 96,
+        "text": "def option_confirmation("
+      },
+      {
+        "file": "agents\\trading_core\\trade_decision_engine_v1.py",
+        "line": 139,
+        "text": "opt_probe = self.option_confirmation(symbol)"
+      },
+      {
+        "file": "agents\\trading_core\\trade_decision_engine_v1.py",
+        "line": 182,
+        "text": "option = self.option_confirmation(symbol)"
+      }
+    ],
+    "agents.trading_core.option_confirmation_v2": [
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 21,
+        "text": "\"agents.trading_core.option_confirmation_v2\","
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 198,
+        "text": "\"text\": \"from .option_confirmation_v2 import OptionConfirmationV2\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 208,
+        "text": "\"text\": \"from .option_confirmation_v2 import OptionConfirmationV2\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 226,
+        "text": "\"agents.trading_core.option_confirmation_v2\": ["
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 230,
+        "text": "\"text\": \"from .option_confirmation_v2 import OptionConfirmationV2\""
+      },
+      {
+        "file": "jarvis_cleanup_safety_audit.json",
+        "line": 235,
+        "text": "\"text\": \"from .option_confirmation_v2 import OptionConfirmationV2\""
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 1731,
+        "text": "\"agents.trading_core.option_confirmation_v2\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2158,
+        "text": "\"reason\": \"Overlaps module family 'option_confirmation'. Family members: agents.trading_core.option_confirmation, agents.trading_core.option_confirmation_v2\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2172,
+        "text": "\"agents.trading_core.option_confirmation_v2\": {"
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2174,
+        "text": "\"reason\": \"Overlaps module family 'option_confirmation'. Family members: agents.trading_core.option_confirmation, agents.trading_core.option_confirmation_v2\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2181,
+        "text": "\"path\": \"agents\\\\trading_core\\\\option_confirmation_v2.py\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2391,
+        "text": "\"agents.trading_core.option_confirmation_v2\","
+      },
+      {
+        "file": "jarvis_dependency_duplication_audit.json",
+        "line": 2800,
+        "text": "\"agents.trading_core.option_confirmation_v2\""
+      },
+      {
+        "file": "jarvis_provider_architecture_audit.json",
+        "line": 3546,
+        "text": "\"file\": \"agents\\\\trading_core\\\\option_confirmation_v2.py\","
+      },
+      {
+        "file": "agents\\trading_core\\cli_v2.py",
+        "line": 7,
+        "text": "from .option_confirmation_v2 import OptionConfirmationV2"
+      },
+      {
+        "file": "agents\\trading_core\\trade_decision_engine_v1.py",
+        "line": 7,
+        "text": "from .option_confirmation_v2 import OptionConfirmationV2"
+      }
+    ]
+  },
+  "test_refs": {
+    "agents.upstox_auth_manager": [],
+    "agents.upstox_historical_loader": [],
+    "agents.upstox_live_stream": [],
+    "agents.broker_intraday_adapter": [],
+    "agents.live_intraday_router": [],
+    "agents.trading_core.option_confirmation": [],
+    "agents.trading_core.option_confirmation_v2": []
+  },
+  "production_reachable": [
+    "agents.confidence_engine",
+    "agents.data_agent",
+    "agents.edge_validation_engine",
+    "agents.fyers_auth_manager",
+    "agents.fyers_data_adapter",
+    "agents.fyers_live_stream",
+    "agents.head_agent",
+    "agents.market_data_agent",
+    "agents.mtf_confluence_engine",
+    "agents.paper_broker",
+    "agents.pattern_engine",
+    "agents.regime_aware_signal_engine",
+    "agents.regime_detector",
+    "agents.research_edge_engine",
+    "agents.risk_engine",
+    "agents.signal_engine",
+    "agents.strategy_lab",
+    "agents.technical_engine",
+    "agents.trade_plan_engine",
+    "agents.trade_setup_verifier",
+    "agents.trading_agent",
+    "agents.trading_intelligence_agent",
+    "agents.trading_mission_agent",
+    "agents.universal_operator_agent",
+    "agents.web_intelligence_agent",
+    "config",
+    "main",
+    "omni.agent_registry",
+    "omni.audit",
+    "omni.company_os",
+    "omni.contracts",
+    "omni.control_plane",
+    "omni.dispatch",
+    "omni.hybrid_memory",
+    "omni.isolated_runner",
+    "omni.mission_control",
+    "omni.model_provider",
+    "omni.model_router",
+    "omni.orchestrator",
+    "omni.runtime",
+    "omni.sandbox",
+    "omni.web_research",
+    "tools.capabilities",
+    "tools.computer_phase1",
+    "tools.memory",
+    "tools.registry",
+    "tools.safety",
+    "tools.tool_schema",
+    "voice",
+    "workstation.app",
+    "workstation.jarvis_trading_workstation_v7",
+    "workstation.market_news",
+    "workstation.market_runtime",
+    "workstation.news_briefing",
+    "workstation.paper_learning",
+    "workstation.paper_market_data",
+    "workstation.paper_runtime",
+    "workstation.trading_intelligence"
+  ],
+  "fyers": {
+    "auth": {
+      "exists": true,
+      "classes": [
+        "FyersSettings"
+      ],
+      "functions": [
+        "save_token",
+        "load_token",
+        "generate_login_url",
+        "extract_auth_code",
+        "exchange_auth_code",
+        "create_client",
+        "websocket_access_token",
+        "is_configured",
+        "interactive_login_settings",
+        "notify_running_workstation",
+        "login",
+        "main"
+      ]
+    },
+    "historical": {
+      "exists": true,
+      "classes": [],
+      "functions": [
+        "normalize_symbol",
+        "resolution_for",
+        "candles_to_frame",
+        "get_intraday_data",
+        "get_quote",
+        "main"
+      ]
+    },
+    "live": {
+      "exists": true,
+      "classes": [
+        "FyersLiveStream"
+      ],
+      "functions": [
+        "main"
+      ]
+    },
+    "unified_paper": {
+      "exists": true,
+      "classes": [
+        "UnifiedPaperMarketData"
+      ],
+      "functions": []
+    }
+  }
+}

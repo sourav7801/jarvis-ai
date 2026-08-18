@@ -1,0 +1,348 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OMNI-JARVIS Master Operating System</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/system.css">
+</head>
+<body>
+<div id="jarvisAlerts" class="jarvis-alerts" aria-live="assertive"></div>
+<header class="top">
+  <div class="brand"><div class="jbox">J</div><div><div class="title">J A R V I S</div><div class="sub">OMNI OPERATING COMMAND CENTER</div></div></div>
+  <nav class="nav">
+    <button class="active" data-page="command">COMMAND</button>
+    <button data-page="system">SYSTEM CORE</button>
+    <button data-page="mission">MISSION CONTROL</button>
+    <button data-page="web">WEB INTELLIGENCE</button>
+    <button data-page="charts">CHART LAB</button>
+    <button data-page="quant">QUANT LAB</button>
+    <button data-page="paper">PAPER DESK</button>
+    <button data-page="news">NEWS & IMPACT</button>
+    <button data-page="company">COMPANY OS</button>
+  </nav>
+  <div class="voice"><i id="voiceDot"></i><span id="voiceState">VOICE READY</span> · <span class="ok">RESEARCH MODE</span></div>
+</header>
+
+<main>
+<section id="page-command" class="page active">
+  <section class="conversation" data-chat-context="master">
+    <div class="conversation-head"><b>MASTER JARVIS</b><span>Full orchestrator · all agents and safe tools</span></div>
+    <div class="chat"></div>
+    <div class="command-row"><button data-chat-action="listen">LISTEN</button><input placeholder="Jarvis, what can you do for me?"><button data-chat-action="send">SEND</button><button data-chat-action="stop">STOP</button></div>
+    <div class="hint">Master Command can route charts, market research, news, data, coding, office work, memory, and approved tools.</div>
+  </section>
+  <section class="master-hero">
+    <div class="core-stage" aria-label="JARVIS supervised autonomy core">
+      <div class="core-halo"></div>
+      <div class="core-particles" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="orbit orbit-one"><i></i><i></i><i></i></div>
+      <div class="orbit orbit-two"><i></i><i></i><i></i></div>
+      <div class="orbit orbit-three"><i></i><i></i><i></i></div>
+      <div class="core-shell"><span>J</span><small>ONLINE</small></div>
+      <div class="core-floor"></div>
+      <div id="coreState" class="core-state">VOICE STANDBY</div>
+      <div id="voiceWave" class="voice-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="master-brief">
+      <div class="eyebrow">MASTER INTELLIGENCE · GOVERNED AUTONOMY</div>
+      <h1>One voice. Every department.<br><span>Consequential actions stay controlled.</span></h1>
+      <p>Speak an outcome. Master JARVIS routes research, company building, engineering, operations, market intelligence, and approved tools through auditable specialist agents.</p>
+      <div class="system-strip">
+        <div><b id="agentMetric">22</b><span>SPECIALIST AGENTS</span></div>
+        <div><b>SUPERVISED</b><span>AUTONOMY MODE</span></div>
+        <div><b>LOCKED</b><span>LIVE EXECUTION</span></div>
+      </div>
+    </div>
+    <div class="mission-radar">
+      <div class="radar-head"><span>AGENT MESH</span><b>READY</b></div>
+      <div id="agentMesh" class="agent-mesh">
+        <span>OPERATOR</span><span>WEB INTEL</span><span>STRATEGY</span><span>RESEARCH</span><span>PRODUCT</span><span>ENGINEERING</span><span>FINANCE</span><span>OPERATIONS</span><span>SECURITY</span><span>TRADING</span>
+      </div>
+      <div class="approval-line"><i></i><span>APPROVAL GATE ARMED</span></div>
+    </div>
+  </section>
+  <div class="headline">
+    <div><div class="eyebrow">COMMAND CENTER</div><h1>Market at a glance</h1></div>
+    <div class="badge" id="marketFeedBadge">FYERS STARTING · NO LIVE EXECUTION</div>
+  </div>
+  <div class="cards">
+    <div class="metric"><span>NIFTY 50</span><b id="niftyPrice">—</b><em id="niftyChange">Awaiting FYERS market data</em></div>
+    <div class="metric"><span>BANKNIFTY</span><b id="bankniftyPrice">—</b><em id="bankniftyChange">Awaiting FYERS market data</em></div>
+    <div class="metric"><span>SENSEX</span><b id="sensexPrice">—</b><em id="sensexChange">Awaiting FYERS market data</em></div>
+    <div class="metric"><span>ACTIVE LAYOUT</span><b id="layoutMetric">4</b><em>1 / 2 / 3 / 4 / 6 / 8</em></div>
+  </div>
+  <section class="autonomy-hud panel">
+    <div class="autonomy-head">
+      <div><div class="eyebrow">AUTONOMOUS PAPER INTELLIGENCE LOOP</div><h2>Observe → Analyze → Risk gate → Simulate → Review → Adapt</h2></div>
+      <div class="autonomy-state"><i></i><span id="autoLoopState">SYNCHRONIZING</span></div>
+    </div>
+    <div class="autonomy-steps" aria-label="Automatic paper trading workflow">
+      <span>01 LIVE DATA</span><span>02 MULTI-TIMEFRAME</span><span>03 PATTERN + STRATEGY</span><span>04 RISK / REWARD</span><span>05 PAPER EXECUTION</span><span>06 LOSS REVIEW</span>
+    </div>
+    <div class="autonomy-grid">
+      <div><span>BEST QUALIFIED SETUP</span><b id="autoBestSetup">WAITING FOR SCAN</b><small id="autoBestEvidence">No verified candidate yet.</small></div>
+      <div><span>RISK ENGINE</span><b id="autoRiskState">GATES LOADING</b><small id="autoRiskEvidence">Stops, targets, exposure and loss halt are enforced.</small></div>
+      <div><span>LEARNING ENGINE</span><b id="autoLearningState">JOURNAL LOADING</b><small id="autoLearningEvidence">Closed paper trades are reviewed in risk units.</small></div>
+      <div><span>TODAY'S REVIEW</span><b id="autoDailyReview">NO CLOSED TRADES</b><small id="autoDailyEvidence">The daily loss review updates automatically.</small></div>
+    </div>
+    <div class="autonomy-lower">
+      <div><div class="eyebrow">CURRENT DECISION FEED</div><div id="autoDecisionFeed" class="auto-decision-feed">Awaiting multi-asset signals.</div></div>
+      <div><div class="eyebrow">ADAPTIVE STRATEGY SCORECARDS</div><div id="autoScorecards" class="auto-scorecards">No reviewed strategy history yet.</div></div>
+    </div>
+  </section>
+</section>
+
+<section id="page-system" class="page">
+  <section class="conversation" data-chat-context="system">
+    <div class="conversation-head"><b>SYSTEM CONTROL AGENT</b><span>Separate runtime, capability, security, and trace conversation</span></div>
+    <div class="chat"></div>
+    <div class="command-row"><button data-chat-action="listen">LISTEN</button><input placeholder="Jarvis, show agent health and system status"><button data-chat-action="send">DIAGNOSE</button><button data-chat-action="stop">STOP</button></div>
+    <div class="hint">This surface performs static readiness checks without importing or executing agents. Trace rows omit arguments, results, payloads, and secrets.</div>
+  </section>
+  <div class="headline">
+    <div><div class="eyebrow">SYSTEM CORE · LOCAL CONTROL PLANE</div><h1>Agent observability and authority</h1></div>
+    <div class="system-actions"><span id="systemGenerated">NOT SCANNED</span><button id="systemRefresh">REFRESH</button></div>
+  </div>
+  <div class="system-metrics">
+    <div class="metric"><span>AGENTS READY</span><b id="systemAgentReady">—</b><em id="systemAgentDetail">Static manifest validation</em></div>
+    <div class="metric"><span>GOVERNED TOOLS</span><b id="systemToolCount">—</b><em id="systemToolDetail">Capability and risk inventory</em></div>
+    <div class="metric"><span>RUNTIME POSTURE</span><b id="systemPosture">—</b><em id="systemNetwork">Loopback and authenticated</em></div>
+    <div class="metric"><span>LIVE EXECUTION</span><b id="systemExecution">LOCKED</b><em>Market data only</em></div>
+  </div>
+  <div class="system-grid">
+    <section class="panel runtime-panel"><div class="eyebrow">RUNTIME BOUNDARY</div><div id="runtimeBoundary" class="runtime-boundary">Loading bounded runtime diagnostics…</div></section>
+    <section class="panel guardrail-panel"><div class="eyebrow">ACTIVE GUARDRAILS</div><div id="systemGuardrails" class="system-guardrails">Loading control policies…</div></section>
+  </div>
+  <section class="panel agent-catalog-panel">
+    <div class="catalog-head"><div><div class="eyebrow">SIGNED-IN OPERATOR VIEW</div><h2>Registered agent manifest</h2></div><span id="agentCatalogState">STATIC CHECK</span></div>
+    <div id="agentCatalog" class="agent-catalog">Agent modules and capabilities will appear here.</div>
+  </section>
+  <div class="system-grid system-lower">
+    <section class="panel"><div class="eyebrow">TOOL AUTHORITY MAP</div><div id="toolAuthority" class="tool-authority">No tool inventory loaded.</div></section>
+    <section class="panel"><div class="eyebrow">SECRET-FREE AUDIT TRACE</div><div id="systemTrace" class="system-trace">No trace metadata loaded.</div></section>
+  </div>
+  <section class="panel mission-health-panel"><div class="eyebrow">MISSION RUNTIME</div><div id="systemMission" class="system-mission">No mission health snapshot loaded.</div></section>
+</section>
+
+<section id="page-mission" class="page">
+  <section class="conversation" data-chat-context="mission">
+    <div class="conversation-head"><b>MISSION ORCHESTRATOR</b><span>Separate goal-to-execution conversation · durable task graph</span></div>
+    <div class="chat"></div>
+    <div class="command-row"><button data-chat-action="listen">LISTEN</button><input placeholder="Jarvis, coordinate agents to build..."><button data-chat-action="send">RUN MISSION</button><button data-chat-action="stop">STOP</button></div>
+    <div class="hint">Relevant specialists work concurrently, Quality reviews the packet, and local artifacts are saved automatically. Spending, outreach, publishing, accounts, contracts, production deployment, and live trades stay locked.</div>
+  </section>
+  <div class="headline">
+    <div><div class="eyebrow">MISSION CONTROL · MANAGER-OWNED ORCHESTRATION</div><h1 id="missionTitle">No active mission</h1></div>
+    <div class="mission-state"><span id="missionStatus">READY</span><b id="missionConfidence">—</b></div>
+  </div>
+  <section class="mission-command panel">
+    <div>
+      <div class="eyebrow">ACTIVE OBJECTIVE</div>
+      <div id="missionObjective" class="mission-objective">Describe an outcome. Master JARVIS will choose the right specialists, run a bounded parallel workflow, verify coverage, and write a durable execution packet.</div>
+    </div>
+    <div class="mission-stats">
+      <div><b id="missionAgentCount">0</b><span>SPECIALISTS</span></div>
+      <div><b id="missionTaskCount">0</b><span>GRAPH NODES</span></div>
+      <div><b id="missionArtifactCount">0</b><span>ARTIFACTS</span></div>
+      <div><b id="missionLockCount">0</b><span>LOCKS</span></div>
+    </div>
+  </section>
+  <div class="mission-grid">
+    <section class="panel">
+      <div class="eyebrow">LIVE SPECIALIST MESH</div>
+      <div id="missionSpecialists" class="mission-specialists"><p>No specialists have been dispatched.</p></div>
+    </section>
+    <section class="panel critic-panel">
+      <div class="eyebrow">INDEPENDENT CRITIC</div>
+      <div id="missionCritic" class="critic-verdict">WAITING</div>
+      <div id="missionChecks" class="critic-checks">Workflow coverage will be verified after specialists complete.</div>
+    </section>
+  </div>
+  <section class="panel mission-graph-panel">
+    <div class="eyebrow">DURABLE EXECUTION GRAPH</div>
+    <div id="missionTasks" class="mission-task-graph">Mission nodes and dependencies will appear here.</div>
+  </section>
+  <div class="mission-grid mission-bottom">
+    <section class="panel">
+      <div class="eyebrow">GENERATED WORKSPACE</div>
+      <div id="missionArtifacts" class="artifact-list">No mission artifacts yet.</div>
+    </section>
+    <section class="panel approval-panel">
+      <div class="eyebrow">HUMAN APPROVAL LOCKS</div>
+      <div id="missionLocks" class="lock-list">Consequential external actions remain disabled.</div>
+    </section>
+  </div>
+</section>
+
+<section id="page-web" class="page">
+  <section class="conversation" data-chat-context="web">
+    <div class="conversation-head"><b>WEB INTELLIGENCE AGENT</b><span>Separate citation-first public-web conversation</span></div>
+    <div class="chat"></div>
+    <div class="command-row"><button data-chat-action="listen">LISTEN</button><input placeholder="Jarvis, search the web for... or read https://..."><button data-chat-action="send">RESEARCH</button><button data-chat-action="stop">STOP</button></div>
+    <div class="hint">Searches public sources and reads ordinary public URLs. It cites retrieved text and never invents blocked, paywalled, login-only, or dynamically unavailable content.</div>
+  </section>
+  <div class="headline">
+    <div><div class="eyebrow">WEB INTELLIGENCE · SEARCH → READ → CITE</div><h1 id="webQuery">Ready for public-web research</h1></div>
+    <div class="web-state"><span id="webProvider">KEYLESS READY</span><b id="webSourceCount">0 SOURCES</b></div>
+  </div>
+  <section class="web-command panel">
+    <div><div class="eyebrow">AUTOMATIC RESEARCH STATUS</div><div id="webNotice" class="web-notice">Ask naturally. JARVIS automatically selects an official source, broad public-web search, or direct page reader and opens the result here.</div></div>
+    <div class="web-policy-grid">
+      <div><b>PUBLIC WEB</b><span>HTTP/S ONLY</span></div>
+      <div><b>PROVENANCE</b><span>URL + CHECKSUM</span></div>
+      <div><b>BOUNDED</b><span>SIZE + TIMEOUT</span></div>
+      <div><b>FAIL CLOSED</b><span>PRIVATE NETWORKS</span></div>
+    </div>
+  </section>
+  <section id="webAnswerPanel" class="web-answer panel" hidden>
+    <div class="eyebrow">AUTOMATIC ANSWER</div>
+    <div id="webAnswer" class="web-answer-text"></div>
+  </section>
+  <div class="web-grid">
+    <section class="panel">
+      <div class="eyebrow">CITABLE FINDINGS</div>
+      <div id="webSources" class="web-sources">No web research has been run.</div>
+    </section>
+    <section class="panel web-diagnostics">
+      <div class="eyebrow">ACCESS & SOURCE DIAGNOSTICS</div>
+      <div id="webDiagnostics">Direct pages, search snippets, and headline-only discoveries are labelled separately.</div>
+    </section>
+  </div>
+</section>
+
+<section id="page-charts" class="page">
+  <section class="conversation" data-chat-context="charts">
+    <div class="conversation-head"><b>CHART AGENT</b><span>Separate Chart Lab conversation</span></div>
+    <div class="chat"></div>
+    <div class="command-row"><button data-chat-action="listen">LISTEN</button><input placeholder="Jarvis, open BANKNIFTY 5 minute chart"><button data-chat-action="send">SEND</button><button data-chat-action="stop">STOP</button></div>
+    <div class="hint">This history stays in Chart Lab. Friendly MCX commodity names require an active FYERS contract symbol.</div>
+  </section>
+  <div class="headline">
+    <div><div class="eyebrow">CHART LAB</div><h1>1 / 2 / 3 / 4 / 6 / 8 chart workspace</h1></div>
+    <div class="layout-buttons">
+      <button data-layout="1">1</button><button data-layout="2">2</button><button data-layout="3">3</button><button data-layout="4">4</button><button data-layout="6">6</button><button data-layout="8">8</button>
+    </div>
+  </div>
+  <div id="charts" class="chart-grid layout4"></div>
+</section>
+
+<section id="page-quant" class="page">
+  <section class="conversation" data-chat-context="quant">
+    <div class="conversation-head"><b>QUANT AGENT</b><span>Separate research and paper-analysis conversation</span></div>
+    <div class="chat"></div>
+    <div class="command-row"><button data-chat-action="listen">LISTEN</button><input placeholder="Jarvis, analyze BANKNIFTY"><button data-chat-action="send">SEND</button><button data-chat-action="stop">STOP</button></div>
+    <div class="hint">Quant Lab remains research/paper-only and will not invent signals or place live orders.</div>
+  </section>
+  <div class="headline"><div><div class="eyebrow">QUANT LAB · VERIFIED MULTI-ASSET OHLCV</div><h1>Strategy, chart-pattern and risk intelligence</h1></div><div class="quant-symbols"><button data-quant-symbol="NIFTY">NIFTY</button><button class="active" data-quant-symbol="BANKNIFTY">BANKNIFTY</button><button data-quant-symbol="SENSEX">SENSEX</button><button data-quant-symbol="GOLD">GOLD</button><button data-quant-symbol="SILVER">SILVER</button><button data-quant-symbol="CRUDEOIL">CRUDE OIL</button><button data-quant-symbol="NATURALGAS">NAT GAS</button><button data-quant-symbol="BTC">BTC</button><button data-quant-symbol="ETH">ETH</button><button data-quant-symbol="SOL">SOL</button></div></div>
+  <div class="quant-overview">
+    <section class="panel quant-primary"><div class="eyebrow">MARKET REGIME</div><div class="score" id="quantRegime">LOADING</div><p id="quantExplanation">Reading 5m, 15m, and 1h broker candles.</p><div class="bar"><i id="quantBar" style="width:0%"></i></div></section>
+    <section class="panel"><div class="eyebrow">PAPER SETUP</div><div class="score" id="quantSetup">WAIT</div><p id="quantMode">Research and paper only. No live orders.</p></section>
+    <section class="panel"><div class="eyebrow">ALIGNMENT CONFIDENCE</div><div class="score" id="quantConfidence">—</div><p>Timeframe agreement—not win probability.</p></section>
+    <section class="panel"><div class="eyebrow">LEVELS</div><div class="level-pair"><span>SUPPORT <b id="quantSupport">—</b></span><span>RESISTANCE <b id="quantResistance">—</b></span></div><p id="quantAtr">ATR —</p></section>
+  </div>
+  <div class="quant-decision panel">
+    <div><span>SELECTED STRATEGY</span><b id="quantStrategy">NO EDGE</b></div>
+    <div><span>CHART EVIDENCE</span><b id="quantPatterns">NO CONFIRMATION</b></div>
+    <div><span>ENTRY / STOP / TARGET</span><b id="quantTradePlan">— / — / —</b></div>
+    <div><span>PROJECTED RISK / REWARD</span><b id="quantRiskReward">—</b></div>
+  </div>
+  <div class="panel tableish">
+    <div class="eyebrow">TIMEFRAME EVIDENCE</div>
+    <div id="quantTimeframes" class="quant-timeframes">Ask “Jarvis, analyze BANKNIFTY” or select a symbol.</div>
+    <div id="quantRisk" class="risk-notice">Research output only. Live execution is disabled.</div>
+  </div>
+</section>
+
+<section id="page-paper" class="page">
+  <section class="conversation" data-chat-context="paper">
+    <div class="conversation-head"><b>PAPER EXECUTION AGENT</b><span>Separate live-price simulation conversation · zero broker orders</span></div>
+    <div class="chat"></div>
+    <div class="command-row"><button data-chat-action="listen">LISTEN</button><input placeholder="Say: show paper status, scan now, or paper buy 0.01 BTC"><button data-chat-action="send">SEND</button><button data-chat-action="stop">STOP</button></div>
+    <div class="hint">Autopilot arms when JARVIS starts. FYERS drives Indian indices and MCX; public market-only crypto data runs 24/7. Every fill remains synthetic.</div>
+  </section>
+  <div class="headline paper-headline">
+    <div><div class="eyebrow">PAPER DESK · FYERS + PUBLIC CRYPTO / LOCAL SIMULATION</div><h1>Autonomous multi-asset portfolio</h1></div>
+    <div class="paper-status"><span id="paperFeed">FYERS CHECKING</span><span id="paperAlertMode">IN-APP ALERTS READY</span><b id="paperMode">AUTOPILOT PAUSED</b></div>
+  </div>
+  <section class="paper-console panel">
+    <div class="paper-controls">
+      <button id="paperArm" class="paper-primary">ARM AUTOPILOT</button>
+      <button id="paperPause">PAUSE</button>
+      <button id="paperScan">SCAN NOW</button>
+      <button id="paperRefresh">REFRESH</button>
+      <button id="paperFlatten" class="paper-danger">FLATTEN PAPER</button>
+    </div>
+    <div id="paperNotice" class="paper-notice">Autopilot is loading and will apply session and risk gates before any synthetic fill.</div>
+  </section>
+  <div id="paperUniverse" class="paper-universe" aria-label="Autonomous paper trading universe"></div>
+  <div class="paper-metrics">
+    <div class="metric"><span>PAPER EQUITY</span><b id="paperEquity">—</b><em>Virtual account value</em></div>
+    <div class="metric"><span>AVAILABLE CASH</span><b id="paperCash">—</b><em>After synthetic fills</em></div>
+    <div class="metric"><span>UNREALIZED P&amp;L</span><b id="paperUnrealized">—</b><em>Marked to read-only live feeds</em></div>
+    <div class="metric"><span>REALIZED P&amp;L</span><b id="paperRealized">—</b><em>After fees and slippage</em></div>
+  </div>
+  <div class="paper-grid">
+    <section class="panel"><div class="paper-panel-head"><div class="eyebrow">OPEN SYNTHETIC POSITIONS</div><span id="paperPositionCount">0 OPEN</span></div><div id="paperPositions" class="paper-positions">No paper positions.</div></section>
+    <section class="panel"><div class="paper-panel-head"><div class="eyebrow">MULTI-TIMEFRAME SIGNAL WATCH</div><span>80% + RR 1.8 + ADAPTIVE GATE</span></div><div id="paperSignals" class="paper-signals">Run a scan to populate signals.</div></section>
+  </div>
+  <div class="paper-grid paper-lower">
+    <section class="panel"><div class="eyebrow">PAPER ACTIVITY</div><div id="paperActivity" class="paper-activity">No paper activity yet.</div></section>
+    <section class="panel"><div class="eyebrow">CLOSED PAPER TRADES</div><div id="paperTrades" class="paper-trades">No closed paper trades.</div></section>
+  </div>
+  <div class="paper-grid paper-learning-grid">
+    <section class="panel"><div class="paper-panel-head"><div class="eyebrow">AUTOMATIC LOSS &amp; TRADE REVIEW</div><span id="paperLearningMode">POLICY ADAPTATION</span></div><div id="paperTradeReviews" class="paper-trade-reviews">No closed trade has been reviewed yet.</div></section>
+    <section class="panel"><div class="paper-panel-head"><div class="eyebrow">STRATEGY RISK SCORECARDS</div><span id="paperDailyReview">WAITING FOR CLOSED TRADES</span></div><div id="paperScorecards" class="paper-scorecards">Strategy performance appears after reviewed paper trades.</div></section>
+  </div>
+  <div class="risk-notice paper-lock">PAPER ONLY · Synthetic index, commodity, and crypto units are stored locally. No FYERS or crypto order API is called; real-money execution remains disabled.</div>
+</section>
+
+<section id="page-news" class="page">
+  <section class="conversation" data-chat-context="news">
+    <div class="conversation-head"><b>NEWS AGENT</b><span>Separate contextual news conversation</span></div>
+    <div class="chat"></div>
+    <div class="command-row"><button data-chat-action="listen">LISTEN</button><input placeholder="Jarvis, tell me the top crude oil news"><button data-chat-action="send">SEND</button><button data-chat-action="stop">STOP</button></div>
+    <div class="hint">Try “read the first one” after a search. JARVIS reads verified text when accessible and never invents missing article contents.</div>
+  </section>
+  <div class="headline"><div><div class="eyebrow">NEWS & IMPACT</div><h1>Market intelligence</h1></div><div class="headline-actions"><button id="newsRead">READ TOP 5</button><button id="newsRefresh">REFRESH</button></div></div>
+  <div class="news-grid">
+    <section class="panel"><div class="eyebrow">IMPACT REVIEW CHECKLIST</div><div class="impact"><div class="impactItem low">1 · SOURCE CREDIBILITY</div><div class="impactItem low">2 · AFFECTED MARKET / SECTOR</div><div class="impactItem low">3 · DIRECTION + TIME HORIZON</div><div class="impactItem low">4 · CONFIDENCE + CONFIRMATION</div><div class="impactItem low">5 · NO AUTOMATIC TRADE</div></div></section>
+    <section class="panel"><div class="eyebrow" id="newsQuery">QUERY · INDIA MARKETS NIFTY SENSEX</div><div id="headlines">Open this page or ask JARVIS for the latest market headlines.</div></section>
+  </div>
+  <section class="panel"><div class="eyebrow">RESEARCH GUARDRAIL</div><p id="impactText">Headlines are discovery inputs, not trading signals. Open and verify the linked source before drawing a market or trading conclusion.</p></section>
+</section>
+
+<section id="page-company" class="page">
+  <section class="conversation" data-chat-context="company">
+    <div class="conversation-head"><b>COMPANY BUILDER AGENT</b><span>Separate venture and operations conversation</span></div>
+    <div class="chat"></div>
+    <div class="command-row"><button data-chat-action="listen">LISTEN</button><input placeholder="Jarvis, I have a company idea for..."><button data-chat-action="send">BUILD PLAN</button><button data-chat-action="stop">STOP</button></div>
+    <div class="hint">JARVIS can autonomously research, plan, draft, build, and test local deliverables. Registration, spending, outreach, contracts, publishing, hiring, and production actions require your approval.</div>
+  </section>
+  <div class="headline"><div><div class="eyebrow">COMPANY OS · IDEA TO OPERATING BLUEPRINT</div><h1 id="companyTitle">Mission control</h1></div><div class="badge">SUPERVISED AUTONOMY</div></div>
+  <section class="company-command panel">
+    <div><div class="eyebrow">ACTIVE VENTURE THESIS</div><div id="companyMission" class="company-mission">Tell JARVIS your idea. It will create a governed 30/60/90-day blueprint and coordinate every department.</div></div>
+    <div class="company-stats"><div><b id="companyTaskCount">0</b><span>TASKS</span></div><div><b id="companyGateCount">0</b><span>APPROVAL GATES</span></div><div><b id="companyArtifactCount">0</b><span>LOCAL FILES</span></div><div><b id="companyAgentCount">16</b><span>DEPARTMENT AGENTS</span></div></div>
+  </section>
+  <div class="company-grid">
+    <section class="panel"><div class="eyebrow">DEPARTMENT MESH</div><div id="departmentMesh" class="department-mesh"></div></section>
+    <section class="panel"><div class="eyebrow">30 / 60 / 90 DAY ROADMAP</div><div id="companyRoadmap" class="company-roadmap"><p>No company blueprint yet.</p></div></section>
+  </div>
+  <section class="panel company-tasks"><div class="eyebrow">MISSION TASK GRAPH</div><div id="companyTasks" class="task-graph">Local planning tasks will appear here. Consequential steps are visibly locked.</div></section>
+</section>
+</main>
+
+<section id="omniDock" class="omni-dock" aria-label="Master JARVIS automatic command">
+  <button id="omniVoice" class="omni-orb" title="Start continuous Master JARVIS voice" aria-label="Start continuous Master JARVIS voice">J</button>
+  <div class="omni-input-wrap">
+    <div class="omni-route"><span id="omniState">MASTER AUTO-ROUTE</span><b id="omniAgent">READY</b></div>
+    <input id="omniInput" autocomplete="off" placeholder="Speak or type once — JARVIS chooses the agent and opens the result">
+  </div>
+  <button id="omniSend">EXECUTE</button>
+</section>
+
+<script src="/app.js"></script>
+</body>
+</html>

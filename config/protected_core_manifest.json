@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "created_at": 1787008713.6979387,
+  "policy": "explicit-approved-rebaseline-only",
+  "files": {
+    "omni/model_router.py": "6701b208f18cab1acdae870d315fdb2ac726ecf6bfdc246bed248af3d0187541",
+    "omni/model_provider.py": "046c790bb66ea162bafb048814afc40a96d011098280ab00c996a444c76c4077",
+    "omni/agent_registry.py": "213947616d2571c65a3e506e2437dce75663a7c45c34ee2d8b3b2c1ac501e662",
+    "omni/collaboration_runtime.py": "0c708bf62b5e08c23d986bb143081abfab9a10355b5fe28bfff86777c4db341c",
+    "omni/runtime.py": "5df3376c408afb296b7b991d298e13ebdb59f12baf5a0c31845ff0297777fb98",
+    "omni/hybrid_memory.py": "e8348cb88a3032de0f8000c2ffee89addb7467de0343cf465a526c084e98cbf7"
+  }
+}

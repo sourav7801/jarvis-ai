@@ -1,0 +1,2739 @@
+{
+  "checkpoint": 672,
+  "protected_core": true,
+  "main_apis": [
+    {
+      "name": "MissionControl",
+      "signature": "(registry: 'AgentRegistry', state_path: 'Path | str | None' = None, workspaces_root: 'Path | str | None' = None, max_workers: 'int | None' = None) -> 'None'"
+    },
+    {
+      "name": "is_mission_request",
+      "signature": "(text: 'str', context: 'str' = 'master') -> 'bool'"
+    },
+    {
+      "name": "is_operator_request",
+      "signature": "(text: 'str') -> 'bool'"
+    },
+    {
+      "name": "jarvis_action_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_action_v3_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_approve_action",
+      "signature": "(approval_id)"
+    },
+    {
+      "name": "jarvis_browser_click",
+      "signature": "(url, selector, approval_id=None)"
+    },
+    {
+      "name": "jarvis_browser_fill",
+      "signature": "(url, selector, value, approval_id=None, sensitive=False)"
+    },
+    {
+      "name": "jarvis_browser_inspect",
+      "signature": "(url, approval_id=None)"
+    },
+    {
+      "name": "jarvis_browser_observation_probe",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_browser_open",
+      "signature": "(url, approved=False)"
+    },
+    {
+      "name": "jarvis_execute_action",
+      "signature": "(tool, arguments=None, approved=False)"
+    },
+    {
+      "name": "jarvis_growth_actions",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_mission_command_answer",
+      "signature": "(request, project_id=None)"
+    },
+    {
+      "name": "jarvis_operator_compile",
+      "signature": "(goal, hints=None)"
+    },
+    {
+      "name": "jarvis_operator_execute",
+      "signature": "(plan, approval_batch_id=None)"
+    },
+    {
+      "name": "jarvis_operator_memory",
+      "signature": "(limit=20)"
+    },
+    {
+      "name": "jarvis_operator_prepare",
+      "signature": "(goal, hints=None)"
+    },
+    {
+      "name": "jarvis_operator_run",
+      "signature": "(goal, hints=None, approval_batch_id=None)"
+    },
+    {
+      "name": "jarvis_operator_v2_execute",
+      "signature": "(plan, approval_batch_id=None, project_id=None)"
+    },
+    {
+      "name": "jarvis_operator_v2_prepare",
+      "signature": "(goal, proposal_text)"
+    },
+    {
+      "name": "jarvis_operator_v2_prompt",
+      "signature": "(goal, observations=None)"
+    },
+    {
+      "name": "jarvis_operator_v2_validate",
+      "signature": "(goal, proposal_text)"
+    },
+    {
+      "name": "jarvis_operator_v2_validate_replan",
+      "signature": "(goal, proposal_text)"
+    },
+    {
+      "name": "jarvis_operator_v3_plan",
+      "signature": "(goal, observations=None)"
+    },
+    {
+      "name": "jarvis_operator_v3_status",
+      "signature": "()"
+    },
+    {
+      "name": "jarvis_persistent_browser_click",
+      "signature": "(url, selector, profile='default', approval_id=None, headless=True)"
+    },
+    {
+      "name": "jarvis_persistent_browser_fill",
+      "signature": "(url, selector, value, profile='default', approval_id=None, headless=True, sensitive=False)"
+    },
+    {
+      "name": "jarvis_persistent_browser_inspect",
+      "signature": "(url, profile='default', approval_id=None, headless=True)"
+    },
+    {
+      "name": "jarvis_plan_mission",
+      "signature": "(goal)"
+    },
+    {
+      "name": "jarvis_reject_action",
+      "signature": "(approval_id)"
+    },
+    {
+      "name": "jarvis_replan_failed_action",
+      "signature": "(original_goal, observed_result)"
+    },
+    {
+      "name": "jarvis_run_mission",
+      "signature": "(goal, project_id=None, approved=False)"
+    },
+    {
+      "name": "jarvis_run_workflow",
+      "signature": "(steps)"
+    },
+    {
+      "name": "jarvis_v3_browser_click",
+      "signature": "(session_id, target_handle, approval_id=None)"
+    },
+    {
+      "name": "jarvis_v3_browser_fill",
+      "signature": "(session_id, target_handle, value, approval_id=None, sensitive=False)"
+    },
+    {
+      "name": "jarvis_v3_browser_observe",
+      "signature": "(session_id)"
+    },
+    {
+      "name": "jarvis_v3_close_browser",
+      "signature": "(session_id)"
+    },
+    {
+      "name": "jarvis_v3_resolve_browser_target",
+      "signature": "(session_id, phrase)"
+    },
+    {
+      "name": "jarvis_v3_resolve_desktop_target",
+      "signature": "(window_title, phrase)"
+    },
+    {
+      "name": "jarvis_v3_start_browser",
+      "signature": "(url, profile='operator-v3', approval_id=None, headless=True)"
+    },
+    {
+      "name": "jarvis_v4_apply_replan",
+      "signature": "(mission_id, proposal_text)"
+    },
+    {
+      "name": "jarvis_v4_create_mission",
+      "signature": "(goal, plan_data)"
+    },
+    {
+      "name": "jarvis_v4_get_mission",
+      "signature": "(mission_id)"
+    },
+    {
+      "name": "jarvis_v4_prepare_desktop_click",
+      "signature": "(window_title, target, screenshot=None)"
+    },
+    {
+      "name": "jarvis_v4_prepare_desktop_text",
+      "signature": "(window_title, target, value)"
+    },
+    {
+      "name": "jarvis_v4_resume_mission",
+      "signature": "(mission_id)"
+    },
+    {
+      "name": "jarvis_v4_start_mission",
+      "signature": "(mission_id)"
+    }
+  ],
+  "candidate_files": [
+    "omni\\action_replanner.py",
+    "omni\\action_v3_status.py",
+    "omni\\autonomy_engine.py",
+    "omni\\browser_actions.py",
+    "omni\\browser_automation_v2.py",
+    "omni\\browser_observation_loop.py",
+    "omni\\coding_mission.py",
+    "omni\\computer_operator.py",
+    "omni\\computer_operator_v2.py",
+    "omni\\computer_operator_v3_status.py",
+    "omni\\connected_workflows.py",
+    "omni\\desktop_automation.py",
+    "omni\\desktop_state.py",
+    "omni\\desktop_target_executor.py",
+    "omni\\live_browser_session.py",
+    "omni\\mission.py",
+    "omni\\mission_commands.py",
+    "omni\\mission_control.py",
+    "omni\\observed_workflow.py",
+    "omni\\operator_brain_dsl.py",
+    "omni\\operator_dashboard.py",
+    "omni\\operator_dsl.py",
+    "omni\\operator_memory.py",
+    "omni\\operator_resume.py",
+    "omni\\operator_runtime.py",
+    "omni\\operator_runtime_schema.py",
+    "omni\\operator_schema.py",
+    "omni\\persistent_browser.py",
+    "omni\\reflection_engine.py",
+    "omni\\safe_file_handoff.py",
+    "omni\\tool_capability_graph.py",
+    "omni\\trading_intelligence\\derivatives_capture_plans.py",
+    "omni\\trading_intelligence\\derivatives_session_collector.py",
+    "omni\\universal_learning.py",
+    "omni\\workflow_engine.py",
+    "tests\\test_computer_operator.py",
+    "tests\\test_computer_operator_v2.py",
+    "tests\\test_computer_operator_v3.py",
+    "tests\\test_computer_operator_v4.py",
+    "tests\\test_mission_control.py",
+    "tests\\test_real_world_action_v2.py",
+    "tests\\test_real_world_action_v3.py",
+    "tests\\test_trading_intelligence_v8.py",
+    "tools\\computer.py",
+    "tools\\computer_phase1.py",
+    "tools\\safety.py"
+  ],
+  "static_map": {
+    "omni\\action_replanner.py": {
+      "classes": [
+        {
+          "name": "ActionReplanner",
+          "methods": [
+            "_agents(plan)",
+            "propose(self, original_goal, observed_result)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\action_v3_status.py": {
+      "classes": [
+        {
+          "name": "ActionV3Status",
+          "methods": [
+            "status(self)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\autonomy_engine.py": {
+      "classes": [
+        {
+          "name": "MissionPlanningError",
+          "methods": []
+        },
+        {
+          "name": "AutonomousGoalEngine",
+          "methods": [
+            "agent_names(self)",
+            "plan(self, goal)",
+            "_serialize(value)",
+            "_prompt(self, plan, task, outputs)",
+            "_normalize(output)",
+            "_run_task(self, plan, task, runner, outputs)",
+            "execute(self, goal, runner, project_id, approved)",
+            "_failure(self, plan, errors, recovery_count)",
+            "_save(self, result)",
+            "_remember(result, project_id)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\browser_actions.py": {
+      "classes": [
+        {
+          "name": "BrowserActions",
+          "methods": [
+            "validate_url(url)",
+            "open(self, url, approved)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\browser_automation_v2.py": {
+      "classes": [
+        {
+          "name": "BrowserAutomation",
+          "methods": [
+            "available()",
+            "validate_url(url)",
+            "_gate(action, payload, display, approval_id)",
+            "inspect(self, url, approval_id, max_chars)",
+            "click(self, url, selector, approval_id)",
+            "fill(self, url, selector, value, approval_id, sensitive)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\browser_observation_loop.py": {
+      "classes": [
+        {
+          "name": "BrowserObservationLoop",
+          "methods": [
+            "snapshot(page)",
+            "compare(before, after)",
+            "binding(operation, url, profile, selector, value)",
+            "_gate(binding, approval_id)",
+            "observe(self, url, profile, approval_id)",
+            "click(self, url, selector, profile, approval_id)",
+            "fill(self, url, selector, value, profile, approval_id, sensitive)",
+            "_run(self, url, profile, selector, value, operation)",
+            "provider_probe(self)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\coding_mission.py": {
+      "classes": [
+        {
+          "name": "CodingMission",
+          "methods": [
+            "_validate_tests(test_args)",
+            "prepare_create(self, repo, name)",
+            "create(self, repo, name, approval_id)",
+            "prepare_tests(self, worktree, test_args)",
+            "run_tests(self, worktree, test_args, approval_id)",
+            "diff(worktree)",
+            "merge(*args, **kwargs)",
+            "push(*args, **kwargs)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\computer_operator.py": {
+      "classes": [
+        {
+          "name": "OperatorExecutionResult",
+          "methods": []
+        },
+        {
+          "name": "GoalCompiler",
+          "methods": [
+            "compile(self, goal, hints)"
+          ]
+        },
+        {
+          "name": "ComputerOperator",
+          "methods": [
+            "_browser_binding(step)",
+            "binding_for_step(step)",
+            "compile(self, goal, hints)",
+            "prepare(self, goal, hints)",
+            "_observe_desktop()",
+            "_execute_step(self, step, approval_id)",
+            "execute(self, plan, approval_batch_id)",
+            "run_goal(self, goal, hints, approval_batch_id)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\computer_operator_v2.py": {
+      "classes": [
+        {
+          "name": "OperatorV2Result",
+          "methods": []
+        },
+        {
+          "name": "ComputerOperatorV2",
+          "methods": [
+            "planner_prompt(self, goal, observations)",
+            "validate_proposal(self, goal, proposal_text)",
+            "prepare(self, plan)",
+            "prepare_proposal(self, goal, proposal_text)",
+            "_execute_step(self, step, token)",
+            "execute(self, plan, approval_batch_id, project_id)",
+            "validate_replan(self, goal, proposal_text)",
+            "resolve_target(self, target, dom, uia, screenshot)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\computer_operator_v3_status.py": {
+      "classes": [
+        {
+          "name": "ComputerOperatorV3Status",
+          "methods": [
+            "status(self)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\connected_workflows.py": {
+      "classes": [
+        {
+          "name": "ConnectedWorkflowIntelligence",
+          "methods": [
+            "_queries(value)",
+            "_join(values)",
+            "_resolve_group(self, value)",
+            "prepare_draft(self, recipients, subject, body, cc, bcc)",
+            "create_draft(self, recipients, subject, body, cc, bcc, approval_id)",
+            "_datetime(value)",
+            "_event_bounds(event)",
+            "check_conflicts(self, start, end, calendar_id)",
+            "prepare_meeting(self, title, attendees, start, end, description, location, calendar_id, send_updates, time_zone, allow_conflicts)",
+            "schedule_meeting(self, title, attendees, start, end, description, location, calendar_id, send_updates, time_zone, allow_conflicts, approval_id)",
+            "prepare_meeting_from_email(self, message_id, title, start, end, attendees, description, location, calendar_id, send_updates, time_zone, allow_conflicts)",
+            "schedule_meeting_from_email(self, message_id, title, start, end, attendees, description, location, calendar_id, send_updates, time_zone, allow_conflicts, approval_id)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\desktop_automation.py": {
+      "classes": [
+        {
+          "name": "DesktopAutomation",
+          "methods": [
+            "windows(self)",
+            "find_window(self, title_contains)",
+            "_approval_or_request(action, payload, display, approval_id)",
+            "focus_window(self, title_contains, approval_id)",
+            "click(self, x, y, approval_id)",
+            "_paste_clipboard(text)",
+            "type_text(self, text, approval_id, sensitive)",
+            "screen_snapshot(self, path, approval_id)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\desktop_state.py": {
+      "classes": [
+        {
+          "name": "DesktopSnapshot",
+          "methods": []
+        },
+        {
+          "name": "DesktopState",
+          "methods": [
+            "snapshot(self, window_title, include_controls)",
+            "compare(before, after)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\desktop_target_executor.py": {
+      "classes": [
+        {
+          "name": "DesktopTargetExecutor",
+          "methods": [
+            "_screen_size(self)",
+            "_file_sha(path)",
+            "_visual_candidate(self, screenshot, window_title, target)",
+            "prepare_click(self, window_title, target, screenshot)",
+            "prepare_set_text(self, window_title, target, value, sensitive)",
+            "_coordinate_click(x, y)",
+            "execute_click(self, prepared, approval_id)",
+            "execute_set_text(self, prepared, value, approval_id)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\live_browser_session.py": {
+      "classes": [
+        {
+          "name": "BrowserTaskSession",
+          "methods": []
+        },
+        {
+          "name": "LiveBrowserSessionManager",
+          "methods": [
+            "_cleanup(self)",
+            "_gate(action, payload, display, approval_id, risk)",
+            "start(self, url, profile, approval_id, headless)",
+            "get(self, session_id)",
+            "observe(self, session_id)",
+            "_locator(page, target)",
+            "click(self, session_id, target, approval_id)",
+            "fill(self, session_id, target, value, approval_id, sensitive)",
+            "close(self, session_id)",
+            "status(self)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\mission.py": {
+      "classes": [
+        {
+          "name": "MissionStatus",
+          "methods": []
+        },
+        {
+          "name": "TaskStatus",
+          "methods": []
+        },
+        {
+          "name": "MissionTask",
+          "methods": []
+        },
+        {
+          "name": "MissionPlan",
+          "methods": []
+        },
+        {
+          "name": "MissionResult",
+          "methods": []
+        },
+        {
+          "name": "MissionStore",
+          "methods": [
+            "_path(self, mission_id)",
+            "save(self, result)",
+            "exists(self, mission_id)",
+            "read_raw(self, mission_id)"
+          ]
+        }
+      ],
+      "functions": [
+        "new_mission_id()"
+      ]
+    },
+    "omni\\mission_commands.py": {
+      "classes": [],
+      "functions": [
+        "mission_command_answer(text, project_id)"
+      ]
+    },
+    "omni\\mission_control.py": {
+      "classes": [
+        {
+          "name": "MissionControl",
+          "methods": [
+            "_clean(value, maximum)",
+            "_load(self)",
+            "_save(self)",
+            "_select_specialists(self, objective)",
+            "_specialist_prompt(objective, name)",
+            "_run_specialist(registry, mission_id, objective, name)",
+            "_critic_review(objective, outputs)",
+            "_task(task_id, title, owner, status, depends_on, detail, approval_required)",
+            "_build_tasks(self, outputs, critic)",
+            "_deliverable_lines(output)",
+            "_materialize(self, mission)",
+            "create_mission(self, objective, title)",
+            "snapshot(self, include_mission)"
+          ]
+        }
+      ],
+      "functions": [
+        "utc_now()",
+        "is_mission_request(text, context)"
+      ]
+    },
+    "omni\\observed_workflow.py": {
+      "classes": [
+        {
+          "name": "ObservedStepResult",
+          "methods": []
+        },
+        {
+          "name": "ObservedWorkflowResult",
+          "methods": []
+        },
+        {
+          "name": "ObservedWorkflowEngine",
+          "methods": [
+            "run(self, steps)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\operator_brain_dsl.py": {
+      "classes": [
+        {
+          "name": "BrainDSLPlanner",
+          "methods": [
+            "_extract(result)",
+            "propose(self, goal, observations, runner)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\operator_dashboard.py": {
+      "classes": [
+        {
+          "name": "OperatorDashboard",
+          "methods": [
+            "_records(directory)",
+            "missions(self, limit)",
+            "approval_batches(self, limit)",
+            "pending_batches(self)",
+            "snapshot(self)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\operator_dsl.py": {
+      "classes": [
+        {
+          "name": "DSLStep",
+          "methods": []
+        },
+        {
+          "name": "DSLPlan",
+          "methods": []
+        }
+      ],
+      "functions": [
+        "is_interactive(action)",
+        "validate_plan(plan)",
+        "from_dict(goal, data, source)",
+        "parse_json(goal, text, source)",
+        "planner_prompt(goal, observations)"
+      ]
+    },
+    "omni\\operator_memory.py": {
+      "classes": [
+        {
+          "name": "OperatorMemory",
+          "methods": [
+            "record(self, goal, success, steps, failed_step, lesson, metadata, project_id)",
+            "recent(self, limit)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\operator_resume.py": {
+      "classes": [
+        {
+          "name": "OperatorResumeManager",
+          "methods": [
+            "prepare(self, goal, revised_proposal_text)",
+            "resume(self, plan, approval_batch_id, project_id)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\operator_runtime.py": {
+      "classes": [
+        {
+          "name": "UnifiedOperatorRuntime",
+          "methods": [
+            "_path(self, mission_id)",
+            "_save(self, mission)",
+            "get(self, mission_id)",
+            "_extract_text(result)",
+            "plan_goal(self, goal, observations, runner)",
+            "create(self, plan)",
+            "create_from_dict(self, goal, data, source)",
+            "_result_output(mission, step_id)",
+            "_session_id(self, mission, payload)",
+            "_worktree(self, mission, payload)",
+            "_prepare_interactive(self, mission, step)",
+            "_execute_step(self, mission, step, prepared, approval_id)",
+            "_failure(self, mission, step, error, output)",
+            "advance(self, mission_id)",
+            "apply_replan(self, mission_id, revised_plan)",
+            "apply_replan_json(self, mission_id, proposal_text)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\operator_runtime_schema.py": {
+      "classes": [
+        {
+          "name": "RuntimeStep",
+          "methods": []
+        },
+        {
+          "name": "RuntimePlan",
+          "methods": []
+        }
+      ],
+      "functions": [
+        "is_interactive(action)",
+        "validate_plan(plan)",
+        "from_dict(goal, data, source)",
+        "parse_json(goal, text, source)",
+        "planner_prompt(goal, observations)"
+      ]
+    },
+    "omni\\operator_schema.py": {
+      "classes": [
+        {
+          "name": "OperatorStep",
+          "methods": []
+        },
+        {
+          "name": "OperatorPlan",
+          "methods": []
+        }
+      ],
+      "functions": [
+        "is_interactive(action)",
+        "validate_plan(plan)"
+      ]
+    },
+    "omni\\persistent_browser.py": {
+      "classes": [
+        {
+          "name": "PersistentBrowser",
+          "methods": [
+            "available()",
+            "_profile_name(profile)",
+            "profile_path(self, profile)",
+            "_validate_url(url)",
+            "_gate(action, payload, display, approval_id)",
+            "provider_probe(self)",
+            "inspect(self, url, profile, approval_id, headless, max_chars)",
+            "click(self, url, selector, profile, approval_id, headless)",
+            "fill(self, url, selector, value, profile, approval_id, headless, sensitive)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\reflection_engine.py": {
+      "classes": [
+        {
+          "name": "Reflection",
+          "methods": []
+        }
+      ],
+      "functions": [
+        "reflect_mission(result)",
+        "record_mission_reflection(result, project_id)"
+      ]
+    },
+    "omni\\safe_file_handoff.py": {
+      "classes": [
+        {
+          "name": "SafeFileHandoff",
+          "methods": [
+            "validate_url(url)",
+            "safe_name(url, filename)",
+            "binding(self, url, filename, max_bytes)",
+            "download(self, url, filename, approval_id, max_bytes)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\tool_capability_graph.py": {
+      "classes": [
+        {
+          "name": "ToolCapabilityGraph",
+          "methods": [
+            "snapshot(self)",
+            "capabilities(self)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\trading_intelligence\\derivatives_capture_plans.py": {
+      "classes": [
+        {
+          "name": "CapturePlanStore",
+          "methods": [
+            "_load(self)",
+            "_save(self, value)",
+            "save(self, plan)",
+            "list(self)",
+            "get(self, plan_id)",
+            "delete(self, plan_id)"
+          ]
+        }
+      ],
+      "functions": [
+        "build_capture_plan(plan_id, symbol, strikecount, greeks, expiry_mode, expiry_timestamps, interval_minutes, session_start, session_end, timezone, enabled, max_captures_per_run)"
+      ]
+    },
+    "omni\\trading_intelligence\\derivatives_session_collector.py": {
+      "classes": [
+        {
+          "name": "CaptureStateStore",
+          "methods": [
+            "_load(self)",
+            "get(self, plan_id)",
+            "mark_capture(self, plan_id, captured_at, snapshot_ids)"
+          ]
+        },
+        {
+          "name": "DerivativesSessionCollector",
+          "methods": [
+            "_default_fetcher(symbol, strikecount, timestamp, greeks, timeout)",
+            "due_status(self, plan, now)",
+            "_expiries(plan)",
+            "collect_plan(self, plan, now, dry_run, timeout)",
+            "collect_due(self, now, dry_run, timeout, max_plans)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\universal_learning.py": {
+      "classes": [
+        {
+          "name": "Evidence",
+          "methods": []
+        },
+        {
+          "name": "LearningArtifact",
+          "methods": []
+        },
+        {
+          "name": "ProvenanceStore",
+          "methods": [
+            "_id(subject, uri)",
+            "_read(self)",
+            "add(self, subject, uri, source_type, verified, metadata)",
+            "for_subject(self, subject)",
+            "confidence(self, subject)"
+          ]
+        },
+        {
+          "name": "UniversalLearningEngine",
+          "methods": [
+            "comprehension_score(summary, confidence, evidence_count, verified)",
+            "_artifact_path(self, artifact_id)",
+            "_save(self, artifact)",
+            "_world_model(self, artifact)",
+            "_remember(self, artifact, project_id)",
+            "ingest(self, subject, content, source_uri, source_type, verified, project_id)",
+            "learn(self, subject, sources, runner, project_id)",
+            "artifacts(self)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "omni\\workflow_engine.py": {
+      "classes": [
+        {
+          "name": "WorkflowState",
+          "methods": []
+        },
+        {
+          "name": "WorkflowStep",
+          "methods": []
+        },
+        {
+          "name": "WorkflowResult",
+          "methods": []
+        },
+        {
+          "name": "WorkflowEngine",
+          "methods": [
+            "_audit(self, result)",
+            "run(self, steps)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "tests\\test_computer_operator.py": {
+      "classes": [
+        {
+          "name": "ComputerOperatorTests",
+          "methods": [
+            "test_protected_core(self)",
+            "test_unknown_action_blocked(self)",
+            "test_compiler_browser_inspect(self)",
+            "test_compiler_git_status(self)",
+            "test_unknown_goal_not_executed(self)",
+            "test_structured_action_validation(self)",
+            "test_browser_binding_exact(self)",
+            "test_batch_approval(self)",
+            "test_download_executable_blocked(self)",
+            "test_download_localhost_blocked(self)",
+            "test_download_needs_approval(self)",
+            "test_worktree_merge_blocked(self)",
+            "test_worktree_push_blocked(self)",
+            "test_capability_graph(self)",
+            "test_safe_readonly_operator_execution(self)",
+            "test_interactive_plan_requires_batch(self)",
+            "test_public_api(self)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "tests\\test_computer_operator_v2.py": {
+      "classes": [
+        {
+          "name": "ComputerOperatorV2Tests",
+          "methods": [
+            "test_core(self)",
+            "test_shell_block(self)",
+            "test_password_block(self)",
+            "test_dom_provider(self)",
+            "test_desktop_diff(self)",
+            "test_fusion(self)",
+            "test_vision_truthfulness(self)",
+            "test_readonly_execution(self)",
+            "test_public_apis(self)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "tests\\test_computer_operator_v3.py": {
+      "classes": [
+        {
+          "name": "FakeRunner",
+          "methods": []
+        },
+        {
+          "name": "ComputerOperatorV3Tests",
+          "methods": [
+            "test_core(self)",
+            "test_vision_verified(self)",
+            "test_brain_dsl_validated(self)",
+            "test_bad_dsl_blocked(self)",
+            "test_resume_validation(self)",
+            "test_session_manager(self)",
+            "test_dom_handle(self)",
+            "test_public_apis(self)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "tests\\test_computer_operator_v4.py": {
+      "classes": [
+        {
+          "name": "FakeRunner",
+          "methods": []
+        },
+        {
+          "name": "ComputerOperatorV4Tests",
+          "methods": [
+            "test_core(self)",
+            "test_vision_preserved(self)",
+            "test_shell_blocked(self)",
+            "test_trading_blocked(self)",
+            "test_password_target_blocked(self)",
+            "test_brain_plan_validation(self)",
+            "test_goal_verifier(self)",
+            "test_unverified_is_distinct(self)",
+            "test_test_runner_restriction(self)",
+            "test_merge_blocked(self)",
+            "test_push_blocked(self)",
+            "test_readonly_mission_execution(self)",
+            "test_browser_start_pauses_for_approval(self)",
+            "test_dashboard(self)",
+            "test_public_apis(self)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "tests\\test_mission_control.py": {
+      "classes": [
+        {
+          "name": "FakeRegistry",
+          "methods": [
+            "get(self, name)",
+            "execute(self, request)"
+          ]
+        },
+        {
+          "name": "MissionControlTests",
+          "methods": [
+            "test_explicit_mission_detection_preserves_fast_normal_routing(self)",
+            "test_mission_is_parallel_durable_verified_and_approval_gated(self)",
+            "test_critic_degrades_safely_when_specialist_fails(self)",
+            "test_master_command_routes_explicit_mission_to_mission_control(self)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "tests\\test_real_world_action_v2.py": {
+      "classes": [
+        {
+          "name": "ActionV2Tests",
+          "methods": [
+            "queue(self)",
+            "test_protected_core_ok(self)",
+            "test_approval_signature(self)",
+            "test_approval_cannot_change_payload(self)",
+            "test_approval_one_time_only(self)",
+            "test_rejected_approval_cannot_execute(self)",
+            "test_desktop_windows_returns_tuple(self)",
+            "test_sensitive_typing_blocked(self)",
+            "test_browser_blocks_unsafe_scheme(self)",
+            "test_browser_requires_approval_before_provider(self)",
+            "test_browser_password_fill_blocked(self)",
+            "test_observed_workflow_retry(self)",
+            "test_observed_failure_requests_replan(self)",
+            "test_integration_status(self)",
+            "test_public_apis(self)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "tests\\test_real_world_action_v3.py": {
+      "classes": [
+        {
+          "name": "FakePlan",
+          "methods": []
+        },
+        {
+          "name": "FakeBrain",
+          "methods": [
+            "plan(self, request)"
+          ]
+        },
+        {
+          "name": "ActionV3Tests",
+          "methods": [
+            "test_protected_core(self)",
+            "test_semantic_ui_available(self)",
+            "test_semantic_windows_tuple(self)",
+            "test_persistent_browser_available(self)",
+            "test_browser_provider_probe(self)",
+            "test_browser_requires_approval(self)",
+            "test_password_fill_blocked(self)",
+            "test_screen_metadata_without_model(self)",
+            "test_replanner_does_not_auto_execute(self)",
+            "test_voice_requires_approval(self)",
+            "test_public_api(self)"
+          ]
+        }
+      ],
+      "functions": []
+    },
+    "tests\\test_trading_intelligence_v8.py": {
+      "classes": [
+        {
+          "name": "TradingIntelligenceV8Tests",
+          "methods": [
+            "test_core(self)",
+            "test_status(self)",
+            "test_plan_builder(self)",
+            "test_explicit_expiry_limit(self)",
+            "test_plan_store(self)",
+            "test_collector_dry_run_no_network(self)",
+            "test_collector_fake_capture_and_interval(self)",
+            "test_feature_dataset_no_lookahead(self)",
+            "test_regime_dataset_builder(self)",
+            "test_cross_asset_graph(self)",
+            "test_research_optimizer(self)",
+            "test_v4_adapter_exact_passthrough(self)",
+            "test_v5_adapter_exact_passthrough(self)",
+            "test_nautilus_adapter_exact_passthrough(self)",
+            "test_v7_preserved(self)",
+            "test_c3_preserved(self)",
+            "test_public_apis(self)"
+          ]
+        }
+      ],
+      "functions": [
+        "snapshot(snapshot_id, symbol, minute, atm_iv, call_oi, put_oi, pcr, skew)"
+      ]
+    },
+    "tools\\computer.py": {
+      "classes": [],
+      "functions": [
+        "open_notepad()",
+        "open_calculator()",
+        "system_info()",
+        "open_application(application)",
+        "open_website(url)",
+        "open_folder(path)",
+        "current_time()",
+        "list_files(path)",
+        "close_application(application)",
+        "open_file(path)",
+        "search_files(path, pattern)"
+      ]
+    },
+    "tools\\computer_phase1.py": {
+      "classes": [],
+      "functions": [
+        "current_time()",
+        "system_info()",
+        "list_files(path)",
+        "open_website(url)",
+        "open_notepad()",
+        "open_calculator()"
+      ]
+    },
+    "tools\\safety.py": {
+      "classes": [
+        {
+          "name": "SafetyDecision",
+          "methods": []
+        }
+      ],
+      "functions": [
+        "authorize_tool(tool_name, risk, required_capabilities, approved_capabilities)",
+        "verify_tool_result(result)",
+        "verify_tool_postcondition(tool_name, arguments, result)"
+      ]
+    }
+  },
+  "marker_hits": {
+    "omni\\action_replanner.py": [
+      {
+        "line": 9,
+        "markers": [
+          "replan"
+        ],
+        "text": "class ActionReplanner:"
+      },
+      {
+        "line": 62,
+        "markers": [
+          "replan"
+        ],
+        "text": "\"needs_replan\":"
+      },
+      {
+        "line": 164,
+        "markers": [
+          "replan"
+        ],
+        "text": "\"needs_replan\":"
+      },
+      {
+        "line": 195,
+        "markers": [
+          "replan"
+        ],
+        "text": "action_replanner = ("
+      },
+      {
+        "line": 196,
+        "markers": [
+          "replan"
+        ],
+        "text": "ActionReplanner()"
+      }
+    ],
+    "omni\\action_v3_status.py": [
+      {
+        "line": 44,
+        "markers": [
+          "provider_probe"
+        ],
+        "text": ".provider_probe(),"
+      },
+      {
+        "line": 75,
+        "markers": [
+          "replan"
+        ],
+        "text": "\"automatic_replan_execution\":"
+      }
+    ],
+    "omni\\autonomy_engine.py": [
+      {
+        "line": 710,
+        "markers": [
+          "verification"
+        ],
+        "text": "# VERIFICATION"
+      },
+      {
+        "line": 743,
+        "markers": [
+          "verification"
+        ],
+        "text": "\"quality verification: \""
+      }
+    ],
+    "omni\\browser_observation_loop.py": [
+      {
+        "line": 756,
+        "markers": [
+          "provider_probe"
+        ],
+        "text": "def provider_probe("
+      }
+    ],
+    "omni\\coding_mission.py": [
+      {
+        "line": 10,
+        "markers": [
+          "worktree"
+        ],
+        "text": "from omni.git_worktree_engine import ("
+      },
+      {
+        "line": 11,
+        "markers": [
+          "worktree"
+        ],
+        "text": "git_worktree_engine,"
+      },
+      {
+        "line": 115,
+        "markers": [
+          "worktree"
+        ],
+        "text": "git_worktree_engine"
+      },
+      {
+        "line": 140,
+        "markers": [
+          "worktree"
+        ],
+        "text": "git_worktree_engine"
+      },
+      {
+        "line": 153,
+        "markers": [
+          "worktree"
+        ],
+        "text": "worktree,"
+      },
+      {
+        "line": 165,
+        "markers": [
+          "worktree"
+        ],
+        "text": "git_worktree_engine"
+      },
+      {
+        "line": 167,
+        "markers": [
+          "worktree"
+        ],
+        "text": "worktree,"
+      },
+      {
+        "line": 187,
+        "markers": [
+          "worktree"
+        ],
+        "text": "worktree,"
+      },
+      {
+        "line": 200,
+        "markers": [
+          "worktree"
+        ],
+        "text": "git_worktree_engine"
+      },
+      {
+        "line": 202,
+        "markers": [
+          "worktree"
+        ],
+        "text": "worktree,"
+      },
+      {
+        "line": 214,
+        "markers": [
+          "worktree"
+        ],
+        "text": "worktree,"
+      },
+      {
+        "line": 219,
+        "markers": [
+          "worktree"
+        ],
+        "text": "worktree"
+      }
+    ],
+    "omni\\computer_operator.py": [
+      {
+        "line": 15,
+        "markers": [
+          "replan"
+        ],
+        "text": "from omni.action_replanner import ("
+      },
+      {
+        "line": 16,
+        "markers": [
+          "replan"
+        ],
+        "text": "action_replanner,"
+      },
+      {
+        "line": 46,
+        "markers": [
+          "safe_file_handoff"
+        ],
+        "text": "from omni.safe_file_handoff import ("
+      },
+      {
+        "line": 47,
+        "markers": [
+          "safe_file_handoff"
+        ],
+        "text": "safe_file_handoff,"
+      },
+      {
+        "line": 78,
+        "markers": [
+          "replan"
+        ],
+        "text": "needs_replan: bool = False"
+      },
+      {
+        "line": 80,
+        "markers": [
+          "replan"
+        ],
+        "text": "replan: object = None"
+      },
+      {
+        "line": 326,
+        "markers": [
+          "set_text"
+        ],
+        "text": "\"ui.set_text\","
+      },
+      {
+        "line": 912,
+        "markers": [
+          "set_text"
+        ],
+        "text": "== \"ui.set_text\""
+      },
+      {
+        "line": 959,
+        "markers": [
+          "set_text"
+        ],
+        "text": "\"semantic_ui.set_text\","
+      },
+      {
+        "line": 991,
+        "markers": [
+          "screen.capture"
+        ],
+        "text": "== \"screen.capture\""
+      },
+      {
+        "line": 1028,
+        "markers": [
+          "safe_file_handoff"
+        ],
+        "text": "safe_file_handoff"
+      },
+      {
+        "line": 1291,
+        "markers": [
+          "set_text"
+        ],
+        "text": "== \"ui.set_text\""
+      },
+      {
+        "line": 1295,
+        "markers": [
+          "set_text"
+        ],
+        "text": "semantic_ui.set_text("
+      },
+      {
+        "line": 1558,
+        "markers": [
+          "safe_file_handoff"
+        ],
+        "text": "safe_file_handoff"
+      },
+      {
+        "line": 1622,
+        "markers": [
+          "replan"
+        ],
+        "text": "needs_replan="
+      },
+      {
+        "line": 1681,
+        "markers": [
+          "replan"
+        ],
+        "text": "needs_replan="
+      },
+      {
+        "line": 1684,
+        "markers": [
+          "replan"
+        ],
+        "text": "replan={"
+      },
+      {
+        "line": 1733,
+        "markers": [
+          "replan"
+        ],
+        "text": "needs_replan="
+      },
+      {
+        "line": 1736,
+        "markers": [
+          "replan"
+        ],
+        "text": "replan={"
+      },
+      {
+        "line": 1831,
+        "markers": [
+          "retry"
+        ],
+        "text": "# Never retry an interactive action automatically."
+      },
+      {
+        "line": 1916,
+        "markers": [
+          "replan"
+        ],
+        "text": "replan = ("
+      },
+      {
+        "line": 1917,
+        "markers": [
+          "replan"
+        ],
+        "text": "action_replanner"
+      },
+      {
+        "line": 1926,
+        "markers": [
+          "replan"
+        ],
+        "text": "replan = {"
+      },
+      {
+        "line": 1927,
+        "markers": [
+          "replan"
+        ],
+        "text": "\"needs_replan\":"
+      },
+      {
+        "line": 1975,
+        "markers": [
+          "replan"
+        ],
+        "text": "needs_replan="
+      }
+    ],
+    "omni\\computer_operator_v2.py": [
+      {
+        "line": 11,
+        "markers": [
+          "replan"
+        ],
+        "text": "from omni.action_replanner import ("
+      },
+      {
+        "line": 12,
+        "markers": [
+          "replan"
+        ],
+        "text": "action_replanner,"
+      },
+      {
+        "line": 83,
+        "markers": [
+          "replan"
+        ],
+        "text": "needs_replan: bool = False"
+      },
+      {
+        "line": 85,
+        "markers": [
+          "replan"
+        ],
+        "text": "replan: object = None"
+      },
+      {
+        "line": 607,
+        "markers": [
+          "replan"
+        ],
+        "text": "needs_replan="
+      },
+      {
+        "line": 610,
+        "markers": [
+          "replan"
+        ],
+        "text": "replan={"
+      },
+      {
+        "line": 784,
+        "markers": [
+          "replan"
+        ],
+        "text": "replan = ("
+      },
+      {
+        "line": 785,
+        "markers": [
+          "replan"
+        ],
+        "text": "action_replanner"
+      },
+      {
+        "line": 794,
+        "markers": [
+          "replan"
+        ],
+        "text": "replan = {"
+      },
+      {
+        "line": 795,
+        "markers": [
+          "replan"
+        ],
+        "text": "\"needs_replan\":"
+      },
+      {
+        "line": 869,
+        "markers": [
+          "replan"
+        ],
+        "text": "needs_replan="
+      },
+      {
+        "line": 872,
+        "markers": [
+          "replan"
+        ],
+        "text": "replan="
+      },
+      {
+        "line": 873,
+        "markers": [
+          "replan"
+        ],
+        "text": "replan,"
+      },
+      {
+        "line": 923,
+        "markers": [
+          "replan"
+        ],
+        "text": "needs_replan=False,"
+      },
+      {
+        "line": 927,
+        "markers": [
+          "replan"
+        ],
+        "text": "def validate_replan("
+      }
+    ],
+    "omni\\computer_operator_v3_status.py": [
+      {
+        "line": 55,
+        "markers": [
+          "replan"
+        ],
+        "text": "\"automatic_replan_execution\":"
+      }
+    ],
+    "omni\\desktop_automation.py": [
+      {
+        "line": 247,
+        "markers": [
+          "focus"
+        ],
+        "text": "def focus_window("
+      },
+      {
+        "line": 264,
+        "markers": [
+          "focus"
+        ],
+        "text": "\"desktop.focus_window\","
+      },
+      {
+        "line": 367,
+        "markers": [
+          "cursor"
+        ],
+        "text": "if not user32.SetCursorPos("
+      },
+      {
+        "line": 377,
+        "markers": [
+          "cursor"
+        ],
+        "text": "\"Unable to move cursor.\","
+      }
+    ],
+    "omni\\desktop_target_executor.py": [
+      {
+        "line": 186,
+        "markers": [
+          "coordinate"
+        ],
+        "text": "\"Vision coordinates invalid.\","
+      },
+      {
+        "line": 204,
+        "markers": [
+          "coordinate"
+        ],
+        "text": "\"Vision coordinates non-finite.\","
+      },
+      {
+        "line": 220,
+        "markers": [
+          "coordinate"
+        ],
+        "text": "\"coordinate threshold.\""
+      },
+      {
+        "line": 239,
+        "markers": [
+          "coordinate"
+        ],
+        "text": "# Coordinate execution is only safe when"
+      },
+      {
+        "line": 241,
+        "markers": [
+          "coordinate"
+        ],
+        "text": "# current screen coordinate space."
+      },
+      {
+        "line": 256,
+        "markers": [
+          "coordinate"
+        ],
+        "text": "\"Vision coordinate execution \""
+      },
+      {
+        "line": 290,
+        "markers": [
+          "coordinate"
+        ],
+        "text": "\"Vision coordinate out of bounds.\","
+      },
+      {
+        "line": 342,
+        "markers": [
+          "coordinate"
+        ],
+        "text": "\"vision-coordinate\","
+      },
+      {
+        "line": 352,
+        "markers": [
+          "coordinate"
+        ],
+        "text": "\"v4.desktop.coordinate_click\","
+      },
+      {
+        "line": 378,
+        "markers": [
+          "coordinate"
+        ],
+        "text": "\"Vision-only coordinate \""
+      },
+      {
+        "line": 384,
+        "markers": [
+          "coordinate"
+        ],
+        "text": "\"visual-coordinate-click\","
+      },
+      {
+        "line": 497,
+        "markers": [
+          "set_text"
+        ],
+        "text": "def prepare_set_text("
+      },
+      {
+        "line": 581,
+        "markers": [
+          "set_text"
+        ],
+        "text": "\"ui.set_text\","
+      },
+      {
+        "line": 637,
+        "markers": [
+          "coordinate"
+        ],
+        "text": "def _coordinate_click("
+      },
+      {
+        "line": 645,
+        "markers": [
+          "cursor"
+        ],
+        "text": "if not user32.SetCursorPos("
+      },
+      {
+        "line": 655,
+        "markers": [
+          "cursor"
+        ],
+        "text": "\"SetCursorPos failed.\""
+      },
+      {
+        "line": 740,
+        "markers": [
+          "coordinate"
+        ],
+        "text": "== \"vision-coordinate\""
+      },
+      {
+        "line": 764,
+        "markers": [
+          "coordinate"
+        ],
+        "text": "\"Visual coordinate approval \""
+      },
+      {
+        "line": 815,
+        "markers": [
+          "coordinate"
+        ],
+        "text": "self._coordinate_click("
+      },
+      {
+        "line": 831,
+        "markers": [
+          "coordinate"
+        ],
+        "text": "\"vision-coordinate\","
+      },
+      {
+        "line": 854,
+        "markers": [
+          "set_text"
+        ],
+        "text": "def execute_set_text("
+      },
+      {
+        "line": 880,
+        "markers": [
+          "set_text"
+        ],
+        "text": "return semantic_ui.set_text("
+      }
+    ],
+    "omni\\mission_commands.py": [
+      {
+        "line": 182,
+        "markers": [
+          "verification"
+        ],
+        "text": "verification = ("
+      },
+      {
+        "line": 191,
+        "markers": [
+          "verification"
+        ],
+        "text": "f\"{verification}]\\n\""
+      }
+    ],
+    "omni\\mission_control.py": [
+      {
+        "line": 33,
+        "markers": [
+          "coordinate"
+        ],
+        "text": "r\"\\bcoordinate (?:the |my )?(?:agents|specialists|departments)\\b\","
+      },
+      {
+        "line": 36,
+        "markers": [
+          "coordinate"
+        ],
+        "text": "r\"\\bplan and (?:execute|build|coordinate)\\b\","
+      },
+      {
+        "line": 534,
+        "markers": [
+          "verification"
+        ],
+        "text": "\"critic_verification\": True,"
+      }
+    ],
+    "omni\\observed_workflow.py": [
+      {
+        "line": 36,
+        "markers": [
+          "replan"
+        ],
+        "text": "needs_replan: bool"
+      },
+      {
+        "line": 279,
+        "markers": [
+          "replan"
+        ],
+        "text": "needs_replan=True,"
+      },
+      {
+        "line": 299,
+        "markers": [
+          "replan"
+        ],
+        "text": "needs_replan=False,"
+      }
+    ],
+    "omni\\operator_dashboard.py": [
+      {
+        "line": 204,
+        "markers": [
+          "replan"
+        ],
+        "text": "\"needs_replan\","
+      }
+    ],
+    "omni\\operator_resume.py": [
+      {
+        "line": 9,
+        "markers": [
+          "resume"
+        ],
+        "text": "class OperatorResumeManager:"
+      },
+      {
+        "line": 19,
+        "markers": [
+          "replan"
+        ],
+        "text": ".validate_replan("
+      },
+      {
+        "line": 64,
+        "markers": [
+          "resume"
+        ],
+        "text": "def resume("
+      },
+      {
+        "line": 86,
+        "markers": [
+          "resume"
+        ],
+        "text": "operator_resume_manager = ("
+      },
+      {
+        "line": 87,
+        "markers": [
+          "resume"
+        ],
+        "text": "OperatorResumeManager()"
+      }
+    ],
+    "omni\\operator_runtime.py": [
+      {
+        "line": 464,
+        "markers": [
+          "cursor"
+        ],
+        "text": "\"cursor\":"
+      },
+      {
+        "line": 479,
+        "markers": [
+          "verification"
+        ],
+        "text": "\"verification_steps\":"
+      },
+      {
+        "line": 488,
+        "markers": [
+          "replan"
+        ],
+        "text": "\"replan\":"
+      },
+      {
+        "line": 618,
+        "markers": [
+          "worktree"
+        ],
+        "text": "def _worktree("
+      },
+      {
+        "line": 625,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"worktree\""
+      },
+      {
+        "line": 637,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"worktree_ref\""
+      },
+      {
+        "line": 653,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"worktree_ref has no \""
+      },
+      {
+        "line": 659,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"worktree\""
+      },
+      {
+        "line": 667,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"produce worktree.\""
+      },
+      {
+        "line": 721,
+        "markers": [
+          "set_text"
+        ],
+        "text": "== \"desktop.natural_set_text\""
+      },
+      {
+        "line": 726,
+        "markers": [
+          "set_text"
+        ],
+        "text": ".prepare_set_text("
+      },
+      {
+        "line": 1086,
+        "markers": [
+          "worktree"
+        ],
+        "text": "== \"coding.create_worktree\""
+      },
+      {
+        "line": 1105,
+        "markers": [
+          "worktree"
+        ],
+        "text": "== \"coding.test_worktree\""
+      },
+      {
+        "line": 1108,
+        "markers": [
+          "worktree"
+        ],
+        "text": "worktree = self._worktree("
+      },
+      {
+        "line": 1117,
+        "markers": [
+          "worktree"
+        ],
+        "text": "worktree,"
+      },
+      {
+        "line": 1127,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"worktree\""
+      },
+      {
+        "line": 1128,
+        "markers": [
+          "worktree"
+        ],
+        "text": "] = worktree"
+      },
+      {
+        "line": 1230,
+        "markers": [
+          "set_text"
+        ],
+        "text": "== \"desktop.natural_set_text\""
+      },
+      {
+        "line": 1235,
+        "markers": [
+          "set_text"
+        ],
+        "text": ".execute_set_text("
+      },
+      {
+        "line": 1530,
+        "markers": [
+          "worktree"
+        ],
+        "text": "== \"coding.create_worktree\""
+      },
+      {
+        "line": 1551,
+        "markers": [
+          "worktree"
+        ],
+        "text": "== \"coding.test_worktree\""
+      },
+      {
+        "line": 1558,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"worktree\""
+      },
+      {
+        "line": 1572,
+        "markers": [
+          "worktree"
+        ],
+        "text": "== \"coding.diff_worktree\""
+      },
+      {
+        "line": 1575,
+        "markers": [
+          "worktree"
+        ],
+        "text": "worktree = self._worktree("
+      },
+      {
+        "line": 1584,
+        "markers": [
+          "worktree"
+        ],
+        "text": "worktree"
+      }
+    ],
+    "omni\\operator_runtime_schema.py": [
+      {
+        "line": 17,
+        "markers": [
+          "set_text"
+        ],
+        "text": "\"desktop.natural_set_text\","
+      },
+      {
+        "line": 69,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"coding.create_worktree\","
+      },
+      {
+        "line": 70,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"coding.test_worktree\","
+      },
+      {
+        "line": 71,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"coding.diff_worktree\","
+      },
+      {
+        "line": 77,
+        "markers": [
+          "set_text"
+        ],
+        "text": "\"desktop.natural_set_text\","
+      },
+      {
+        "line": 99,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"coding.create_worktree\","
+      },
+      {
+        "line": 100,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"coding.test_worktree\","
+      },
+      {
+        "line": 147,
+        "markers": [
+          "set_text"
+        ],
+        "text": "\"desktop.natural_set_text\": {"
+      },
+      {
+        "line": 383,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"coding.create_worktree\": {"
+      },
+      {
+        "line": 388,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"coding.test_worktree\": {"
+      },
+      {
+        "line": 389,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"worktree\","
+      },
+      {
+        "line": 390,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"worktree_ref\","
+      },
+      {
+        "line": 394,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"coding.diff_worktree\": {"
+      },
+      {
+        "line": 395,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"worktree\","
+      },
+      {
+        "line": 396,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"worktree_ref\","
+      },
+      {
+        "line": 406,
+        "markers": [
+          "window_open"
+        ],
+        "text": "\"window_open\","
+      },
+      {
+        "line": 407,
+        "markers": [
+          "file_exists"
+        ],
+        "text": "\"file_exists\","
+      },
+      {
+        "line": 664,
+        "markers": [
+          "verification"
+        ],
+        "text": "\"Verification specification \""
+      },
+      {
+        "line": 680,
+        "markers": [
+          "verification"
+        ],
+        "text": "\"Unknown verification field(s): \""
+      },
+      {
+        "line": 706,
+        "markers": [
+          "set_text"
+        ],
+        "text": "\"desktop.natural_set_text\","
+      },
+      {
+        "line": 776,
+        "markers": [
+          "worktree"
+        ],
+        "text": "!= \"coding.create_worktree\""
+      },
+      {
+        "line": 780,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"worktree\""
+      },
+      {
+        "line": 783,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"worktree_ref\""
+      },
+      {
+        "line": 790,
+        "markers": [
+          "worktree"
+        ],
+        "text": "+ \" requires worktree \""
+      },
+      {
+        "line": 791,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"or worktree_ref.\""
+      }
+    ],
+    "omni\\operator_schema.py": [
+      {
+        "line": 13,
+        "markers": [
+          "set_text"
+        ],
+        "text": "\"ui.set_text\","
+      },
+      {
+        "line": 20,
+        "markers": [
+          "screen.capture"
+        ],
+        "text": "\"screen.capture\","
+      },
+      {
+        "line": 35,
+        "markers": [
+          "set_text"
+        ],
+        "text": "\"ui.set_text\","
+      },
+      {
+        "line": 41,
+        "markers": [
+          "screen.capture"
+        ],
+        "text": "\"screen.capture\","
+      }
+    ],
+    "omni\\persistent_browser.py": [
+      {
+        "line": 15,
+        "markers": [
+          "persistentbrowser"
+        ],
+        "text": "class PersistentBrowser:"
+      },
+      {
+        "line": 161,
+        "markers": [
+          "provider_probe"
+        ],
+        "text": "def provider_probe("
+      },
+      {
+        "line": 876,
+        "markers": [
+          "persistentbrowser"
+        ],
+        "text": "PersistentBrowser()"
+      }
+    ],
+    "omni\\reflection_engine.py": [
+      {
+        "line": 101,
+        "markers": [
+          "verification"
+        ],
+        "text": "\"Independent verification completed.\""
+      },
+      {
+        "line": 113,
+        "markers": [
+          "verification"
+        ],
+        "text": "\"Strengthen verification before trusting \""
+      }
+    ],
+    "omni\\safe_file_handoff.py": [
+      {
+        "line": 7,
+        "markers": [
+          "mime"
+        ],
+        "text": "import mimetypes"
+      },
+      {
+        "line": 503,
+        "markers": [
+          "safe_file_handoff"
+        ],
+        "text": "safe_file_handoff = ("
+      }
+    ],
+    "omni\\tool_capability_graph.py": [
+      {
+        "line": 18,
+        "markers": [
+          "set_text"
+        ],
+        "text": "\"ui.set_text\","
+      },
+      {
+        "line": 23,
+        "markers": [
+          "set_text"
+        ],
+        "text": "\"ui.set_text\","
+      },
+      {
+        "line": 24,
+        "markers": [
+          "screen.capture"
+        ],
+        "text": "\"screen.capture\","
+      },
+      {
+        "line": 76,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"isolated_worktree\":"
+      },
+      {
+        "line": 111,
+        "markers": [
+          "worktree"
+        ],
+        "text": "\"git.worktree\","
+      },
+      {
+        "line": 113,
+        "markers": [
+          "replan"
+        ],
+        "text": "\"workflow.replan.propose\","
+      }
+    ],
+    "omni\\trading_intelligence\\derivatives_capture_plans.py": [
+      {
+        "line": 209,
+        "markers": [
+          "replan"
+        ],
+        "text": "class CapturePlanStore:"
+      },
+      {
+        "line": 519,
+        "markers": [
+          "replan"
+        ],
+        "text": "CapturePlanStore()"
+      }
+    ],
+    "omni\\trading_intelligence\\derivatives_session_collector.py": [
+      {
+        "line": 21,
+        "markers": [
+          "replan"
+        ],
+        "text": "CapturePlanStore,"
+      }
+    ],
+    "omni\\universal_learning.py": [
+      {
+        "line": 478,
+        "markers": [
+          "verification"
+        ],
+        "text": "verification_component = ("
+      },
+      {
+        "line": 492,
+        "markers": [
+          "verification"
+        ],
+        "text": "+ verification_component,"
+      }
+    ],
+    "tests\\test_computer_operator.py": [
+      {
+        "line": 23,
+        "markers": [
+          "worktree"
+        ],
+        "text": "from omni.git_worktree_engine import ("
+      },
+      {
+        "line": 24,
+        "markers": [
+          "worktree"
+        ],
+        "text": "GitWorktreeEngine,"
+      },
+      {
+        "line": 33,
+        "markers": [
+          "safe_file_handoff"
+        ],
+        "text": "from omni.safe_file_handoff import ("
+      },
+      {
+        "line": 337,
+        "markers": [
+          "worktree"
+        ],
+        "text": "def test_worktree_merge_blocked(self):"
+      },
+      {
+        "line": 340,
+        "markers": [
+          "worktree"
+        ],
+        "text": "GitWorktreeEngine()"
+      },
+      {
+        "line": 351,
+        "markers": [
+          "worktree"
+        ],
+        "text": "def test_worktree_push_blocked(self):"
+      },
+      {
+        "line": 354,
+        "markers": [
+          "worktree"
+        ],
+        "text": "GitWorktreeEngine()"
+      },
+      {
+        "line": 443,
+        "markers": [
+          "replan"
+        ],
+        "text": "result.replan,"
+      },
+      {
+        "line": 484,
+        "markers": [
+          "worktree"
+        ],
+        "text": ".jarvis_create_worktree"
+      }
+    ],
+    "tests\\test_computer_operator_v2.py": [
+      {
+        "line": 119,
+        "markers": [
+          "provider_probe"
+        ],
+        "text": ".provider_probe()"
+      }
+    ],
+    "tests\\test_computer_operator_v3.py": [
+      {
+        "line": 23,
+        "markers": [
+          "resume"
+        ],
+        "text": "from omni.operator_resume import ("
+      },
+      {
+        "line": 24,
+        "markers": [
+          "resume"
+        ],
+        "text": "OperatorResumeManager,"
+      },
+      {
+        "line": 170,
+        "markers": [
+          "resume"
+        ],
+        "text": "def test_resume_validation("
+      },
+      {
+        "line": 184,
+        "markers": [
+          "resume"
+        ],
+        "text": "OperatorResumeManager()"
+      },
+      {
+        "line": 300,
+        "markers": [
+          "resume"
+        ],
+        "text": ".jarvis_v3_prepare_resume"
+      }
+    ],
+    "tests\\test_computer_operator_v4.py": [
+      {
+        "line": 508,
+        "markers": [
+          "resume"
+        ],
+        "text": ".jarvis_v4_resume_mission"
+      }
+    ],
+    "tests\\test_mission_control.py": [
+      {
+        "line": 51,
+        "markers": [
+          "coordinate"
+        ],
+        "text": "self.assertTrue(is_mission_request(\"Coordinate agents to launch this product\"))"
+      },
+      {
+        "line": 117,
+        "markers": [
+          "coordinate"
+        ],
+        "text": "result = app.execute_command(\"Coordinate agents to build a secure app\", \"master\")"
+      }
+    ],
+    "tests\\test_real_world_action_v2.py": [
+      {
+        "line": 286,
+        "markers": [
+          "retry"
+        ],
+        "text": "def test_observed_workflow_retry(self):"
+      },
+      {
+        "line": 361,
+        "markers": [
+          "replan"
+        ],
+        "text": "def test_observed_failure_requests_replan(self):"
+      },
+      {
+        "line": 391,
+        "markers": [
+          "replan"
+        ],
+        "text": "result.needs_replan"
+      }
+    ],
+    "tests\\test_real_world_action_v3.py": [
+      {
+        "line": 11,
+        "markers": [
+          "replan"
+        ],
+        "text": "from omni.action_replanner import ("
+      },
+      {
+        "line": 12,
+        "markers": [
+          "replan"
+        ],
+        "text": "ActionReplanner,"
+      },
+      {
+        "line": 20,
+        "markers": [
+          "persistentbrowser"
+        ],
+        "text": "PersistentBrowser,"
+      },
+      {
+        "line": 90,
+        "markers": [
+          "persistentbrowser"
+        ],
+        "text": "PersistentBrowser.available()"
+      },
+      {
+        "line": 94,
+        "markers": [
+          "provider_probe"
+        ],
+        "text": "def test_browser_provider_probe(self):"
+      },
+      {
+        "line": 97,
+        "markers": [
+          "persistentbrowser"
+        ],
+        "text": "PersistentBrowser()"
+      },
+      {
+        "line": 98,
+        "markers": [
+          "provider_probe"
+        ],
+        "text": ".provider_probe()"
+      },
+      {
+        "line": 114,
+        "markers": [
+          "persistentbrowser"
+        ],
+        "text": "PersistentBrowser("
+      },
+      {
+        "line": 133,
+        "markers": [
+          "persistentbrowser"
+        ],
+        "text": "PersistentBrowser()"
+      },
+      {
+        "line": 191,
+        "markers": [
+          "replan"
+        ],
+        "text": "def test_replanner_does_not_auto_execute(self):"
+      },
+      {
+        "line": 215,
+        "markers": [
+          "replan"
+        ],
+        "text": "replanner = ActionReplanner("
+      },
+      {
+        "line": 220,
+        "markers": [
+          "replan"
+        ],
+        "text": "proposal = replanner.propose("
+      },
+      {
+        "line": 228,
+        "markers": [
+          "replan"
+        ],
+        "text": "\"needs_replan\""
+      }
+    ],
+    "tests\\test_trading_intelligence_v8.py": [
+      {
+        "line": 31,
+        "markers": [
+          "replan"
+        ],
+        "text": "CapturePlanStore,"
+      },
+      {
+        "line": 266,
+        "markers": [
+          "replan"
+        ],
+        "text": "store = CapturePlanStore("
+      },
+      {
+        "line": 306,
+        "markers": [
+          "replan"
+        ],
+        "text": "plan_store = CapturePlanStore("
+      },
+      {
+        "line": 395,
+        "markers": [
+          "replan"
+        ],
+        "text": "plan_store = CapturePlanStore("
+      }
+    ],
+    "tools\\safety.py": [
+      {
+        "line": 1,
+        "markers": [
+          "verification"
+        ],
+        "text": "\"\"\"Fail-closed risk-policy enforcement and result verification.\"\"\""
+      },
+      {
+        "line": 49,
+        "markers": [
+          "verification"
+        ],
+        "text": "\"\"\"Return a small, consistent post-execution verification record.\"\"\""
+      }
+    ]
+  },
+  "operator_tests": [
+    "tests\\test_computer_operator.py",
+    "tests\\test_computer_operator_v2.py",
+    "tests\\test_computer_operator_v3.py",
+    "tests\\test_computer_operator_v4.py",
+    "tests\\test_mission_control.py",
+    "tests\\test_real_world_action_engine.py",
+    "tests\\test_real_world_action_v2.py",
+    "tests\\test_real_world_action_v3.py"
+  ],
+  "test_results": [
+    {
+      "pattern": "test_*operator*.py",
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "----------------------------------------------------------------------\nRan 49 tests in 4.786s\n\nOK\n"
+    },
+    {
+      "pattern": "test_*browser*.py",
+      "returncode": 5,
+      "stdout": "",
+      "stderr": "----------------------------------------------------------------------\nRan 0 tests in 0.000s\n\nNO TESTS RAN\n"
+    }
+  ],
+  "production_source_modified": false,
+  "live_trading": false
+}
