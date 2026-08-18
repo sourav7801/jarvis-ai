@@ -34,6 +34,10 @@ _TIMESPAN_HOURS = {
 _QUERY_STOP_WORDS = {
     "and", "for", "from", "india", "latest", "market", "markets", "news",
     "price", "prices", "the", "today", "update",
+    # Broad-news intent words should not be mandatory title matches. They are
+    # useful to the provider query, but filtering every returned title for
+    # "world"/"global" can discard legitimate current headlines.
+    "world", "global", "international", "headline", "headlines",
 }
 
 

@@ -50,8 +50,18 @@ class ResearchAgent:
     @staticmethod
     def normalize_news_query(text: str) -> str:
         value = " ".join(str(text or "").split()).strip()
+
+        # Accept natural wrappers such as:
+        # "You give me top 10 news today in the world."
+        # "Can you tell me the top 3 world news?"
         value = re.sub(
-            r"^(?:can|could|would)\s+you\s+(?:please\s+)?",
+            r"^(?:hey\s+|hi\s+|hello\s+)?(?:jarvis[,;:\-]?\s*)?",
+            "",
+            value,
+            flags=re.IGNORECASE,
+        )
+        value = re.sub(
+            r"^(?:(?:can|could|would)\s+you\s+|you\s+)?(?:please\s+)?",
             "",
             value,
             flags=re.IGNORECASE,
@@ -63,21 +73,32 @@ class ResearchAgent:
             flags=re.IGNORECASE,
         )
         value = re.sub(
-            r"^top\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+",
+            r"^(?:the\s+)?top\s+"
+            r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+",
             "",
             value,
             flags=re.IGNORECASE,
         )
-        value = value.strip(" ?!.,:;-")
-        if value.lower() in {
-            "news",
-            "latest news",
-            "current news",
-            "today news",
-            "today's news",
-        }:
-            return "India world technology business latest news"
-        return value or "India world technology business latest news"
+        value = re.sub(
+            r"\b(?:today|today's|current|latest)\b",
+            " ",
+            value,
+            flags=re.IGNORECASE,
+        )
+        value = re.sub(r"\s+", " ", value).strip(" ?!.,:;-")
+
+        lowered = value.lower()
+        if not lowered or lowered in {"news", "the news"}:
+            return "world news"
+
+        if "news" in lowered and (
+            "world" in lowered
+            or "global" in lowered
+            or "international" in lowered
+        ):
+            return "world news"
+
+        return value
 
     def _remember_failure(self, provider: str, detail: str) -> None:
         with self._lock:
@@ -166,8 +187,16 @@ class ResearchAgent:
     def _web_articles(payload: dict[str, Any], limit: int):
         output = []
 
-        for item in list(payload.get("sources") or [])[:limit]:
+        for item in list(payload.get("sources") or []):
             if not isinstance(item, dict):
+                continue
+
+            provider = str(item.get("provider") or "").strip().upper()
+
+            # Wikipedia is useful for background knowledge, but it is not a
+            # current-news provider. Never present encyclopedia pages as today's
+            # headlines merely because live providers are unavailable.
+            if provider == "WIKIPEDIA":
                 continue
 
             output.append(
@@ -178,6 +207,9 @@ class ResearchAgent:
                     "published": item.get("retrieved_at", ""),
                 }
             )
+
+            if len(output) >= limit:
+                break
 
         return output
 
