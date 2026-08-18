@@ -147,16 +147,35 @@ class ReliabilitySupervisor:
     def probe_native_voice(self) -> ProbeResult:
         payload = self._http_json("http://127.0.0.1:8798/health")
         ok = bool(payload and payload.get("success"))
+
         if ok:
-            detail = "Native voice control service responded on 127.0.0.1:8798."
-        else:
-            detail = "Native voice control service did not pass the local health probe."
+            return ProbeResult(
+                "native_voice",
+                True,
+                "ONLINE",
+                "Native voice control service responded on 127.0.0.1:8798.",
+            )
+
+        # V1.1B: native voice being stopped is healthy when the parent
+        # JARVIS UI is intentionally stopped. Restart is appropriate only
+        # when the UI is online and voice is unexpectedly unavailable.
+        ui_online = self._tcp_open("127.0.0.1", 8797)
+
+        if not ui_online:
+            return ProbeResult(
+                "native_voice",
+                True,
+                "STOPPED",
+                "Native voice is stopped while JARVIS UI is stopped.",
+            )
+
         launcher = self.root / "start_jarvis_native_voice.ps1"
+
         return ProbeResult(
             "native_voice",
-            ok,
-            "ONLINE" if ok else "OFFLINE",
-            detail,
+            False,
+            "OFFLINE",
+            "JARVIS UI is online but native voice did not pass the local health probe.",
             repairable=launcher.exists(),
             repair_id="restart_native_voice" if launcher.exists() else None,
         )
