@@ -49,6 +49,8 @@ class ReliabilitySupervisor:
 
     def __init__(self, root: Path | str = ROOT) -> None:
         self.root = Path(root).resolve()
+        self.state_dir = self.root / "data" / "reliability"
+        self.incident_log = self.state_dir / "incidents.jsonl"
 
     # ------------------------------------------------------------------
     # Low-level helpers
@@ -128,12 +130,18 @@ class ReliabilitySupervisor:
 
     def probe_ui(self) -> ProbeResult:
         open_ = self._tcp_open("127.0.0.1", 8797)
+        if open_:
+            return ProbeResult(
+                "jarvis_ui",
+                True,
+                "ONLINE",
+                "127.0.0.1:8797",
+            )
         return ProbeResult(
             "jarvis_ui",
-            open_,
-            "ONLINE" if open_ else "OFFLINE",
-            "127.0.0.1:8797",
-            repairable=False,
+            True,
+            "STOPPED",
+            "127.0.0.1:8797 is not running.",
         )
 
     def probe_native_voice(self) -> ProbeResult:
@@ -151,6 +159,47 @@ class ReliabilitySupervisor:
             detail,
             repairable=launcher.exists(),
             repair_id="restart_native_voice" if launcher.exists() else None,
+        )
+
+    def probe_service_lifecycle(self) -> ProbeResult:
+        ui_online = self._tcp_open("127.0.0.1", 8797)
+        voice_online = bool(
+            self._http_json("http://127.0.0.1:8798/health")
+        )
+
+        if ui_online and voice_online:
+            return ProbeResult(
+                "service_lifecycle",
+                True,
+                "COORDINATED",
+                "UI and native voice are both online.",
+            )
+
+        if not ui_online and not voice_online:
+            return ProbeResult(
+                "service_lifecycle",
+                True,
+                "STOPPED",
+                "UI and native voice are both stopped.",
+            )
+
+        if not ui_online and voice_online:
+            return ProbeResult(
+                "service_lifecycle",
+                False,
+                "ORPHANED_VOICE",
+                "Native voice is running while JARVIS UI is stopped.",
+                repairable=True,
+                repair_id="stop_orphan_native_voice",
+            )
+
+        return ProbeResult(
+            "service_lifecycle",
+            False,
+            "VOICE_MISSING",
+            "JARVIS UI is online but native voice is unavailable.",
+            repairable=True,
+            repair_id="restart_native_voice",
         )
 
     def probe_voice_source(self) -> ProbeResult:
@@ -228,6 +277,7 @@ class ReliabilitySupervisor:
             self.probe_protected_core(),
             self.probe_ui(),
             self.probe_native_voice(),
+            self.probe_service_lifecycle(),
             self.probe_voice_source(),
             self.probe_trading_safety(),
             self.probe_python_compile(),
@@ -239,17 +289,17 @@ class ReliabilitySupervisor:
 
     def _record(self, payload: dict[str, Any]) -> None:
         try:
-            STATE_DIR.mkdir(parents=True, exist_ok=True)
-            with INCIDENT_LOG.open("a", encoding="utf-8") as handle:
+            self.state_dir.mkdir(parents=True, exist_ok=True)
+            with self.incident_log.open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps(payload, ensure_ascii=False, default=str) + "\n")
         except OSError:
             pass
 
     def recent_incidents(self, limit: int = 20) -> list[dict[str, Any]]:
-        if not INCIDENT_LOG.exists():
+        if not self.incident_log.exists():
             return []
         try:
-            lines = INCIDENT_LOG.read_text(encoding="utf-8").splitlines()[-max(1, min(limit, 100)) :]
+            lines = self.incident_log.read_text(encoding="utf-8").splitlines()[-max(1, min(limit, 100)) :]
         except OSError:
             return []
         result: list[dict[str, Any]] = []
@@ -267,11 +317,44 @@ class ReliabilitySupervisor:
     # ------------------------------------------------------------------
 
     def repair(self, repair_id: str) -> dict[str, Any]:
-        if repair_id != "restart_native_voice":
+        allowlist = {
+            "restart_native_voice",
+            "stop_orphan_native_voice",
+        }
+
+        if repair_id not in allowlist:
             return {
                 "success": False,
                 "repair": repair_id,
                 "message": "Repair is not in the Reliability Supervisor safe-runtime allowlist.",
+            }
+
+        if repair_id == "stop_orphan_native_voice":
+            completed = self._run(
+                "powershell.exe",
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                "Get-Process JarvisVoiceService -ErrorAction SilentlyContinue | Stop-Process -Force",
+                timeout=8,
+            )
+            deadline = time.monotonic() + 5.0
+            while time.monotonic() < deadline:
+                if not self._tcp_open("127.0.0.1", 8798):
+                    return {
+                        "success": True,
+                        "repair": repair_id,
+                        "message": "Orphan native voice service stopped and port 8798 was released.",
+                    }
+                time.sleep(0.25)
+            return {
+                "success": False,
+                "repair": repair_id,
+                "message": (
+                    "Native voice stop was attempted but port 8798 is still open. "
+                    f"PowerShell return code={completed.returncode}."
+                ),
             }
 
         launcher = self.root / "start_jarvis_native_voice.ps1"
@@ -326,6 +409,26 @@ class ReliabilitySupervisor:
         results = self.probes()
         failures = [item for item in results if not item.ok]
         repairable = [item.repair_id for item in failures if item.repairable and item.repair_id]
+
+        incidents = []
+        for item in failures:
+            severity = (
+                "critical"
+                if item.name in {"protected_core", "trading_safety", "python_compile"}
+                else "degraded"
+            )
+            incidents.append(
+                {
+                    "component": item.name,
+                    "signature": f"{item.name}:{item.status}".lower(),
+                    "severity": severity,
+                    "status": item.status,
+                    "detail": item.detail,
+                    "repairable": item.repairable,
+                    "repair_id": item.repair_id,
+                }
+            )
+
         payload = {
             "success": not failures,
             "mode": "diagnose",
@@ -334,6 +437,7 @@ class ReliabilitySupervisor:
             "health": "HEALTHY" if not failures else "DEGRADED",
             "probes": [item.to_dict() for item in results],
             "failures": [item.name for item in failures],
+            "incidents": incidents,
             "repairable": repairable,
             "protected_core": next((item.ok for item in results if item.name == "protected_core"), False),
             "live_execution": "LOCKED",
@@ -417,8 +521,15 @@ class ReliabilitySupervisor:
             "PROBES",
         ]
         for probe in payload.get("probes", []):
-            marker = "PASS" if probe.get("ok") else "FAIL"
-            lines.append(f"- {probe.get('name')}: {marker} / {probe.get('status')} - {probe.get('detail', '')}")
+            status = str(probe.get("status") or "")
+            marker = (
+                "INFO"
+                if status == "STOPPED" and probe.get("ok")
+                else ("PASS" if probe.get("ok") else "FAIL")
+            )
+            lines.append(
+                f"- {probe.get('name')}: {marker} / {status} - {probe.get('detail', '')}"
+            )
         repairable = payload.get("repairable", [])
         if repairable:
             lines.extend(["", "SAFE REPAIRS AVAILABLE", *[f"- {item}" for item in repairable]])

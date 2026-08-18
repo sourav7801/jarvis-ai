@@ -210,7 +210,49 @@ def create_safety_branch(label):
     return branch
 
 
-def rollback(original_branch, original_head):
+
+def untracked_files():
+    output = git_text(
+        "ls-files",
+        "--others",
+        "--exclude-standard",
+    )
+
+    return {
+        line.strip().replace("\\", "/")
+        for line in output.splitlines()
+        if line.strip()
+    }
+
+
+def cleanup_untracked_paths(paths, root=ROOT):
+    root = Path(root).resolve()
+    removed = []
+
+    for relative in sorted(set(paths), reverse=True):
+        candidate = (root / relative).resolve()
+
+        try:
+            candidate.relative_to(root)
+        except ValueError:
+            continue
+
+        if candidate.is_file() or candidate.is_symlink():
+            candidate.unlink(missing_ok=True)
+            removed.append(relative)
+
+        parent = candidate.parent
+        while parent != root:
+            try:
+                parent.rmdir()
+            except OSError:
+                break
+            parent = parent.parent
+
+    return removed
+
+
+def rollback(original_branch, original_head, original_untracked=None):
     print("")
     print("======================================")
     print("ROLLBACK")
@@ -229,6 +271,29 @@ def rollback(original_branch, original_head):
             original_branch,
             check=False,
         )
+
+    before = set(original_untracked or ())
+    created = untracked_files() - before
+    removed = cleanup_untracked_paths(created)
+
+    if removed:
+        print(
+            "Removed patch-created untracked files:",
+            ", ".join(sorted(removed)),
+        )
+
+    residual = git_text(
+        "status",
+        "--porcelain",
+    )
+
+    if residual:
+        print(
+            "WARNING: rollback left repository changes:",
+            residual,
+        )
+    else:
+        print("Rollback verification: CLEAN")
 
     print("Previous JARVIS state restored.")
 
@@ -330,6 +395,7 @@ def cmd_apply(args):
         )
 
     original_branch = current_branch()
+    original_untracked = untracked_files()
 
     original_head = git_text(
         "rev-parse",
@@ -488,6 +554,7 @@ def cmd_apply(args):
         rollback(
             original_branch,
             original_head,
+            original_untracked,
         )
 
         raise
