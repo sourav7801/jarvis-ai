@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import re
 import secrets
+import threading
+import time
 import traceback
 
 from http import (
@@ -63,6 +65,17 @@ SENSITIVE = (
     "authorization",
     "cookie",
 )
+
+
+# V3.2B low-latency command coordination.
+#
+# Technical chart analysis should not enter the broad research/collaboration
+# path before FYERS analysis. A small in-flight/cache boundary also prevents
+# repeated voice transcripts from launching the same expensive command twice.
+COMMAND_LOCK = threading.RLock()
+COMMAND_INFLIGHT = set()
+COMMAND_CACHE = {}
+COMMAND_CACHE_SECONDS = 6.0
 
 
 def safe(
@@ -324,6 +337,12 @@ def normalize_agent_command(
             "strategy",
             "find trade",
             "market setup",
+            "look on",
+            "looks on",
+            "look at",
+            "how does",
+            "how is",
+            "tell me",
         )
     )
 
@@ -398,6 +417,84 @@ def normalize_agent_command(
     )
 
 
+
+def fast_trading_command(
+    text,
+):
+
+    """
+    Return True only for the compact technical-analysis envelope produced by
+    normalize_agent_command(), for example ``NIFTY 5m analyze``.
+
+    This deliberately excludes news, fundamentals, research, portfolio, and
+    other broad trading requests so those continue through Master JARVIS.
+    """
+
+    value = str(
+        text
+        or ""
+    ).strip()
+
+    return bool(
+        re.fullmatch(
+            r"[A-Za-z0-9][A-Za-z0-9:_\-.]{0,47}"
+            r"\s+"
+            r"(?:1m|3m|5m|15m|30m|1h|2h|4h|1d)"
+            r"\s+"
+            r"analy(?:ze|se)",
+            value,
+            flags=re.IGNORECASE,
+        )
+    )
+
+
+def command_key(
+    text,
+):
+
+    normalized = normalize_agent_command(
+        text
+    )
+
+    return re.sub(
+        r"\s+",
+        " ",
+        normalized.strip().lower(),
+    )
+
+
+def cached_command_result(
+    key,
+):
+
+    now = time.monotonic()
+
+    with COMMAND_LOCK:
+
+        item = COMMAND_CACHE.get(
+            key
+        )
+
+        if not item:
+            return None
+
+        created_at, result = item
+
+        if (
+            now - created_at
+            > COMMAND_CACHE_SECONDS
+        ):
+
+            COMMAND_CACHE.pop(
+                key,
+                None,
+            )
+
+            return None
+
+        return result
+
+
 def dispatch_command(
     text,
 ):
@@ -408,6 +505,43 @@ def dispatch_command(
     text = normalize_agent_command(
         text
     )
+
+
+    # --------------------------------------------------------
+    # V3.2B FAST TECHNICAL TRADING PATH
+    #
+    # A compact chart-analysis command has already been
+    # classified and normalized by the V3 boundary above.
+    # Route it through the governed AgentRegistry directly.
+    #
+    # This intentionally bypasses broad Master collaboration,
+    # which may add research/news agents and network latency.
+    # --------------------------------------------------------
+
+    if fast_trading_command(
+        text
+    ):
+
+        result = main.route_agent(
+            "trading",
+            text,
+        )
+
+
+        return {
+            "route":
+                "TRADING_FAST",
+
+            "response":
+                render_response(
+                    result
+                ),
+
+            "raw":
+                safe(
+                    result
+                ),
+        }
 
 
     function = getattr(
@@ -1347,6 +1481,59 @@ class Handler(
             )
 
 
+            key = command_key(
+                text
+            )
+
+
+            cached = cached_command_result(
+                key
+            )
+
+
+            if cached is not None:
+
+                return self.send_json(
+                    {
+                        **cached,
+                        "duplicate":
+                            "cached",
+                    }
+                )
+
+
+            with COMMAND_LOCK:
+
+                if key in COMMAND_INFLIGHT:
+
+                    return self.send_json(
+                        {
+                            "success":
+                                True,
+
+                            "route":
+                                "DUPLICATE_SUPPRESSED",
+
+                            "response":
+                                (
+                                    "I'm already working on "
+                                    "that request."
+                                ),
+
+                            "workspace_actions":
+                                actions,
+
+                            "duplicate":
+                                "inflight",
+                        }
+                    )
+
+
+                COMMAND_INFLIGHT.add(
+                    key
+                )
+
+
             try:
 
                 result = dispatch_command(
@@ -1354,24 +1541,37 @@ class Handler(
                 )
 
 
+                payload = {
+                    "success":
+                        True,
+
+                    "route":
+                        result[
+                            "route"
+                        ],
+
+                    "response":
+                        result[
+                            "response"
+                        ],
+
+                    "workspace_actions":
+                        actions,
+                }
+
+
+                with COMMAND_LOCK:
+
+                    COMMAND_CACHE[
+                        key
+                    ] = (
+                        time.monotonic(),
+                        payload,
+                    )
+
+
                 return self.send_json(
-                    {
-                        "success":
-                            True,
-
-                        "route":
-                            result[
-                                "route"
-                            ],
-
-                        "response":
-                            result[
-                                "response"
-                            ],
-
-                        "workspace_actions":
-                            actions,
-                    }
+                    payload
                 )
 
 
@@ -1404,6 +1604,15 @@ class Handler(
                     },
                     500,
                 )
+
+
+            finally:
+
+                with COMMAND_LOCK:
+
+                    COMMAND_INFLIGHT.discard(
+                        key
+                    )
 
 
         return self.send_json(

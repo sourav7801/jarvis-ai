@@ -28,6 +28,13 @@ let lastRoute =
     "MASTER";
 
 
+let commandInFlight =
+    false;
+
+let commandInFlightText =
+    "";
+
+
 async function api(
     path,
     options = {}
@@ -1307,6 +1314,55 @@ async function executeCommand(
         return;
 
 
+    if (commandInFlight) {
+
+        const normalized =
+            text
+            .toLowerCase()
+            .replace(
+                /\s+/g,
+                " "
+            )
+            .trim();
+
+
+        const active =
+            commandInFlightText
+            .toLowerCase()
+            .replace(
+                /\s+/g,
+                " "
+            )
+            .trim();
+
+
+        if (
+            normalized === active
+        ) {
+
+            return;
+        }
+
+
+        addConversation(
+            "JARVIS",
+            "I'm finishing the current request first.",
+            "BUSY"
+        );
+
+
+        return;
+    }
+
+
+    commandInFlight =
+        true;
+
+
+    commandInFlightText =
+        text;
+
+
     input.value = "";
 
 
@@ -1402,6 +1458,16 @@ async function executeCommand(
         setCoreState(
             "error"
         );
+
+
+    } finally {
+
+        commandInFlight =
+            false;
+
+
+        commandInFlightText =
+            "";
     }
 
 
@@ -4323,6 +4389,18 @@ Compatibility marker retained for previous regression tests.
 
 
         if (!value) {
+
+            return false;
+        }
+
+
+        if (commandInFlight) {
+
+            console.debug(
+                "JARVIS voice command deferred while busy:",
+                value
+            );
+
 
             return false;
         }
