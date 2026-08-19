@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JARVIS Quant Trading Intelligence</title>
+<link rel="stylesheet" href="/style.css">
+<script src="https://unpkg.com/lightweight-charts@5.2.0/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">J</div>
+    <div><b>JARVIS QUANT TRADING INTELLIGENCE</b><span>PROFESSIONAL PAPER / RESEARCH TERMINAL</span></div>
+  </div>
+  <div class="top-status">
+    <button id="providerButton" class="status-pill warn">FYERS · CHECKING</button>
+    <span id="cryptoStatus" class="status-pill ok">CRYPTO · PUBLIC DATA</span>
+    <span class="status-pill safe">PAPER MODE</span>
+    <span class="status-pill locked">LIVE EXECUTION LOCKED</span>
+  </div>
+</header>
+
+<main class="terminal-shell">
+  <aside class="watch-panel">
+    <div class="section-title">MARKET WATCH</div>
+    <div id="marketWatch" class="market-watch"></div>
+    <div class="provider-card">
+      <div class="eyebrow">DATA SESSION</div>
+      <b id="providerState">CHECKING</b>
+      <p id="providerMessage">Checking FYERS read-only market data.</p>
+      <button id="loginButton">OPEN FYERS LOGIN</button>
+      <button id="restartButton" class="secondary">RESTART DATA BRIDGE</button>
+      <small>Credentials stay in the local FYERS login terminal. JARVIS does not expose live broker-order APIs.</small>
+    </div>
+  </aside>
+
+  <section class="workspace">
+    <div class="workspace-toolbar">
+      <div class="toolbar-group">
+        <span>LAYOUT</span>
+        <button data-layout="1">1</button>
+        <button data-layout="2">2</button>
+        <button data-layout="4" class="active">4</button>
+        <button data-layout="6">6</button>
+        <button data-layout="8">8</button>
+      </div>
+      <div class="toolbar-group">
+        <span>TIMEFRAME</span>
+        <button data-timeframe="1m">1m</button>
+        <button data-timeframe="5m" class="active">5m</button>
+        <button data-timeframe="15m">15m</button>
+        <button data-timeframe="1h">1h</button>
+        <button data-timeframe="1d">1D</button>
+      </div>
+      <div class="toolbar-group right">
+        <button id="fitButton">FIT</button>
+        <button id="reloadCharts">RELOAD DATA</button>
+      </div>
+    </div>
+
+    <div id="chartGrid" class="chart-grid layout-4"></div>
+
+    <div class="command-dock">
+      <div class="jarvis-mini">J</div>
+      <input id="commandInput" placeholder="Jarvis, scan Nifty 50 · monitor crude oil · show four charts · analyze Bank Nifty">
+      <button id="sendCommand">EXECUTE</button>
+    </div>
+    <div id="commandReply" class="command-reply">Quant terminal ready. Consequential execution remains locked.</div>
+  </section>
+
+  <aside class="intel-panel">
+    <section class="intel-card hero-card">
+      <div class="eyebrow">QUANT SCANNER</div>
+      <div class="hero-row"><b id="scanSymbol">NIFTY</b><span id="scanRegime">WAITING</span></div>
+      <div class="bias-row"><strong id="scanBias">NO SCAN</strong><em id="scanAlignment">—</em></div>
+      <button id="scanButton">SCAN SELECTED MARKET</button>
+    </section>
+
+    <section class="intel-card">
+      <div class="eyebrow">PAPER SETUP</div>
+      <b id="setupState">NO SETUP</b>
+      <div class="level-grid">
+        <div><span>ENTRY REF</span><strong id="entryRef">—</strong></div>
+        <div><span>STOP REF</span><strong id="stopRef">—</strong></div>
+        <div><span>TARGET REF</span><strong id="targetRef">—</strong></div>
+        <div><span>R:R REF</span><strong id="rrRef">—</strong></div>
+      </div>
+    </section>
+
+    <section class="intel-card">
+      <div class="eyebrow">TIMEFRAME EVIDENCE</div>
+      <div id="evidenceList" class="evidence-list"><p>No verified scan yet.</p></div>
+    </section>
+
+    <section class="intel-card compact">
+      <div class="eyebrow">NEXT INTELLIGENCE MODULES</div>
+      <div class="module-grid">
+        <span>OPTION CHAIN</span><span>OI / IV</span><span>FVG</span><span>STRUCTURE</span><span>HEATMAPS</span><span>PORTFOLIO RISK</span>
+      </div>
+    </section>
+  </aside>
+</main>
+
+<footer>
+  <span>JARVIS Quant V2 · read-only data + paper research</span>
+  <span>Charts powered by <a href="https://www.tradingview.com" target="_blank" rel="noreferrer">TradingView Lightweight Charts™</a></span>
+</footer>
+
+<script src="/app.js"></script>
+</body>
+</html>
