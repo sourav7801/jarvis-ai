@@ -1,0 +1,1 @@
+JARVIS Quant Trading Intelligence V3 source checkpoint. Paper/research only. Live broker execution locked.
