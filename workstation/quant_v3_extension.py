@@ -6,7 +6,6 @@ This module is intentionally separate from the V2 HTTP server so V3 can be
 installed/rolled back without destabilizing the chart/data foundation.
 """
 
-from dataclasses import asdict
 from typing import Any, Callable
 
 from omni.trading_intelligence.deribit_option_chain_v3 import fetch_deribit_option_chain
@@ -125,7 +124,7 @@ class QuantV3Extension:
         evaluations = []
         for timeframe in ("1m", "5m", "15m"):
             payload = self._candles(canonical, timeframe, 320)
-            candles = payload.get("candles") or [] if isinstance(payload, dict) else []
+            candles = list(payload.get("candles") or ()) if isinstance(payload, dict) else []
             result = evaluate_strategies(
                 candles,
                 symbol=canonical,
