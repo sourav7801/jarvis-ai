@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 import json
 import re
 import sqlite3
@@ -100,8 +101,20 @@ class PaperTradingDesk:
         connection.execute("PRAGMA busy_timeout=5000")
         return connection
 
+    @contextmanager
+    def _connection(self):
+        connection = self._connect()
+        try:
+            yield connection
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
     def _ensure_schema(self) -> None:
-        with self._lock, self._connect() as conn:
+        with self._lock, self._connection() as conn:
             conn.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS paper_positions (
@@ -179,7 +192,7 @@ class PaperTradingDesk:
             return None
 
     def snapshot(self, mark_loader: Callable[[str], float | None] | None = None) -> dict[str, Any]:
-        with self._lock, self._connect() as conn:
+        with self._lock, self._connection() as conn:
             rows = self._open_rows(conn)
             realized = self._realized_pnl(conn)
             positions: list[PaperPosition] = []
@@ -274,7 +287,7 @@ class PaperTradingDesk:
         if not symbol or entry_value <= 0:
             return {"success": False, "reason": "INVALID_ENTRY", "paper_only": True, "live_execution": False}
 
-        with self._lock, self._connect() as conn:
+        with self._lock, self._connection() as conn:
             if external_id:
                 existing = conn.execute(
                     "SELECT id,status FROM paper_positions WHERE external_id=?",
@@ -403,7 +416,7 @@ class PaperTradingDesk:
         else:
             return {"success": False, "reason": "POSITION_SELECTOR_REQUIRED", "paper_only": True, "live_execution": False}
 
-        with self._lock, self._connect() as conn:
+        with self._lock, self._connection() as conn:
             row = conn.execute(
                 "SELECT * FROM paper_positions WHERE " + " AND ".join(clauses) + " ORDER BY id LIMIT 1",
                 tuple(params),
@@ -437,7 +450,7 @@ class PaperTradingDesk:
 
     def evaluate_stops_targets(self, marks: dict[str, float]) -> list[dict[str, Any]]:
         closed: list[dict[str, Any]] = []
-        with self._lock, self._connect() as conn:
+        with self._lock, self._connection() as conn:
             rows = self._open_rows(conn)
         for row in rows:
             symbol = str(row["symbol"])
@@ -470,7 +483,7 @@ class PaperTradingDesk:
 
     def recent_events(self, limit: int = 50) -> list[dict[str, Any]]:
         bounded = max(1, min(int(limit), 200))
-        with self._lock, self._connect() as conn:
+        with self._lock, self._connection() as conn:
             rows = conn.execute(
                 "SELECT * FROM paper_events ORDER BY id DESC LIMIT ?",
                 (bounded,),

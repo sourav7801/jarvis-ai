@@ -43,6 +43,21 @@ _TERMINAL_NAMES = (
 )
 _OPEN_VERBS = ("open", "launch", "start", "show")
 _MONITOR_MARKERS = ("keep eye", "keep an eye", "watch", "monitor")
+_PAPER_DESK_OPEN_RE = re.compile(
+    r"\b(?:open|launch|show|start)\s+(?:the\s+)?paper\s+trading(?:\s+(?:terminal|desk))?\b",
+    flags=re.IGNORECASE,
+)
+_PAPER_DESK_REQUEST_RE = re.compile(
+    r"\b(?:"
+    r"paper\s+(?:trading\s+)?(?:portfolio|positions?|p\s*(?:&|and)?\s*l|pnl|risk|exposure)|"
+    r"my\s+paper\s+(?:trading\s+)?positions?|"
+    r"current\s+paper\s+(?:trading\s+)?portfolio|"
+    r"(?:open|launch|show|start)\s+(?:the\s+)?paper\s+trading(?:\s+(?:terminal|desk))?|"
+    r"(?:start|stop|enable|disable|run|turn\s+on|turn\s+off)\s+(?:autonomous|automatic|auto)\s+paper\s+trading|"
+    r"(?:autonomous|automatic|auto)\s+paper\s+trading\s+(?:status|state)"
+    r")\b",
+    flags=re.IGNORECASE,
+)
 _TRADING_ACTION_RE = re.compile(
     r"\b(?:"
     r"scan|analy[sz]e|watch|monitor|"
@@ -147,6 +162,8 @@ def _looks_like_terminal_phrase(value: str) -> bool:
 
 def is_explicit_terminal_open(text: str) -> bool:
     value = normalize(text)
+    if _PAPER_DESK_OPEN_RE.search(value):
+        return True
     return (
         _looks_like_terminal_phrase(value)
         and any(verb in value for verb in _OPEN_VERBS)
@@ -163,6 +180,9 @@ def is_quant_terminal_request(text: str) -> bool:
     """
 
     if is_explicit_terminal_open(text):
+        return True
+
+    if _PAPER_DESK_REQUEST_RE.search(normalize(text)):
         return True
 
     if not requested_symbols(text):
@@ -293,7 +313,12 @@ def dispatch_quant_terminal(text: str) -> QuantTerminalDispatch:
 
     if isinstance(terminal_agent, dict):
         speech = str(terminal_agent.get("speech") or "").strip()
-        if speech:
+        action = str(terminal_agent.get("action") or "").strip().lower()
+        unwired = (
+            action == "conversation_only"
+            or "not wired to a deterministic trading action" in speech.lower()
+        )
+        if speech and not (explicit_open and unwired):
             response_parts.append(speech)
     else:
         response_parts.append(

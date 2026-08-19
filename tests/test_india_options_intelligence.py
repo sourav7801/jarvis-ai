@@ -58,7 +58,8 @@ class IndiaOptionsIntelligenceTests(unittest.TestCase):
             },
         ]
         result = analyze_india_option_request(
-            "paper buy nifty 24500 option tomorrow expiry"
+            "paper buy nifty 24500 option tomorrow expiry",
+            today=date(2026, 8, 19),
         )
         self.assertEqual(result["risk_gate"], "OPTION_TYPE_REQUIRED")
         self.assertIsNone(result["paper_intent"])
@@ -74,7 +75,8 @@ class IndiaOptionsIntelligenceTests(unittest.TestCase):
             ]}},
         ]
         result = analyze_india_option_request(
-            "paper sell nifty 24500 call tomorrow expiry"
+            "paper sell nifty 24500 call tomorrow expiry",
+            today=date(2026, 8, 19),
         )
         self.assertEqual(result["risk_gate"], "NAKED_SHORT_OPTION_BLOCKED")
         self.assertIsNone(result["paper_intent"])

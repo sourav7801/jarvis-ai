@@ -216,6 +216,40 @@ class PaperTradeMonitor:
                             risk,
                             price,
                         )
+
+                        try:
+                            from workstation.paper_trading_desk import paper_desk
+
+                            ledger = paper_desk.open_position(
+                                symbol=symbol,
+                                side=action,
+                                entry=float(signal.get("entry") or price),
+                                stop=(
+                                    float(signal.get("stop_loss"))
+                                    if signal.get("stop_loss") is not None
+                                    else None
+                                ),
+                                target=(
+                                    float(signal.get("target"))
+                                    if signal.get("target") is not None
+                                    else None
+                                ),
+                                quantity=None,
+                                timeframe=timeframe,
+                                strategy="LEGACY_APPROVED_SIGNAL",
+                                source="PAPER_MONITOR",
+                                external_id=f"monitor:{session_id}",
+                                metadata={
+                                    "risk_reason": getattr(risk, "reason", None),
+                                },
+                            )
+                            if ledger.get("success"):
+                                current.paper_trade["ledger_position_id"] = ledger.get(
+                                    "position_id"
+                                )
+                        except Exception:
+                            pass
+
                         message = (
                             f"Paper {action} position opened for {symbol}. "
                             "Live execution remains locked."
@@ -238,6 +272,19 @@ class PaperTradeMonitor:
                         )
                         trade["live_execution"] = False
                         current.active = False
+
+                        try:
+                            if price is not None:
+                                from workstation.paper_trading_desk import paper_desk
+
+                                paper_desk.close_position(
+                                    external_id=f"monitor:{session_id}",
+                                    exit_price=float(price),
+                                    reason="OPPOSITE_APPROVED_SIGNAL",
+                                )
+                        except Exception:
+                            pass
+
                         message = (
                             f"Paper position closed for {symbol} on an opposite "
                             "approved signal. Live execution remained locked."

@@ -634,12 +634,18 @@ def agent_payload(text: str) -> dict[str, Any]:
     from workstation.jarvis_trading_workstation_v7 import app as legacy
     from workstation.options_intelligence_router import options_command_payload
     from workstation.option_chart_data import attach_chart_directive
+    from workstation.paper_trading_desk import paper_command_payload
 
     command = str(text or "").strip()
 
     option_result = options_command_payload(command)
     if option_result is not None:
         return attach_chart_directive(command, option_result)
+
+    paper_result = paper_command_payload(command)
+    if paper_result is not None:
+        return paper_result
+
     result = legacy.local_agent(command) or {
         "action": "conversation_only",
         "speech": "That request is not wired to a deterministic trading action yet.",
@@ -683,13 +689,15 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_file(STATIC / "app.js", "application/javascript; charset=utf-8")
         if path == "/option_chart_runtime.js":
             return self.send_file(STATIC / "option_chart_runtime.js", "application/javascript; charset=utf-8")
+        if path == "/paper_desk_runtime.js":
+            return self.send_file(STATIC / "paper_desk_runtime.js", "application/javascript; charset=utf-8")
         if path == "/style.css":
             return self.send_file(STATIC / "style.css", "text/css; charset=utf-8")
         if path == "/api/health":
             return self.send_json(
                 {
                     "ok": True,
-                    "version": "QUANT_TERMINAL_V2",
+                    "version": "QUANT_TERMINAL_V4",
                     "paper_only": True,
                     "live_execution": False,
                 }
@@ -750,6 +758,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(payload, 200 if payload.get("success") else 503)
             except Exception as exc:
                 return self.send_json({"success": False, "message": _safe_message(exc)}, 400)
+        if path == "/api/paper/portfolio":
+            from workstation.paper_trading_desk import portfolio_payload
+
+            return self.send_json(portfolio_payload())
+        if path == "/api/paper/autonomy":
+            from workstation.paper_autonomy_engine import paper_autonomy
+
+            return self.send_json(paper_autonomy.status())
         if path == "/api/scan":
             try:
                 symbol = str((params.get("symbol") or ["NIFTY"])[0])
@@ -768,6 +784,30 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             body = {}
 
+        if path == "/api/paper/command":
+            from workstation.paper_trading_desk import paper_command_payload
+
+            text = str(body.get("text") or "").strip()
+            payload = paper_command_payload(text)
+            if payload is None:
+                return self.send_json(
+                    {
+                        "success": False,
+                        "message": "Unsupported paper-desk command.",
+                        "paper_only": True,
+                        "live_execution": False,
+                    },
+                    400,
+                )
+            return self.send_json(payload)
+        if path == "/api/paper/autonomy/start":
+            from workstation.paper_autonomy_engine import paper_autonomy
+
+            return self.send_json(paper_autonomy.start())
+        if path == "/api/paper/autonomy/stop":
+            from workstation.paper_autonomy_engine import paper_autonomy
+
+            return self.send_json(paper_autonomy.stop())
         if path == "/api/agent":
             text = str(body.get("text") or "").strip()
             if not text:
@@ -799,7 +839,7 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> int:
     start_live_bridge()
     print("=" * 72)
-    print("JARVIS QUANT TRADING INTELLIGENCE V2")
+    print("JARVIS QUANT TRADING INTELLIGENCE V4")
     print("=" * 72)
     print(f"Professional terminal: http://{HOST}:{PORT}")
     print("Charts: Lightweight Charts 5.x")

@@ -235,8 +235,8 @@ def _normalize_contract(row: dict[str, Any] | None) -> dict[str, Any] | None:
     }
 
 
-def analyze_india_option_request(text: str) -> dict[str, Any] | None:
-    request = parse_india_option_request(text)
+def analyze_india_option_request(text: str, *, today: date | None = None) -> dict[str, Any] | None:
+    request = parse_india_option_request(text, today=today)
     if request is None:
         return None
 
@@ -255,6 +255,8 @@ def analyze_india_option_request(text: str) -> dict[str, Any] | None:
                 f"No listed {request.underlying} option expiry matches {request.expiry_date}. "
                 + (f"Nearest listed expiry is {available_dates[0]}." if available_dates else "No expiry data was returned.")
             ),
+            "paper_intent": None,
+            "risk_gate": "EXPIRY_UNAVAILABLE",
             "paper_only": True,
             "live_execution": False,
         }
