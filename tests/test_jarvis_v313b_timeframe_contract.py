@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 
 from workstation.jarvis_v3_chart_provider import (
@@ -228,12 +229,20 @@ class TimeframeContractTests(
             }
 
 
-        _invoke_intraday(
-            get_intraday_data,
-            symbol="CRUDEOIL",
-            timeframe="15m",
-            limit=180,
-        )
+        # This test validates only the FYERS-style function signature and
+        # timeframe contract. Commodity front-month discovery is a separate
+        # concern and may use the live FYERS symbol master, so isolate it here
+        # to keep the unit test deterministic and network-independent.
+        with patch(
+            "workstation.jarvis_v3_chart_provider.resolved_history_symbol",
+            return_value="MCX:CRUDEOIL26AUGFUT",
+        ):
+            _invoke_intraday(
+                get_intraday_data,
+                symbol="CRUDEOIL",
+                timeframe="15m",
+                limit=180,
+            )
 
 
         self.assertEqual(
@@ -241,6 +250,13 @@ class TimeframeContractTests(
                 "timeframe"
             ],
             "15m",
+        )
+
+        self.assertEqual(
+            captured[
+                "symbol"
+            ],
+            "MCX:CRUDEOIL26AUGFUT",
         )
 
 
