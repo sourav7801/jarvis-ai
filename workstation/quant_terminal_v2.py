@@ -633,12 +633,13 @@ def _restart_market_bridge() -> dict[str, Any]:
 def agent_payload(text: str) -> dict[str, Any]:
     from workstation.jarvis_trading_workstation_v7 import app as legacy
     from workstation.options_intelligence_router import options_command_payload
+    from workstation.option_chart_data import attach_chart_directive
 
     command = str(text or "").strip()
 
     option_result = options_command_payload(command)
     if option_result is not None:
-        return option_result
+        return attach_chart_directive(command, option_result)
     result = legacy.local_agent(command) or {
         "action": "conversation_only",
         "speech": "That request is not wired to a deterministic trading action yet.",
@@ -680,6 +681,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_file(STATIC / "index.html", "text/html; charset=utf-8")
         if path == "/app.js":
             return self.send_file(STATIC / "app.js", "application/javascript; charset=utf-8")
+        if path == "/option_chart_runtime.js":
+            return self.send_file(STATIC / "option_chart_runtime.js", "application/javascript; charset=utf-8")
         if path == "/style.css":
             return self.send_file(STATIC / "style.css", "text/css; charset=utf-8")
         if path == "/api/health":
@@ -702,6 +705,44 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(payload, 200 if payload.get("success") else 503)
             except Exception as exc:
                 return self.send_json({"success": False, "message": _safe_message(exc)}, 400)
+        if path == "/api/option-candles":
+            try:
+                from workstation.option_chart_data import option_candles
+
+                provider = str((params.get("provider") or [""])[0])
+                instrument = str((params.get("instrument") or [""])[0])
+                timeframe = str((params.get("timeframe") or ["5m"])[0])
+                bars = int((params.get("bars") or ["500"])[0])
+                payload = option_candles(provider, instrument, timeframe, bars)
+                return self.send_json(payload, 200 if payload.get("success") else 503)
+            except Exception as exc:
+                return self.send_json(
+                    {
+                        "success": False,
+                        "paper_only": True,
+                        "live_execution": False,
+                        "message": _safe_message(exc),
+                    },
+                    400,
+                )
+        if path == "/api/option-live":
+            try:
+                from workstation.option_chart_data import option_live
+
+                provider = str((params.get("provider") or [""])[0])
+                instrument = str((params.get("instrument") or [""])[0])
+                payload = option_live(provider, instrument)
+                return self.send_json(payload, 200 if payload.get("success") else 503)
+            except Exception as exc:
+                return self.send_json(
+                    {
+                        "success": False,
+                        "paper_only": True,
+                        "live_execution": False,
+                        "message": _safe_message(exc),
+                    },
+                    400,
+                )
         if path == "/api/live":
             try:
                 symbol = str((params.get("symbol") or ["NIFTY"])[0])
