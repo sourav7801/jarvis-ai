@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import socket
 
-from workstation.jarvis_trading_workstation_v7 import app as trading_app
+from workstation import quant_terminal_v2 as trading_app
 
 
 def port_open(host: str, port: int) -> bool:
@@ -23,9 +23,11 @@ def main():
         return
 
     print("=" * 72)
-    print("JARVIS QUANT TRADING INTELLIGENCE")
+    print("JARVIS QUANT TRADING INTELLIGENCE V2")
     print("=" * 72)
     print(f"Terminal: http://{trading_app.HOST}:{trading_app.PORT}")
+    print("Charts: professional interactive financial charts")
+    print("Data: FYERS read-only + public crypto market data")
     print("Mode: PAPER / RESEARCH")
     print("Live broker execution: LOCKED")
     trading_app.main()
