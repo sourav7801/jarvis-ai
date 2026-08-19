@@ -41,7 +41,17 @@ _TERMINAL_NAMES = (
     "trading workstation",
 )
 _OPEN_VERBS = ("open", "launch", "start", "show")
-_MONITOR_MARKERS = ("keep eye", "keep an eye", "watch", "monitor", "scan")
+_MONITOR_MARKERS = ("keep eye", "keep an eye", "watch", "monitor")
+_TRADING_ACTION_RE = re.compile(
+    r"\b(?:"
+    r"scan|analy[sz]e|watch|monitor|"
+    r"trade|trades|trading|setup|setups|"
+    r"scalp|scalping|intraday|breakout|"
+    r"vwap|fvg|fair value gap|option chain|"
+    r"open interest|oi|paper trade|paper trading"
+    r")\b",
+    flags=re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -74,21 +84,11 @@ def normalize(text: str) -> str:
     return re.sub(r"\s+", " ", str(text or "").strip().lower())
 
 
-def is_quant_terminal_request(text: str) -> bool:
-    value = normalize(text)
-    return (
-        any(name in value for name in _TERMINAL_NAMES)
-        and any(verb in value for verb in _OPEN_VERBS)
-    )
-
-
 def requested_symbols(text: str) -> tuple[str, ...]:
     """Resolve supported markets in the same order the user mentioned them.
 
     Longer aliases win when aliases overlap, e.g. ``bank nifty`` beats the
-    nested ``nifty`` token and ``nifty 50`` beats ``nifty``.  The old Phase 1
-    implementation iterated alias definitions and therefore returned registry
-    order instead of natural command order.
+    nested ``nifty`` token and ``nifty 50`` beats ``nifty``.
     """
 
     value = normalize(text)
@@ -100,14 +100,7 @@ def requested_symbols(text: str) -> tuple[str, ...]:
             value,
         ):
             start, end = match.span()
-            candidates.append(
-                (
-                    start,
-                    -(end - start),
-                    end,
-                    symbol,
-                )
-            )
+            candidates.append((start, -(end - start), end, symbol))
 
     candidates.sort()
 
@@ -127,6 +120,32 @@ def requested_symbols(text: str) -> tuple[str, ...]:
             found.append(symbol)
 
     return tuple(found)
+
+
+def is_explicit_terminal_open(text: str) -> bool:
+    value = normalize(text)
+    return (
+        any(name in value for name in _TERMINAL_NAMES)
+        and any(verb in value for verb in _OPEN_VERBS)
+    )
+
+
+def is_quant_terminal_request(text: str) -> bool:
+    """Route explicit terminal opens and supported market trading commands.
+
+    A user should not have to repeat "open trading terminal" before every
+    follow-up.  Requests such as "scan Nifty 50" or "analyze crude oil" go
+    directly to Quant Trading Intelligence, while ordinary factual questions
+    such as "what is Nifty 50" stay with Master JARVIS.
+    """
+
+    if is_explicit_terminal_open(text):
+        return True
+
+    if not requested_symbols(text):
+        return False
+
+    return bool(_TRADING_ACTION_RE.search(normalize(text)))
 
 
 def requested_timeframe(text: str, default: str = "15m") -> str:
@@ -211,8 +230,10 @@ def dispatch_quant_terminal(text: str) -> QuantTerminalDispatch:
     symbols = requested_symbols(text)
     timeframe = requested_timeframe(text)
     sessions = ()
+    explicit_open = is_explicit_terminal_open(text)
 
-    browser_opened = _open_terminal_browser()
+    # Do not spawn a new browser tab for every scan/analyze follow-up.
+    browser_opened = _open_terminal_browser() if explicit_open else False
 
     if monitor_requested(text) and symbols:
         sessions = _start_paper_monitors(
@@ -223,9 +244,12 @@ def dispatch_quant_terminal(text: str) -> QuantTerminalDispatch:
 
     terminal_agent = _post_terminal_agent(text)
 
-    response_parts = [
-        "Quant Trading Intelligence terminal opened.",
-    ]
+    response_parts = []
+
+    if explicit_open:
+        response_parts.append("Quant Trading Intelligence terminal opened.")
+    else:
+        response_parts.append("Quant Trading Intelligence accepted the market command.")
 
     if symbols:
         response_parts.append(
@@ -244,20 +268,21 @@ def dispatch_quant_terminal(text: str) -> QuantTerminalDispatch:
             "was resolved from the request."
         )
 
-    if terminal_agent is None:
+    if isinstance(terminal_agent, dict):
+        speech = str(terminal_agent.get("speech") or "").strip()
+        if speech:
+            response_parts.append(speech)
+    else:
         response_parts.append(
-            "The trading workstation command service is still starting; the terminal "
-            "will accept the command once it is ready."
+            "The trading workstation command service is unavailable or still starting."
         )
 
-    if not browser_opened:
+    if explicit_open and not browser_opened:
         response_parts.append(
             f"If the browser did not open automatically, use {TRADING_URL}."
         )
 
-    response_parts.append(
-        "Live broker execution remains locked."
-    )
+    response_parts.append("Live broker execution remains locked.")
 
     return QuantTerminalDispatch(
         success=True,
