@@ -3413,22 +3413,22 @@ Compatibility marker retained for previous regression tests.
             const names = {
 
                 ready:
-                    "? VOICE READY",
+                    "● VOICE READY",
 
                 listening:
-                    "? LISTENING",
+                    "● LISTENING",
 
                 speaking:
-                    "? SPEAKING",
+                    "● SPEAKING",
 
                 thinking:
-                    "? THINKING",
+                    "● THINKING",
 
                 interrupted:
-                    "? I'M LISTENING",
+                    "● I'M LISTENING",
 
                 off:
-                    "? VOICE OFF",
+                    "● VOICE OFF",
 
             };
 
