@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from workstation.quant_terminal_bridge import (
     dispatch_quant_terminal,
+    is_explicit_terminal_open,
     is_quant_terminal_request,
 )
 
@@ -21,6 +22,14 @@ class QuantTradingIntelligenceV7RuntimeTests(unittest.TestCase):
 
     def test_plain_definition_does_not_hijack_master(self):
         self.assertFalse(is_quant_terminal_request("What is Nifty 50?"))
+
+    def test_terminal_open_tolerates_dropped_character_voice_typo(self):
+        text = "open trading terminl"
+        self.assertTrue(is_explicit_terminal_open(text))
+        self.assertTrue(is_quant_terminal_request(text))
+
+    def test_terminal_fuzzy_match_does_not_hijack_generic_trading_phrase(self):
+        self.assertFalse(is_explicit_terminal_open("open trading strategy"))
 
     @patch("workstation.quant_terminal_bridge._open_terminal_browser")
     @patch("workstation.quant_terminal_bridge._post_terminal_agent")
