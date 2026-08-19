@@ -673,6 +673,46 @@ def dispatch_command(
     original_text = str(text or "").strip()
 
 
+    from workstation.quant_terminal_bridge import (
+        dispatch_quant_terminal,
+        is_quant_terminal_request,
+    )
+
+
+    if is_quant_terminal_request(
+        original_text
+    ):
+        terminal = dispatch_quant_terminal(
+            original_text
+        )
+
+        payload = terminal.to_dict()
+
+        conversation_turns.remember(
+            original_text,
+            terminal.response,
+            "QUANT_TRADING_INTELLIGENCE",
+        )
+
+        return {
+            "route":
+                "QUANT_TRADING_INTELLIGENCE",
+
+            "response":
+                terminal.response,
+
+            "workspace_actions":
+                payload[
+                    "workspace_actions"
+                ],
+
+            "raw":
+                safe(
+                    payload
+                ),
+        }
+
+
     if is_reliability_command(
         original_text
     ):

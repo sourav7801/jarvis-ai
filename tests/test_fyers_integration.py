@@ -206,7 +206,7 @@ class FyersMarketDataTests(unittest.TestCase):
         }
         with patch.dict(os.environ, {"JARVIS_MARKET_DATA_PROVIDER": "AUTO"}):
             with patch(
-                "agents.fyers_data_adapter.get_intraday_data",
+                "workstation.fyers_isolated_history_bridge.get_intraday_data_isolated_frame",
                 return_value=provider_result,
             ):
                 result = MarketDataAgent().get_market_data("NIFTY", bars=1)
