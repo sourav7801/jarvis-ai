@@ -28,7 +28,10 @@ def _official_socket_factory() -> SocketFactory:
 class FyersLiveStream:
     """Owns a market-data socket only; order sockets are intentionally absent."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, queue_process_interval_ms: int = 10) -> None:
+        interval = int(queue_process_interval_ms)
+        if interval < 1 or interval > 2000:
+            raise ValueError("queue_process_interval_ms must be between 1 and 2000")
         self._lock = threading.RLock()
         self._socket: Any = None
         self._thread: Optional[threading.Thread] = None
@@ -38,6 +41,8 @@ class FyersLiveStream:
         self._running = False
         self._connected = False
         self._last_error = ""
+        self._queue_process_interval_ms = interval
+        self._queue_tuning_applied = False
 
     def _on_message(self, message: Any) -> None:
         if not isinstance(message, dict):
@@ -117,6 +122,18 @@ class FyersLiveStream:
                 on_error=self._on_error,
                 on_message=self._on_message,
             )
+            setter = getattr(self._socket, "setQueueProcessInterval", None)
+            if callable(setter):
+                try:
+                    setter(self._queue_process_interval_ms)
+                    self._queue_tuning_applied = True
+                except Exception as exc:
+                    # Queue tuning is an optimization, never a reason to take
+                    # read-only market data offline.
+                    self._queue_tuning_applied = False
+                    self._last_error = str(exc)[:240]
+            else:
+                self._queue_tuning_applied = False
             # FYERS SDK workers otherwise default to non-daemon threads and
             # can keep the workstation process alive after Ctrl+C.  This flag
             # is read by the SDK before it creates its WebSocket worker; all
@@ -204,6 +221,9 @@ class FyersLiveStream:
                 "symbols": list(self._symbols),
                 "snapshots": len(self._latest),
                 "error": self._last_error or None,
+                "queue_process_interval_ms": self._queue_process_interval_ms,
+                "queue_tuning_applied": self._queue_tuning_applied,
+                "latency_scope": "sdk_queue_only_not_exchange_or_network_latency",
                 "data_only": True,
             }
 
