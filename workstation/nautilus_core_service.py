@@ -1,17 +1,20 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import platform
 import threading
 import time
+import traceback
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from importlib import import_module
+from pathlib import Path
 from typing import Any
 
 HOST = "127.0.0.1"
 PORT = 8792
 MAX_EVENTS = 5000
+LOG_PATH = Path(r"C:\Jarvis\data\logs\nautilus_core_v52.log")
 
 
 class NautilusCoreState:
@@ -71,46 +74,91 @@ class NautilusCoreState:
 
 
 STATE = NautilusCoreState()
+_STATUS_LOCK = threading.RLock()
+_STARTUP_STATUS: dict[str, Any] = {
+    "success": False,
+    "service": "JARVIS_NAUTILUS_QUANT_CORE",
+    "host": HOST,
+    "port": PORT,
+    "phase": "STARTING",
+    "engine_ready": False,
+    "paper_only": True,
+    "live_execution": False,
+    "error": None,
+}
+
+
+def _log(message: str) -> None:
+    stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    line = f"[{stamp}] {message}"
+    try:
+        LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with LOG_PATH.open("a", encoding="utf-8") as handle:
+            handle.write(line + "\n")
+    except Exception:
+        pass
+    print(line, flush=True)
 
 
 def _module_available(name: str) -> bool:
     try:
-        import_module(name)
-        return True
+        return importlib.util.find_spec(name) is not None
     except Exception:
         return False
 
 
 def _backtest_engine_types():
-    """Resolve the Nautilus v1 low-level backtest API explicitly.
+    """Resolve NautilusTrader's low-level BacktestEngine API defensively.
 
-    NautilusTrader 1.230.0 exposes BacktestEngine and BacktestEngineConfig from
-    ``nautilus_trader.backtest.engine``.  Do not rely on convenience re-exports
-    from ``nautilus_trader.backtest`` because they are not present in every
-    stable wheel.
+    NautilusTrader has moved/re-exported BacktestEngineConfig across release
+    lines.  The pinned Windows wheel is probed against known stable locations
+    instead of assuming one convenience re-export.
     """
 
     from nautilus_trader.backtest.engine import BacktestEngine
-    from nautilus_trader.backtest.engine import BacktestEngineConfig
 
-    return BacktestEngine, BacktestEngineConfig
+    config_error: Exception | None = None
+    for module_name in (
+        "nautilus_trader.backtest.engine",
+        "nautilus_trader.backtest.config",
+        "nautilus_trader.config",
+    ):
+        try:
+            module = __import__(module_name, fromlist=["BacktestEngineConfig"])
+            config_type = getattr(module, "BacktestEngineConfig")
+            return BacktestEngine, config_type, module_name
+        except Exception as exc:
+            config_error = exc
+
+    raise ImportError(
+        "BacktestEngineConfig was not available from known NautilusTrader API paths"
+    ) from config_error
 
 
-def nautilus_status() -> dict[str, Any]:
+def _probe_nautilus() -> dict[str, Any]:
+    started = time.perf_counter()
     try:
         import nautilus_trader
 
-        BacktestEngine, BacktestEngineConfig = _backtest_engine_types()
-
         version = str(getattr(nautilus_trader, "__version__", "unknown"))
+        BacktestEngine, BacktestEngineConfig, config_module = _backtest_engine_types()
         engine = BacktestEngine(config=BacktestEngineConfig())
-        engine.dispose()
+        try:
+            pass
+        finally:
+            engine.dispose()
+
         engine_ready = True
         error = None
+        trace = None
+        engine_module = "nautilus_trader.backtest.engine"
     except Exception as exc:
         version = None
         engine_ready = False
         error = f"{type(exc).__name__}: {exc}"
+        trace = traceback.format_exc(limit=20)
+        config_module = None
+        engine_module = None
 
     adapters = {
         "binance": _module_available("nautilus_trader.adapters.binance"),
@@ -123,24 +171,67 @@ def nautilus_status() -> dict[str, Any]:
         "service": "JARVIS_NAUTILUS_QUANT_CORE",
         "host": HOST,
         "port": PORT,
+        "phase": "READY" if engine_ready else "DEGRADED",
         "nautilus_version": version,
         "python": platform.python_version(),
         "engine_ready": engine_ready,
+        "engine_module": engine_module,
+        "config_module": config_module,
+        "probe_seconds": time.perf_counter() - started,
         "adapters": adapters,
         "components": {
-            "message_bus": True,
-            "data_engine": True,
-            "risk_engine": True,
-            "execution_engine": True,
-            "portfolio": True,
-            "cache": True,
-            "backtest_engine": True,
+            "message_bus": engine_ready,
+            "data_engine": engine_ready,
+            "risk_engine": engine_ready,
+            "execution_engine": engine_ready,
+            "portfolio": engine_ready,
+            "cache": engine_ready,
+            "backtest_engine": engine_ready,
             "sandbox_execution": adapters["sandbox"],
         },
         "execution_mode": "PAPER_SANDBOX_ONLY",
+        "paper_only": True,
         "live_execution": False,
         "error": error,
+        "traceback": trace,
+        "log_path": str(LOG_PATH),
     }
+
+
+def _set_status(payload: dict[str, Any]) -> None:
+    global _STARTUP_STATUS
+    with _STATUS_LOCK:
+        _STARTUP_STATUS = dict(payload)
+
+
+def nautilus_status() -> dict[str, Any]:
+    with _STATUS_LOCK:
+        return dict(_STARTUP_STATUS)
+
+
+def _probe_worker() -> None:
+    _set_status(
+        {
+            **nautilus_status(),
+            "phase": "PROBING",
+            "engine_ready": False,
+            "success": False,
+        }
+    )
+    _log("Nautilus capability probe started")
+    result = _probe_nautilus()
+    _set_status(result)
+    if result.get("engine_ready"):
+        _log(
+            "Nautilus capability probe READY "
+            f"version={result.get('nautilus_version')} "
+            f"config={result.get('config_module')} "
+            f"seconds={result.get('probe_seconds'):.3f}"
+        )
+    else:
+        _log(f"Nautilus capability probe DEGRADED: {result.get('error')}")
+        if result.get("traceback"):
+            _log(str(result.get("traceback")))
 
 
 def _json_body(handler: BaseHTTPRequestHandler) -> dict[str, Any]:
@@ -153,7 +244,7 @@ def _json_body(handler: BaseHTTPRequestHandler) -> dict[str, Any]:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "JarvisNautilusCore/5.1"
+    server_version = "JarvisNautilusCore/5.2"
 
     def log_message(self, *_args: Any) -> None:
         return
@@ -170,11 +261,27 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         path = self.path.split("?", 1)[0]
-        if path in {"/", "/health", "/status"}:
-            self._send(nautilus_status())
+        if path in {"/", "/health"}:
+            status = nautilus_status()
+            self._send(
+                {
+                    "success": True,
+                    "service": "JARVIS_NAUTILUS_QUANT_CORE",
+                    "phase": status.get("phase"),
+                    "engine_ready": bool(status.get("engine_ready")),
+                    "paper_only": True,
+                    "live_execution": False,
+                }
+            )
+            return
+        if path == "/status":
+            status = nautilus_status()
+            self._send(status, 200 if status.get("engine_ready") else 503)
             return
         if path == "/metrics":
-            self._send(STATE.metrics())
+            payload = STATE.metrics()
+            payload["core"] = nautilus_status()
+            self._send(payload)
             return
         if path == "/architecture":
             status = nautilus_status()
@@ -186,7 +293,7 @@ class Handler(BaseHTTPRequestHandler):
                 "research_live_parity": True,
                 "one_live_node_per_process": True,
             }
-            self._send(status)
+            self._send(status, 200 if status.get("engine_ready") else 503)
             return
         self._send({"success": False, "message": "Not found"}, 404)
 
@@ -201,24 +308,27 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/event":
             self._send(STATE.ingest(payload))
             return
-        if path == "/backtest-selftest":
-            self._send(nautilus_status())
+        if path in {"/backtest-selftest", "/probe"}:
+            result = _probe_nautilus()
+            _set_status(result)
+            self._send(result, 200 if result.get("engine_ready") else 503)
             return
         self._send({"success": False, "message": "Not found"}, 404)
 
 
 def main() -> None:
-    status = nautilus_status()
-    if not status.get("engine_ready"):
-        raise RuntimeError(f"Nautilus core unavailable: {status.get('error')}")
+    _log("Starting JARVIS Nautilus Quant Core V5.2")
     server = ThreadingHTTPServer((HOST, PORT), Handler)
-    print("=" * 76)
-    print("JARVIS NAUTILUS QUANT CORE V5.1")
-    print("=" * 76)
-    print(f"Core service: http://{HOST}:{PORT}")
-    print(f"NautilusTrader: {status.get('nautilus_version')}")
-    print("Execution: PAPER / SANDBOX ONLY")
-    print("Live broker execution: LOCKED")
+    worker = threading.Thread(target=_probe_worker, name="nautilus-probe", daemon=True)
+    worker.start()
+
+    print("=" * 76, flush=True)
+    print("JARVIS NAUTILUS QUANT CORE V5.2", flush=True)
+    print("=" * 76, flush=True)
+    print(f"Core service: http://{HOST}:{PORT}", flush=True)
+    print(f"Diagnostics: {LOG_PATH}", flush=True)
+    print("Execution: PAPER / SANDBOX ONLY", flush=True)
+    print("Live broker execution: LOCKED", flush=True)
     server.serve_forever(poll_interval=0.1)
 
 
