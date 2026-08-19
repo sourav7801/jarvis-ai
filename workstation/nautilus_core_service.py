@@ -81,14 +81,29 @@ def _module_available(name: str) -> bool:
         return False
 
 
+def _backtest_engine_types():
+    """Resolve the Nautilus v1 low-level backtest API explicitly.
+
+    NautilusTrader 1.230.0 exposes BacktestEngine and BacktestEngineConfig from
+    ``nautilus_trader.backtest.engine``.  Do not rely on convenience re-exports
+    from ``nautilus_trader.backtest`` because they are not present in every
+    stable wheel.
+    """
+
+    from nautilus_trader.backtest.engine import BacktestEngine
+    from nautilus_trader.backtest.engine import BacktestEngineConfig
+
+    return BacktestEngine, BacktestEngineConfig
+
+
 def nautilus_status() -> dict[str, Any]:
     try:
         import nautilus_trader
-        from nautilus_trader.backtest import BacktestEngine
-        from nautilus_trader.config import BacktestEngineConfig
+
+        BacktestEngine, BacktestEngineConfig = _backtest_engine_types()
 
         version = str(getattr(nautilus_trader, "__version__", "unknown"))
-        engine = BacktestEngine(BacktestEngineConfig())
+        engine = BacktestEngine(config=BacktestEngineConfig())
         engine.dispose()
         engine_ready = True
         error = None
@@ -138,7 +153,7 @@ def _json_body(handler: BaseHTTPRequestHandler) -> dict[str, Any]:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "JarvisNautilusCore/5.0"
+    server_version = "JarvisNautilusCore/5.1"
 
     def log_message(self, *_args: Any) -> None:
         return
@@ -198,7 +213,7 @@ def main() -> None:
         raise RuntimeError(f"Nautilus core unavailable: {status.get('error')}")
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     print("=" * 76)
-    print("JARVIS NAUTILUS QUANT CORE V5")
+    print("JARVIS NAUTILUS QUANT CORE V5.1")
     print("=" * 76)
     print(f"Core service: http://{HOST}:{PORT}")
     print(f"NautilusTrader: {status.get('nautilus_version')}")
