@@ -15,6 +15,9 @@ if not exist "C:\Jarvis\.venv\Scripts\python.exe" (
     exit /b 1
 )
 
+REM JARVIS_QUANT_TRADING_INTELLIGENCE_V1
+start "JARVIS Quant Trading Intelligence" /min "C:\Jarvis\.venv\Scripts\python.exe" "C:\Jarvis\start_jarvis_quant_terminal.py"
+
 "C:\Jarvis\.venv\Scripts\python.exe" ^
 "C:\Jarvis\start_jarvis_v3.py"
 
