@@ -632,8 +632,13 @@ def _restart_market_bridge() -> dict[str, Any]:
 
 def agent_payload(text: str) -> dict[str, Any]:
     from workstation.jarvis_trading_workstation_v7 import app as legacy
+    from workstation.crypto_options_intelligence import option_command_payload
 
     command = str(text or "").strip()
+
+    option_result = option_command_payload(command)
+    if option_result is not None:
+        return option_result
     result = legacy.local_agent(command) or {
         "action": "conversation_only",
         "speech": "That request is not wired to a deterministic trading action yet.",
