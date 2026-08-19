@@ -6,6 +6,7 @@ import urllib.error
 import urllib.request
 import webbrowser
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 from typing import Iterable
 
 TRADING_HOST = "127.0.0.1"
@@ -122,10 +123,32 @@ def requested_symbols(text: str) -> tuple[str, ...]:
     return tuple(found)
 
 
+def _looks_like_terminal_phrase(value: str) -> bool:
+    """Recognize explicit terminal names even with small speech/typing errors.
+
+    Voice transcription commonly drops a character from ``terminal``.  Keep
+    this tolerance narrowly scoped to phrases such as ``trading <terminal>``
+    so ordinary uses of the word trading are not hijacked by the Quant router.
+    """
+
+    if any(name in value for name in _TERMINAL_NAMES):
+        return True
+
+    words = re.findall(r"[a-z0-9]+", value)
+    for index, word in enumerate(words[:-1]):
+        if word not in {"trading", "quant"}:
+            continue
+        candidate = words[index + 1]
+        if SequenceMatcher(None, candidate, "terminal").ratio() >= 0.72:
+            return True
+
+    return False
+
+
 def is_explicit_terminal_open(text: str) -> bool:
     value = normalize(text)
     return (
-        any(name in value for name in _TERMINAL_NAMES)
+        _looks_like_terminal_phrase(value)
         and any(verb in value for verb in _OPEN_VERBS)
     )
 
