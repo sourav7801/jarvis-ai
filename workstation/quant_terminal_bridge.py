@@ -83,24 +83,48 @@ def is_quant_terminal_request(text: str) -> bool:
 
 
 def requested_symbols(text: str) -> tuple[str, ...]:
+    """Resolve supported markets in the same order the user mentioned them.
+
+    Longer aliases win when aliases overlap, e.g. ``bank nifty`` beats the
+    nested ``nifty`` token and ``nifty 50`` beats ``nifty``.  The old Phase 1
+    implementation iterated alias definitions and therefore returned registry
+    order instead of natural command order.
+    """
+
     value = normalize(text)
-    found = []
-    occupied = []
+    candidates = []
 
     for alias, symbol in _SYMBOL_ALIASES:
         for match in re.finditer(
             rf"(?<![a-z0-9]){re.escape(alias)}(?![a-z0-9])",
             value,
         ):
-            span = match.span()
-            if any(
-                span[0] < right and span[1] > left
-                for left, right in occupied
-            ):
-                continue
-            if symbol not in found:
-                found.append(symbol)
-            occupied.append(span)
+            start, end = match.span()
+            candidates.append(
+                (
+                    start,
+                    -(end - start),
+                    end,
+                    symbol,
+                )
+            )
+
+    candidates.sort()
+
+    found = []
+    occupied = []
+
+    for start, _negative_length, end, symbol in candidates:
+        if any(
+            start < right and end > left
+            for left, right in occupied
+        ):
+            continue
+
+        occupied.append((start, end))
+
+        if symbol not in found:
+            found.append(symbol)
 
     return tuple(found)
 
