@@ -15,6 +15,13 @@ if not exist "C:\Jarvis\.venv\Scripts\python.exe" (
     exit /b 1
 )
 
+REM JARVIS_NAUTILUS_QUANT_CORE_V5
+if exist "C:\Jarvis\.venv-nautilus\Scripts\python.exe" (
+    start "JARVIS Nautilus Quant Core" /min "C:\Jarvis\.venv-nautilus\Scripts\python.exe" "C:\Jarvis\start_jarvis_nautilus_core.py"
+) else (
+    echo JARVIS Nautilus environment not found. Quant Core will remain offline.
+)
+
 REM JARVIS_QUANT_TRADING_INTELLIGENCE_V1
 start "JARVIS Quant Trading Intelligence" /min "C:\Jarvis\.venv\Scripts\python.exe" "C:\Jarvis\start_jarvis_quant_terminal.py"
 

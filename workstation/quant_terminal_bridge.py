@@ -185,6 +185,11 @@ def is_quant_terminal_request(text: str) -> bool:
     if _PAPER_DESK_REQUEST_RE.search(normalize(text)):
         return True
 
+    from workstation.nautilus_universe_router import is_universe_scan_request
+
+    if is_universe_scan_request(text):
+        return True
+
     if not requested_symbols(text):
         return False
 

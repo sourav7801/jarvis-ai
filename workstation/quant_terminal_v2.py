@@ -635,6 +635,7 @@ def agent_payload(text: str) -> dict[str, Any]:
     from workstation.options_intelligence_router import options_command_payload
     from workstation.option_chart_data import attach_chart_directive
     from workstation.paper_trading_desk import paper_command_payload
+    from workstation.nautilus_universe_router import universe_command_payload
 
     command = str(text or "").strip()
 
@@ -645,6 +646,10 @@ def agent_payload(text: str) -> dict[str, Any]:
     paper_result = paper_command_payload(command)
     if paper_result is not None:
         return paper_result
+
+    universe_result = universe_command_payload(command)
+    if universe_result is not None:
+        return universe_result
 
     result = legacy.local_agent(command) or {
         "action": "conversation_only",
@@ -691,13 +696,15 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_file(STATIC / "option_chart_runtime.js", "application/javascript; charset=utf-8")
         if path == "/paper_desk_runtime.js":
             return self.send_file(STATIC / "paper_desk_runtime.js", "application/javascript; charset=utf-8")
+        if path == "/nautilus_core_runtime.js":
+            return self.send_file(STATIC / "nautilus_core_runtime.js", "application/javascript; charset=utf-8")
         if path == "/style.css":
             return self.send_file(STATIC / "style.css", "text/css; charset=utf-8")
         if path == "/api/health":
             return self.send_json(
                 {
                     "ok": True,
-                    "version": "QUANT_TERMINAL_V4",
+                    "version": "QUANT_TERMINAL_V5",
                     "paper_only": True,
                     "live_execution": False,
                 }
@@ -839,7 +846,7 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> int:
     start_live_bridge()
     print("=" * 72)
-    print("JARVIS QUANT TRADING INTELLIGENCE V4")
+    print("JARVIS QUANT TRADING INTELLIGENCE V5")
     print("=" * 72)
     print(f"Professional terminal: http://{HOST}:{PORT}")
     print("Charts: Lightweight Charts 5.x")
