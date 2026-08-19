@@ -20,6 +20,20 @@ class QuantTradingIntelligencePhase1Tests(unittest.TestCase):
             )
         )
 
+    def test_standalone_scan_routes_to_quant(self):
+        self.assertTrue(
+            is_quant_terminal_request(
+                "Can you scan a Nifty 50?"
+            )
+        )
+
+    def test_plain_market_question_stays_with_master(self):
+        self.assertFalse(
+            is_quant_terminal_request(
+                "What is Nifty 50?"
+            )
+        )
+
     def test_multi_market_request_resolves_all_markets(self):
         self.assertEqual(
             requested_symbols(
@@ -69,6 +83,32 @@ class QuantTradingIntelligencePhase1Tests(unittest.TestCase):
         start_monitors.assert_called_once()
         open_browser.assert_called_once()
         self.assertEqual(TRADING_URL, "http://127.0.0.1:8787")
+
+    @patch("workstation.quant_terminal_bridge._open_terminal_browser")
+    @patch("workstation.quant_terminal_bridge._post_terminal_agent")
+    @patch("workstation.quant_terminal_bridge._start_paper_monitors")
+    def test_scan_followup_does_not_open_duplicate_browser_or_monitor(
+        self,
+        start_monitors,
+        post_agent,
+        open_browser,
+    ):
+        post_agent.return_value = {
+            "action": "open_quant",
+            "speech": "Opening read-only multi-timeframe intelligence for NIFTY.",
+        }
+
+        result = dispatch_quant_terminal(
+            "Can you scan a Nifty 50?"
+        ).to_dict()
+
+        self.assertTrue(result["success"])
+        self.assertFalse(result["browser_opened"])
+        self.assertEqual(result["symbols"], ["NIFTY"])
+        self.assertIn("Opening read-only multi-timeframe intelligence for NIFTY", result["response"])
+        open_browser.assert_not_called()
+        start_monitors.assert_not_called()
+        post_agent.assert_called_once()
 
 
 if __name__ == "__main__":
