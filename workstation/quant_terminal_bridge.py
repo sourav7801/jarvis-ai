@@ -48,8 +48,8 @@ _TRADING_ACTION_RE = re.compile(
     r"scan|analy[sz]e|watch|monitor|"
     r"trade|trades|trading|setup|setups|"
     r"scalp|scalping|intraday|breakout|"
-    r"vwap|fvg|fair value gap|option chain|"
-    r"open interest|oi|paper trade|paper trading"
+    r"vwap|fvg|fair value gap|option chain|option|call|put|expiry|"
+    r"open interest|oi|buy|sell|paper trade|paper trading"
     r")\b",
     flags=re.IGNORECASE,
 )
