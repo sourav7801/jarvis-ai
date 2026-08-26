@@ -6926,3 +6926,285 @@ window.addEventListener("pointermove", event => {
         start();
     }
 })();
+
+/* JARVIS_V6_TERMINAL_X3_CINEMATIC_JS */
+(function () {
+    "use strict";
+
+    function q(selector, root = document) {
+        return root.querySelector(selector);
+    }
+
+    function qa(selector, root = document) {
+        return Array.from(root.querySelectorAll(selector));
+    }
+
+    function send(text) {
+        const input = document.getElementById("commandInput");
+        const execute = document.getElementById("executeButton");
+        if (!input || !execute) return;
+        input.value = text;
+        input.focus();
+        execute.click();
+    }
+
+    function setMode(mode) {
+        if (typeof window.jarvisV6SetMode === "function") {
+            window.jarvisV6SetMode(mode);
+        }
+    }
+
+    function mountCinematicHome() {
+        const home = document.getElementById("v6x2-home");
+        if (!home || document.getElementById("v6x3-scene")) return;
+
+        const scene = document.createElement("div");
+        scene.id = "v6x3-scene";
+        scene.className = "v6x3-scene";
+
+        scene.innerHTML = `
+            <div class="v6x3-starfield"></div>
+            <div class="v6x3-aurora aurora-a"></div>
+            <div class="v6x3-aurora aurora-b"></div>
+
+            <div class="v6x3-signature">
+                <span class="v6x3-signature-mark">J</span>
+                <div>
+                    <strong>JARVIS</strong>
+                    <small>OMNI INTELLIGENCE CORE</small>
+                </div>
+            </div>
+
+            <div class="v6x3-reactor-zone" id="v6x3-reactor-zone">
+                <div class="v6x3-reactor" id="v6x3-reactor">
+                    <div class="v6x3-reactor-glow"></div>
+                    <div class="v6x3-ring ring-01"></div>
+                    <div class="v6x3-ring ring-02"></div>
+                    <div class="v6x3-ring ring-03"></div>
+                    <div class="v6x3-ring ring-04"></div>
+                    <div class="v6x3-ring ring-05"></div>
+                    <div class="v6x3-ring ring-06"></div>
+
+                    <div class="v6x3-tick-field"></div>
+
+                    <div class="v6x3-reactor-core">
+                        <span class="v6x3-core-letter">J</span>
+                        <span class="v6x3-core-label">ONLINE</span>
+                    </div>
+
+                    <div class="v6x3-orbiter orbiter-a"></div>
+                    <div class="v6x3-orbiter orbiter-b"></div>
+                    <div class="v6x3-orbiter orbiter-c"></div>
+                </div>
+
+                <div class="v6x3-readout readout-agents">
+                    <small>AGENT MESH</small>
+                    <strong id="v6x3-agents">—</strong>
+                    <span>operational nodes</span>
+                </div>
+
+                <div class="v6x3-readout readout-route">
+                    <small>COGNITIVE ROUTE</small>
+                    <strong id="v6x3-route">MASTER</strong>
+                    <span>active inference path</span>
+                </div>
+
+                <div class="v6x3-readout readout-memory">
+                    <small>MEMORY FABRIC</small>
+                    <strong>HYBRID</strong>
+                    <span>persistent · scoped</span>
+                </div>
+
+                <div class="v6x3-readout readout-safety">
+                    <small>EXECUTION GATE</small>
+                    <strong>LOCKED</strong>
+                    <span>paper / shadow only</span>
+                </div>
+            </div>
+
+            <div class="v6x3-intent">
+                <div class="v6x3-intent-kicker">
+                    <span class="v6x3-live-pulse"></span>
+                    <span id="v6x3-state">READY</span>
+                </div>
+
+                <h1>
+                    Ready when
+                    <em>you are.</em>
+                </h1>
+
+                <p id="v6x3-mission">
+                    Give JARVIS an outcome. The system will route,
+                    coordinate, verify and act within its safety envelope.
+                </p>
+
+                <div class="v6x3-actions">
+                    <button
+                        type="button"
+                        data-v6x3-command="Brief me on what needs my attention across JARVIS right now."
+                    >
+                        <span>⌁</span>
+                        Intelligence brief
+                    </button>
+
+                    <button
+                        type="button"
+                        data-v6x3-mode="market"
+                    >
+                        <span>↗</span>
+                        Quant core
+                    </button>
+
+                    <button
+                        type="button"
+                        data-v6x3-mode="missions"
+                    >
+                        <span>◇</span>
+                        Mission control
+                    </button>
+                </div>
+            </div>
+
+            <div class="v6x3-mode-orbit">
+                <button type="button" data-v6x3-mode="home" aria-label="Core">
+                    <span>CORE</span>
+                </button>
+
+                <button type="button" data-v6x3-mode="market" aria-label="Market">
+                    <span>MARKET</span>
+                </button>
+
+                <button type="button" data-v6x3-mode="research" aria-label="Intelligence">
+                    <span>INTEL</span>
+                </button>
+
+                <button type="button" data-v6x3-mode="missions" aria-label="Missions">
+                    <span>MISSION</span>
+                </button>
+
+                <button type="button" data-v6x3-mode="system" aria-label="System">
+                    <span>SYSTEM</span>
+                </button>
+            </div>
+
+            <div class="v6x3-corner-data corner-left">
+                <small>VOICE</small>
+                <strong>HOT</strong>
+            </div>
+
+            <div class="v6x3-corner-data corner-right">
+                <small>CONTROL</small>
+                <strong>GOVERNED</strong>
+            </div>
+        `;
+
+        home.appendChild(scene);
+
+        qa("[data-v6x3-command]", scene).forEach((button) => {
+            button.addEventListener("click", () => {
+                send(button.dataset.v6x3Command || "");
+            });
+        });
+
+        qa("[data-v6x3-mode]", scene).forEach((button) => {
+            button.addEventListener("click", () => {
+                setMode(button.dataset.v6x3Mode || "home");
+            });
+        });
+
+        const zone = document.getElementById("v6x3-reactor-zone");
+        const reactor = document.getElementById("v6x3-reactor");
+
+        if (zone && reactor) {
+            zone.addEventListener("pointermove", (event) => {
+                const rect = zone.getBoundingClientRect();
+                const px = (event.clientX - rect.left) / rect.width - 0.5;
+                const py = (event.clientY - rect.top) / rect.height - 0.5;
+
+                reactor.style.setProperty("--rx", `${-py * 10}deg`);
+                reactor.style.setProperty("--ry", `${px * 12}deg`);
+                reactor.style.setProperty("--tx", `${px * 8}px`);
+                reactor.style.setProperty("--ty", `${py * 8}px`);
+            });
+
+            zone.addEventListener("pointerleave", () => {
+                reactor.style.setProperty("--rx", "0deg");
+                reactor.style.setProperty("--ry", "0deg");
+                reactor.style.setProperty("--tx", "0px");
+                reactor.style.setProperty("--ty", "0px");
+            });
+        }
+    }
+
+    function syncTelemetry() {
+        const agentSource = document.getElementById("agentCount");
+        const routeSource = document.getElementById("activeRoute");
+        const stateSource = document.getElementById("masterState");
+        const missionSource = document.getElementById("coreMission");
+
+        const agents = document.getElementById("v6x3-agents");
+        const route = document.getElementById("v6x3-route");
+        const state = document.getElementById("v6x3-state");
+        const mission = document.getElementById("v6x3-mission");
+
+        if (agents && agentSource) {
+            agents.textContent = (agentSource.textContent || "—").trim();
+        }
+
+        if (route && routeSource) {
+            route.textContent = (routeSource.textContent || "MASTER").trim();
+        }
+
+        if (state && stateSource) {
+            state.textContent = (stateSource.textContent || "READY").trim();
+        }
+
+        if (mission && missionSource) {
+            const value = (missionSource.textContent || "").trim();
+            if (value && value !== "Waiting for your command.") {
+                mission.textContent = value;
+            }
+        }
+    }
+
+    function mount() {
+        if (!document.body.classList.contains("v6x2-active")) return false;
+
+        document.body.classList.add("v6x3-cinematic-active");
+        mountCinematicHome();
+        syncTelemetry();
+
+        if (!window.__jarvisV6X3Telemetry) {
+            window.__jarvisV6X3Telemetry =
+                window.setInterval(syncTelemetry, 650);
+        }
+
+        return true;
+    }
+
+    function start() {
+        let attempts = 0;
+
+        const timer = window.setInterval(() => {
+            attempts += 1;
+
+            if (mount()) {
+                window.clearInterval(timer);
+                return;
+            }
+
+            if (attempts >= 50) {
+                window.clearInterval(timer);
+                console.error(
+                    "JARVIS V6 X3 could not find Terminal X2."
+                );
+            }
+        }, 100);
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", start);
+    } else {
+        start();
+    }
+})();
