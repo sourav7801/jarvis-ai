@@ -6117,3 +6117,359 @@ window.addEventListener("pointermove", event => {
 
 
 })();
+
+/* JARVIS_V6_TERMINAL_X_JS */
+(function () {
+    "use strict";
+
+    function make(tag, className, text) {
+        const el = document.createElement(tag);
+        if (className) el.className = className;
+        if (text !== undefined && text !== null) el.textContent = text;
+        return el;
+    }
+
+    function setActiveRail(mode) {
+        document.querySelectorAll(".v6x-rail-button").forEach((button) => {
+            button.classList.toggle("active", button.dataset.mode === mode);
+        });
+    }
+
+    function setHeader(mode) {
+        const title = document.getElementById("v6x-mode-title");
+        const sub = document.getElementById("v6x-mode-sub");
+
+        const labels = {
+            home: ["JARVIS CORE", "Unified intelligence workspace"],
+            chart: ["MARKET CANVAS", "Verified live chart workspace"],
+            research: ["INTELLIGENCE", "Research, evidence and synthesis"],
+            missions: ["MISSION CONTROL", "Agent orchestration and execution"],
+            system: ["SYSTEM", "Runtime, health and safeguards"]
+        };
+
+        const value = labels[mode] || labels.home;
+        if (title) title.textContent = value[0];
+        if (sub) sub.textContent = value[1];
+    }
+
+    function hideAllJarvisWindows() {
+        document.querySelectorAll(".jarvisWindow").forEach((win) => {
+            win.style.display = "none";
+            win.classList.remove("minimized", "maximized");
+        });
+    }
+
+    function showWorkspace(name) {
+        const win = document.getElementById("win-" + name);
+        if (!win) return null;
+
+        win.style.display = "block";
+        win.style.left = "0";
+        win.style.top = "0";
+        win.style.width = "100%";
+        win.style.height = "100%";
+        win.style.zIndex = "20";
+        win.classList.remove("minimized", "maximized");
+
+        return win;
+    }
+
+    window.jarvisV6SetMode = function (mode) {
+        if (mode === "trading") {
+            window.open(
+                "http://127.0.0.1:8787",
+                "_blank",
+                "noopener"
+            );
+            return;
+        }
+
+        hideAllJarvisWindows();
+
+        const mapping = {
+            home: "core",
+            chart: "chart",
+            research: "research",
+            missions: "missions",
+            system: "system"
+        };
+
+        showWorkspace(mapping[mode] || "core");
+
+        document.body.dataset.v6xMode = mode;
+        setActiveRail(mode);
+        setHeader(mode);
+
+        try {
+            localStorage.setItem("jarvisV6TerminalXMode", mode);
+        } catch (_) {}
+    };
+
+    function updateClock() {
+        const clock = document.getElementById("v6x-clock");
+        if (!clock) return;
+
+        clock.textContent = new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit"
+        });
+    }
+
+    function mirrorRuntimeState() {
+        const route = document.getElementById("activeRoute");
+        const agents = document.getElementById("agentCount");
+        const masterState = document.getElementById("masterState");
+
+        const routeTarget = document.getElementById("v6x-route-value");
+        const agentTarget = document.getElementById("v6x-agent-value");
+        const stateTarget = document.getElementById("v6x-state-value");
+
+        if (routeTarget && route) {
+            routeTarget.textContent = route.textContent || "MASTER";
+        }
+
+        if (agentTarget && agents) {
+            agentTarget.textContent = agents.textContent || "—";
+        }
+
+        if (stateTarget && masterState) {
+            stateTarget.textContent = masterState.textContent || "READY";
+        }
+    }
+
+    function createRailButton(mode, glyph, label) {
+        const button = make("button", "v6x-rail-button");
+        button.type = "button";
+        button.dataset.mode = mode;
+        button.title = label;
+
+        const icon = make("span", "v6x-rail-icon", glyph);
+        const text = make("span", "v6x-rail-label", label);
+
+        button.append(icon, text);
+        button.addEventListener("click", () => {
+            window.jarvisV6SetMode(mode);
+        });
+
+        return button;
+    }
+
+    function initTerminalX() {
+        if (document.getElementById("v6x-root")) return;
+
+        const masterConsole = document.getElementById("masterConsole");
+        const desktop = document.getElementById("desktop");
+
+        if (!masterConsole || !desktop) {
+            console.error("JARVIS V6 Terminal X: required DOM nodes missing");
+            return;
+        }
+
+        document.body.classList.add("v6x-terminal-active");
+
+        const root = make("div", "v6x-root");
+        root.id = "v6x-root";
+
+        const rail = make("aside", "v6x-rail");
+
+        const brand = make("div", "v6x-brand");
+        brand.innerHTML = `
+            <div class="v6x-brand-orb">
+                <span>J</span>
+            </div>
+            <div class="v6x-brand-pulse"></div>
+        `;
+
+        const railNav = make("div", "v6x-rail-nav");
+        railNav.append(
+            createRailButton("home", "⌂", "CORE"),
+            createRailButton("chart", "⌁", "MARKET"),
+            createRailButton("research", "◎", "INTEL"),
+            createRailButton("missions", "◇", "MISSION"),
+            createRailButton("system", "⚙", "SYSTEM")
+        );
+
+        const trade = createRailButton("trading", "↗", "QUANT");
+        trade.classList.add("v6x-trade-button");
+
+        const railBottom = make("div", "v6x-rail-bottom");
+        railBottom.append(trade);
+
+        rail.append(brand, railNav, railBottom);
+
+        const main = make("main", "v6x-main");
+
+        const header = make("header", "v6x-header");
+
+        const headerLeft = make("div", "v6x-header-left");
+        const title = make("div", "v6x-mode-title", "JARVIS CORE");
+        title.id = "v6x-mode-title";
+        const sub = make(
+            "div",
+            "v6x-mode-sub",
+            "Unified intelligence workspace"
+        );
+        sub.id = "v6x-mode-sub";
+        headerLeft.append(title, sub);
+
+        const telemetry = make("div", "v6x-telemetry");
+
+        telemetry.innerHTML = `
+            <div class="v6x-telemetry-item">
+                <span class="v6x-dot v6x-dot-green"></span>
+                <div>
+                    <small>STATE</small>
+                    <strong id="v6x-state-value">READY</strong>
+                </div>
+            </div>
+
+            <div class="v6x-telemetry-item">
+                <div>
+                    <small>ROUTE</small>
+                    <strong id="v6x-route-value">MASTER</strong>
+                </div>
+            </div>
+
+            <div class="v6x-telemetry-item">
+                <div>
+                    <small>AGENTS</small>
+                    <strong id="v6x-agent-value">—</strong>
+                </div>
+            </div>
+
+            <div class="v6x-telemetry-item v6x-lock">
+                <span class="v6x-dot v6x-dot-red"></span>
+                <div>
+                    <small>LIVE EXECUTION</small>
+                    <strong>LOCKED</strong>
+                </div>
+            </div>
+
+            <div class="v6x-clock" id="v6x-clock">--:--:--</div>
+        `;
+
+        header.append(headerLeft, telemetry);
+
+        const stage = make("section", "v6x-stage");
+
+        const backdrop = make("div", "v6x-stage-backdrop");
+        backdrop.innerHTML = `
+            <div class="v6x-grid-plane"></div>
+            <div class="v6x-horizon"></div>
+            <div class="v6x-scanline"></div>
+        `;
+
+        const stageFrame = make("div", "v6x-stage-frame");
+        stageFrame.appendChild(desktop);
+
+        const contextRail = make("aside", "v6x-context-rail");
+        contextRail.innerHTML = `
+            <div class="v6x-context-head">
+                <span>ACTIVE CONTEXT</span>
+                <span class="v6x-context-live">LIVE</span>
+            </div>
+
+            <div class="v6x-context-card">
+                <small>MASTER INTELLIGENCE</small>
+                <strong>OMNI-JARVIS</strong>
+                <p>One control plane for voice, agents, tools, research and paper trading.</p>
+            </div>
+
+            <div class="v6x-context-card">
+                <small>SAFETY ENVELOPE</small>
+                <strong class="v6x-safe">GOVERNED</strong>
+                <p>External actions use approval gates. Broker execution remains locked.</p>
+            </div>
+
+            <div class="v6x-context-card v6x-command-hints">
+                <small>QUICK ACCESS</small>
+                <button type="button" data-v6x-command="Analyze the current market and explain the strongest research setup.">
+                    Market scan
+                </button>
+                <button type="button" data-v6x-command="Show current system health and any degraded JARVIS services.">
+                    System health
+                </button>
+                <button type="button" data-v6x-command="Show active missions and what every agent is currently doing.">
+                    Mission status
+                </button>
+            </div>
+        `;
+
+        stage.append(backdrop, stageFrame, contextRail);
+
+        const commandZone = make("section", "v6x-command-zone");
+        commandZone.appendChild(masterConsole);
+
+        main.append(header, stage, commandZone);
+        root.append(rail, main);
+
+        document.body.appendChild(root);
+
+        contextRail.querySelectorAll("[data-v6x-command]").forEach((button) => {
+            button.addEventListener("click", () => {
+                const input = document.getElementById("commandInput");
+                const execute = document.getElementById("executeButton");
+
+                if (!input || !execute) return;
+
+                input.value = button.dataset.v6xCommand || "";
+                input.focus();
+                execute.click();
+            });
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+                event.preventDefault();
+                const input = document.getElementById("commandInput");
+                if (input) input.focus();
+            }
+
+            if (event.altKey) {
+                const shortcuts = {
+                    "1": "home",
+                    "2": "chart",
+                    "3": "research",
+                    "4": "missions",
+                    "5": "system"
+                };
+
+                if (shortcuts[event.key]) {
+                    event.preventDefault();
+                    window.jarvisV6SetMode(shortcuts[event.key]);
+                }
+            }
+        });
+
+        updateClock();
+        setInterval(updateClock, 1000);
+
+        mirrorRuntimeState();
+        setInterval(mirrorRuntimeState, 750);
+
+        let savedMode = "home";
+        try {
+            savedMode = localStorage.getItem("jarvisV6TerminalXMode") || "home";
+        } catch (_) {}
+
+        if (!["home", "chart", "research", "missions", "system"].includes(savedMode)) {
+            savedMode = "home";
+        }
+
+        window.jarvisV6SetMode(savedMode);
+
+        const input = document.getElementById("commandInput");
+        if (input) {
+            input.placeholder = "Ask JARVIS anything · Ctrl+K";
+        }
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", () => {
+            window.setTimeout(initTerminalX, 80);
+        });
+    } else {
+        window.setTimeout(initTerminalX, 80);
+    }
+})();
