@@ -195,7 +195,6 @@ class JarvisOSV31Tests(
             )
         )
 
-
         self.assertTrue(
             any(
                 item[
@@ -206,6 +205,21 @@ class JarvisOSV31Tests(
                     "window"
                 ] == "chart"
 
+                for item in actions
+            )
+        )
+
+
+    def test_company_idea_opens_company_os_window(self):
+
+        actions = interpret_workspace_command(
+            "Jarvis, I have an idea for movable modular homes; start a company"
+        )
+
+        self.assertTrue(
+            any(
+                item.get("type") == "open_window"
+                and item.get("window") == "company"
                 for item in actions
             )
         )

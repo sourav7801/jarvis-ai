@@ -4,7 +4,6 @@ from pathlib import Path
 
 import hashlib
 import re
-import tempfile
 
 
 from omni.approval_queue import (
@@ -178,50 +177,32 @@ class PersistentBrowser:
         )
 
 
+        browser = None
+        context = None
+
         try:
 
-            with tempfile.TemporaryDirectory() as tmp:
+            with sync_playwright() as p:
 
-                with sync_playwright() as p:
+                # A capability probe does not need a durable browser profile.
+                # Using a persistent context here caused intermittent Windows
+                # cleanup races while Chromium still held chrome_debug.log.
+                browser = p.chromium.launch(
+                    headless=True,
+                )
+                context = browser.new_context(
+                    accept_downloads=False,
+                )
+                page = context.new_page()
+                page.goto(
+                    "about:blank"
+                )
 
-                    context = (
-                        p.chromium
-                        .launch_persistent_context(
-                            user_data_dir=
-                                tmp,
-
-                            headless=
-                                True,
-
-                            accept_downloads=
-                                False,
-                        )
-                    )
-
-
-                    page = (
-                        context.pages[0]
-                        if context.pages
-                        else context.new_page()
-                    )
-
-
-                    page.goto(
-                        "about:blank"
-                    )
-
-
-                    result = {
-                        "success":
-                            page.url
-                            == "about:blank",
-                    }
-
-
-                    context.close()
-
-
-                    return result
+                return {
+                    "success":
+                        page.url
+                        == "about:blank",
+                }
 
 
         except Exception as exc:
@@ -239,8 +220,31 @@ class PersistentBrowser:
                         + str(
                             exc
                         )
-                    ),
+                ),
             }
+
+        finally:
+
+            if context is not None:
+
+                try:
+
+                    context.close()
+
+                except Exception:
+
+                    pass
+
+
+            if browser is not None:
+
+                try:
+
+                    browser.close()
+
+                except Exception:
+
+                    pass
 
 
     def inspect(

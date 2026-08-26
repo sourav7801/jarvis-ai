@@ -1,6 +1,7 @@
 import os
 import shutil
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -306,57 +307,57 @@ class VoiceV32HybridTests(unittest.TestCase):
         "Windows-only System.Speech compile check",
     )
     def test_native_service_compiles(self):
-
-        output = (
-            ROOT
-            / ".jarvis-dev"
-            / "JarvisVoiceService.test.exe"
-        )
-
-        output.parent.mkdir(
+        build_root = ROOT / ".jarvis-dev"
+        build_root.mkdir(
             parents=True,
             exist_ok=True,
         )
+        with tempfile.TemporaryDirectory(
+            prefix="voice-compile-",
+            dir=build_root,
+        ) as temporary:
+            output = Path(temporary) / "JarvisVoiceService.test.exe"
+            output_ps = str(output).replace("'", "''")
+            service_ps = str(SERVICE).replace("'", "''")
+            ps_source = (
+                "$ErrorActionPreference='Stop';"
+                "Add-Type -AssemblyName System.Speech;"
+                "$speech=([System.Speech.Recognition.SpeechRecognitionEngine]).Assembly.Location;"
+                "$candidates=@("
+                "(Join-Path $env:WINDIR 'Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe'),"
+                "(Join-Path $env:WINDIR 'Microsoft.NET\\Framework\\v4.0.30319\\csc.exe')"
+                ");"
+                "$csc=$candidates | Where-Object { Test-Path $_ } | Select-Object -First 1;"
+                "if(-not $csc){ throw 'C# compiler not found' };"
+                "& $csc /nologo /target:exe /optimize+ "
+                f"'/out:{output_ps}' "
+                "('/reference:' + $speech) "
+                f"'{service_ps}';"
+                "exit $LASTEXITCODE"
+            )
 
-        ps_source = (
-            "$ErrorActionPreference='Stop';"
-            "Add-Type -AssemblyName System.Speech;"
-            "$speech=([System.Speech.Recognition.SpeechRecognitionEngine]).Assembly.Location;"
-            "$candidates=@("
-            "(Join-Path $env:WINDIR 'Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe'),"
-            "(Join-Path $env:WINDIR 'Microsoft.NET\\Framework\\v4.0.30319\\csc.exe')"
-            ");"
-            "$csc=$candidates | Where-Object { Test-Path $_ } | Select-Object -First 1;"
-            "if(-not $csc){ throw 'C# compiler not found' };"
-            "& $csc /nologo /target:exe /optimize+ "
-            "'/out:C:\\Jarvis\\.jarvis-dev\\JarvisVoiceService.test.exe' "
-            "('/reference:' + $speech) "
-            "'C:\\Jarvis\\workstation\\native_voice\\JarvisVoiceService.cs';"
-            "exit $LASTEXITCODE"
-        )
+            result = subprocess.run(
+                [
+                    "powershell.exe",
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-Command",
+                    ps_source,
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+            )
 
-        result = subprocess.run(
-            [
-                "powershell.exe",
-                "-NoProfile",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-Command",
-                ps_source,
-            ],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-        )
-
-        self.assertEqual(
-            result.returncode,
-            0,
-            msg=(
-                result.stdout
-                + result.stderr
-            ),
-        )
+            self.assertEqual(
+                result.returncode,
+                0,
+                msg=(
+                    result.stdout
+                    + result.stderr
+                ),
+            )
 
 
     def test_no_live_order_code_added(self):

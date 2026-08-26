@@ -27,16 +27,18 @@
     const login = document.getElementById("loginButton");
 
     if (button) {
-      button.textContent = "FYERS · SESSION EXPIRED";
-      button.className = "status-pill error";
-      button.title = "Click to re-authenticate FYERS read-only market data";
+      if (button.textContent !== "FYERS · SESSION EXPIRED") button.textContent = "FYERS · SESSION EXPIRED";
+      if (button.className !== "status-pill error") button.className = "status-pill error";
+      if (button.title !== "Click to re-authenticate FYERS read-only market data") {
+        button.title = "Click to re-authenticate FYERS read-only market data";
+      }
     }
-    if (state) state.textContent = "SESSION EXPIRED";
-    if (message) {
+    if (state && state.textContent !== "SESSION EXPIRED") state.textContent = "SESSION EXPIRED";
+    if (message && message.textContent !== "FYERS token expired. Re-authenticate locally to restore Indian-market candles and live snapshots.") {
       message.textContent = "FYERS token expired. Re-authenticate locally to restore Indian-market candles and live snapshots.";
     }
     if (login) {
-      login.textContent = "RE-AUTHENTICATE FYERS";
+      if (login.textContent !== "RE-AUTHENTICATE FYERS") login.textContent = "RE-AUTHENTICATE FYERS";
       login.classList.add("attention");
     }
   }

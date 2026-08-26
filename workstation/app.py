@@ -36,6 +36,7 @@ from workstation.market_news import search_market_news
 from workstation.market_runtime import MARKET_RUNTIME
 from workstation.paper_market_data import ASSET_UNIVERSE, PAPER_MARKET_DATA
 from workstation.paper_runtime import PAPER_RUNTIME
+from workstation.paper_trading_desk import is_performance_review_request
 from workstation.news_briefing import (
     build_news_briefing,
     latest_news,
@@ -274,6 +275,20 @@ def _paper_monitoring_request(command: str) -> bool:
     )
 
 
+def _paper_performance_review_request(command: str) -> bool:
+    """Route trade-performance questions to the journal, not chart analysis.
+
+    Users naturally omit the word ``paper`` when asking why JARVIS lost money.
+    Requiring that word caused the generic V7 chart router to capture commands
+    such as "analyze today's losing trades" and open BANKNIFTY instead of the
+    durable Paper Desk review.  A performance request needs both a review verb
+    and explicit trade/outcome language, which keeps ordinary uses of "why"
+    out of this route.
+    """
+
+    return is_performance_review_request(command)
+
+
 def _uncertain_transcript(command: str, speech_confidence: float | None = None) -> bool:
     try:
         confidence = float(speech_confidence) if speech_confidence is not None else None
@@ -401,6 +416,7 @@ def paper_command_payload(command: str) -> dict[str, Any]:
     option_contract: dict[str, Any] | None = None
     paper_fill: dict[str, Any] | None = None
     paper_analysis: dict[str, Any] | None = None
+    performance_review: dict[str, Any] | None = None
     action_message = ""
     if re.search(r"\b(?:start|arm|enable|resume|activate)\b", normalized) and re.search(
         r"\b(?:paper|autopilot|auto\s*paper)\b", normalized
@@ -528,27 +544,27 @@ def paper_command_payload(command: str) -> dict[str, Any]:
     elif re.search(r"\b(?:review|mistakes?|learn|why)\b", normalized) and re.search(
         r"\b(?:loss|losses|trades?|performance|today|paper)\b", normalized
     ):
+        from workstation.paper_trading_desk import paper_desk
+
         paper = PAPER_RUNTIME.public_state()
-        learning = paper.get("learning") or {}
-        daily = (learning.get("daily_reviews") or [])[:1]
-        reviews = learning.get("trade_reviews") or []
-        scorecards = learning.get("strategy_scorecards") or []
-        if daily:
-            day = daily[0]
-            flags = ", ".join(str(item).replace("_", " ").lower() for item in day.get("top_review_flags") or [])
-            action_message = (
-                f"Automatic paper review for {day.get('date')}: {day.get('summary')} "
-                + (f"Main issues detected: {flags}. " if flags else "No repeated process issue was detected. ")
-                + f"JARVIS has updated {len(scorecards)} strategy scorecard(s); repeated-loss strategies are reduced or cooled off automatically."
+        performance_review = paper_desk.performance_review(days=2)
+        daily = performance_review.get("days") or []
+        reviewed_trades = performance_review.get("trades") or []
+        if reviewed_trades:
+            day_text = "; ".join(
+                f"{item['date']}: {item['trades']} closed, {item['wins']} win(s), "
+                f"{item['losses']} loss(es), net {float(item['net_pnl']):+,.2f}"
+                for item in daily
             )
-        elif reviews:
-            latest = reviews[-1]
+            findings = "; ".join(performance_review.get("findings") or [])
             action_message = (
-                f"Latest paper-trade review: {latest.get('symbol')} {latest.get('outcome')}, "
-                f"R multiple {latest.get('r_multiple')}. {latest.get('lesson')}"
+                f"Verified Paper Desk review ({performance_review['timezone']}): {day_text}. "
+                + (f"Evidence-based findings: {findings}. " if findings else "No repeated loss pattern was detected in this window. ")
+                + "Stops and trailing behavior were read from the same durable positions shown in Paper Desk. "
+                "Any adaptation remains paper-only, bounded, auditable, and must earn promotion through out-of-sample validation."
             )
         else:
-            action_message = "No closed paper trade is available to review yet. Entry theses, stops, targets, patterns, and risk/reward are now recorded automatically for future reviews."
+            action_message = "No closed Paper Desk trade exists for today or yesterday. Entry evidence, stops, targets, excursions, conflicts, and exit policy are recorded for future reviews."
     else:
         paper = PAPER_RUNTIME.public_state()
         account = paper.get("account") or {}
@@ -570,6 +586,8 @@ def paper_command_payload(command: str) -> dict[str, Any]:
         response["paper_fill"] = paper_fill
     if paper_analysis:
         response["trading_intelligence"] = paper_analysis
+    if performance_review is not None:
+        response["performance_review"] = performance_review
     return response
 
 
@@ -620,7 +638,10 @@ def execute_command(
             and re.search(r"\b(?:open|show|display)\b", command, flags=re.IGNORECASE)
             and not _market_analysis_request(command)
         )
-        paper_intent = conversation_context == "paper" or bool(
+        paper_intent = (
+            conversation_context == "paper"
+            or _paper_performance_review_request(command)
+            or bool(
             re.search(
                 r"\b(?:paper\s+(?:trading|trade|portfolio|account|desk|autopilot|buy|sell|scan)|"
                 r"(?:buy|sell|close|exit|flatten|start|stop|pause|arm|enable|disable)\b[^.]{0,45}\bpaper|"
@@ -629,6 +650,7 @@ def execute_command(
                 r"(?:review|why|analy[sz]e)[^.]{0,45}paper[^.]{0,20}(?:loss|trade|performance))\b",
                 command,
                 flags=re.IGNORECASE,
+            )
             )
         )
         if _is_conversational_smalltalk(command):

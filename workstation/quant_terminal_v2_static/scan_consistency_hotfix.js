@@ -28,8 +28,9 @@
 
   selectMarket = function(symbol) {
     cancelActiveScan();
-    originalSelectMarket(symbol);
+    const pending = originalSelectMarket(symbol);
     clearSetupForSelection();
+    return pending;
   };
 
   async function safeScanSelected() {
@@ -56,6 +57,7 @@
         signal: scanController.signal,
       });
       const payload = await response.json();
+      const decision = payload;
 
       if (requestId !== scanSequence || symbol !== selectedSymbol) return;
 
@@ -66,7 +68,9 @@
 
       $("scanSymbol").textContent = marketMeta(symbol).label;
       $("scanRegime").textContent = payload.regime || "UNAVAILABLE";
-      $("scanBias").textContent = payload.bias || "NO BIAS";
+      $("scanBias").textContent = payload.qualified
+        ? (payload.bias || "QUALIFIED")
+        : `WAIT · ${payload.bias || "NO BIAS"}`;
       $("scanAlignment").textContent = `${Number(payload.alignment || 0)}% ALIGN`;
 
       const setup = payload.setup;
@@ -82,8 +86,12 @@
           return `<div class="evidence-row"><div class="topline"><b>${escapeHtml(row.timeframe)}</b><span>NO DATA</span></div><p>${escapeHtml(row.message || "")}</p></div>`;
         }
         const cls = row.trend === "BULLISH" ? "bull" : row.trend === "BEARISH" ? "bear" : "";
-        return `<div class="evidence-row ${cls}"><div class="topline"><b>${escapeHtml(row.timeframe)} · ${escapeHtml(row.trend)}</b><span>${escapeHtml(row.source || "")}</span></div><p>Close ${fmt(row.close)} · EMA20 ${fmt(row.ema20)} · EMA50 ${fmt(row.ema50)} · RSI ${fmt(row.rsi14, 1)} · ATR ${fmt(row.atr14)} · Vol× ${row.volume_ratio == null ? "—" : fmt(row.volume_ratio, 2)}</p></div>`;
+        const decision = row.decision || {};
+        return `<div class="evidence-row ${cls}"><div class="topline"><b>${escapeHtml(row.timeframe)} · ${escapeHtml(row.trend)}</b><span>${escapeHtml(decision.side || "WAIT")} ${Number(decision.score || 0).toFixed(1)}</span></div><p>Close ${fmt(row.close)} · EMA20 ${fmt(row.ema20)} · EMA50 ${fmt(row.ema50)} · RSI ${fmt(row.rsi14, 1)} · ATR ${fmt(row.atr14)} · Vol× ${row.volume_ratio == null ? "—" : fmt(row.volume_ratio, 2)}</p></div>`;
       }).join("") || "<p>No timeframe evidence.</p>";
+
+      const slot = chartSlots[selectedSlot];
+      if (slot && slot.symbol === symbol) applyDecision(slot, decision);
 
       $("commandReply").textContent = payload.message || "Scan complete.";
     } catch (error) {
@@ -93,6 +101,12 @@
       $("scanBias").textContent = "NO SCAN";
       $("setupState").textContent = "NO SETUP";
       $("evidenceList").innerHTML = `<p>${escapeHtml(error.message || "Scan failed.")}</p>`;
+      applyDecision(chartSlots[selectedSlot], {
+        success: false,
+        side: "WAIT",
+        score: 0,
+        message: error.message || "Scan failed.",
+      });
     } finally {
       if (requestId === scanSequence) scanController = null;
     }
@@ -109,7 +123,9 @@
 
   const chartGrid = $("chartGrid");
   if (chartGrid) {
-    chartGrid.addEventListener("click", () => {
+    chartGrid.addEventListener("click", event => {
+      const cell = event.target.closest(".chart-cell");
+      if (!cell || Number(cell.dataset.slot) === selectedSlot) return;
       cancelActiveScan();
       setTimeout(clearSetupForSelection, 0);
     }, true);

@@ -186,6 +186,17 @@ class FyersLiveStream:
             self._socket = None
             self._thread = None
 
+    def subscribe(self, symbols: Iterable[str]) -> dict[str, Any]:
+        provider_symbols = list(dict.fromkeys(normalize_symbol(item) for item in symbols))
+        with self._lock:
+            additions = [item for item in provider_symbols if item not in self._symbols]
+            self._symbols.extend(additions)
+            socket = self._socket
+            connected = self._connected
+        if additions and socket is not None and connected:
+            socket.subscribe(symbols=additions, data_type="SymbolUpdate")
+        return {**self.status(), "subscribed": additions}
+
     def snapshot(self, symbol: str) -> Optional[dict[str, Any]]:
         try:
             provider_symbol = normalize_symbol(symbol)

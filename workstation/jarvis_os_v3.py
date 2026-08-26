@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import json
 import re
 import secrets
@@ -80,6 +81,57 @@ COMMAND_LOCK = threading.RLock()
 COMMAND_INFLIGHT = set()
 COMMAND_CACHE = {}
 COMMAND_CACHE_SECONDS = 6.0
+VOICE_CONFIDENCE_FLOOR = 0.62
+
+
+def uncertain_voice_transcript(text, confidence=None):
+    """Reject unreliable dictation before any agent can invent an interpretation."""
+
+    try:
+        score = float(confidence) if confidence is not None else None
+    except (TypeError, ValueError):
+        score = None
+    if score is not None and 0 < score < VOICE_CONFIDENCE_FLOOR:
+        return True
+    value = re.sub(r"\s+", " ", str(text or "")).strip().lower()
+    return len(value) < 2
+
+
+def agent_readiness(specs):
+    """Report entrypoint readiness without pretending an idle agent is executing."""
+
+    result = []
+    for spec in specs:
+        name = str(getattr(spec, "name", "") or "").strip()
+        module_name = str(getattr(spec, "module", "") or "").strip()
+        entrypoint = str(getattr(spec, "entrypoint", "") or "").strip()
+        enabled = bool(getattr(spec, "enabled", True))
+        status_name = "DEGRADED"
+        detail = "Entrypoint unavailable."
+        if not enabled:
+            status_name = "DISABLED"
+            detail = "Disabled by registry configuration."
+        elif name and module_name and entrypoint:
+            try:
+                module = importlib.import_module(module_name)
+                target = getattr(module, entrypoint, None)
+                if callable(target):
+                    status_name = "READY"
+                    detail = "Registered callable; executes on demand."
+                else:
+                    detail = "Registered entrypoint is not callable."
+            except Exception as exc:
+                detail = f"{type(exc).__name__}: {exc}"[:180]
+        result.append(
+            {
+                "name": name,
+                "label": str(getattr(spec, "label", name) or name),
+                "status": status_name,
+                "detail": detail,
+                "execution_mode": "ON_DEMAND",
+            }
+        )
+    return result
 
 
 def safe(
@@ -218,12 +270,15 @@ def render_response(
             )
 
 
-            if isinstance(
-                item,
-                str,
+            if (
+                isinstance(
+                    item,
+                    str,
+                )
+                and item.strip()
             ):
 
-                return item
+                return item.strip()
 
 
     for key in (
@@ -672,6 +727,60 @@ def dispatch_command(
 
     original_text = str(text or "").strip()
 
+    # Performance review owns trade-outcome questions before the broad quant
+    # router sees words such as "trading" or "analyze".  The response is
+    # calculated from the same durable Paper Desk database as the portfolio,
+    # preventing stale learning summaries from contradicting actual fills.
+    from workstation.paper_trading_desk import is_performance_review_request
+
+    if is_performance_review_request(original_text):
+        from workstation.paper_trading_desk import paper_desk
+
+        review = paper_desk.performance_review(days=2)
+        daily = review.get("days") or []
+        trades = review.get("trades") or []
+        if trades:
+            sessions = "; ".join(
+                f"{item['date']}: {item['trades']} closed, {item['wins']} win, "
+                f"{item['losses']} loss, net {float(item['net_pnl']):+,.2f}"
+                for item in daily
+            )
+            findings = "; ".join(review.get("findings") or [])
+            response = (
+                f"Verified Paper Desk review ({review['timezone']}): {sessions}. "
+                + (f"Evidence-based findings: {findings}. " if findings else "No repeated loss pattern was detected. ")
+                + "I used the durable portfolio ledger, including stop exits, MFE/MAE, strategy conflicts, "
+                "regime compatibility and trailing-policy activation. Adaptation remains bounded and paper-only."
+            )
+        else:
+            response = "No closed Paper Desk trade exists for today or yesterday, so I will not invent a loss explanation."
+        conversation_turns.remember(original_text, response, "PAPER_PERFORMANCE_REVIEW")
+        return {
+            "route": "PAPER_PERFORMANCE_REVIEW",
+            "response": response,
+            "workspace_actions": [{"type": "open_window", "window": "paper"}],
+            "raw": safe(review),
+        }
+
+    from agents.local_media_agent import (
+        analyze_local_media_request,
+        is_local_media_request,
+    )
+
+    if is_local_media_request(original_text):
+        media = analyze_local_media_request(original_text)
+        response = render_response(media)
+        conversation_turns.remember(
+            original_text,
+            response,
+            "LOCAL_MEDIA_INTELLIGENCE",
+        )
+        return {
+            "route": "LOCAL_MEDIA_INTELLIGENCE",
+            "response": response,
+            "raw": safe(media),
+        }
+
 
     from workstation.quant_terminal_bridge import (
         dispatch_quant_terminal,
@@ -710,6 +819,84 @@ def dispatch_command(
                 safe(
                     payload
                 ),
+        }
+
+
+    normalized_original = re.sub(
+        r"\s+",
+        " ",
+        original_text.strip().lower(),
+    )
+
+    if re.search(r"\b(?:sing|singing)\b", normalized_original):
+        response = (
+            "I can sing this short original JARVIS verse through my voice: "
+            "Lights in the circuit, stars in the sky; tell me your mission, together we fly. "
+            "Data and courage, steady and true; JARVIS is ready to build it with you."
+        )
+        conversation_turns.remember(
+            original_text,
+            response,
+            "VOICE_ORIGINAL_SONG",
+        )
+        return {
+            "route": "VOICE_ORIGINAL_SONG",
+            "response": response,
+            "raw": {
+                "success": True,
+                "original_content": True,
+                "speech_enabled": True,
+            },
+        }
+
+
+    company_request = bool(
+        re.search(
+            r"\b(?:i have (?:this |an? )?idea|(?:build|create|start|set ?up|launch) "
+            r"(?:a |my )?(?:company|business|startup|venture))\b",
+            original_text,
+            flags=re.IGNORECASE,
+        )
+    )
+    if company_request:
+        from omni.company_os import COMPANY_OS
+
+        plan = COMPANY_OS.create_plan(original_text)
+        response = (
+            f"Company OS created the supervised venture workspace for {plan['company_name']}. "
+            f"It generated {len(plan['artifacts'])} local artifacts, {len(plan['tasks'])} department tasks, "
+            f"{len(plan['research_program']['research_tracks'])} evidence tracks, and 1, 4 and 5 year decision gates. "
+            "Local research and drafting can continue automatically; publishing, accounts, spending, contracts and outreach remain approval-gated."
+        )
+        result = {
+            "success": True,
+            "action": "open_company",
+            "plan": plan,
+            "company": COMPANY_OS.snapshot(),
+            "paper_only": True,
+            "live_execution": False,
+        }
+        conversation_turns.remember(original_text, response, "COMPANY_OS")
+        return {"route": "COMPANY_OS", "response": response, "raw": safe(result)}
+
+
+    from agents.web_intelligence_agent import (
+        is_web_request,
+        web_intelligence,
+    )
+
+    if is_web_request(original_text):
+        research = web_intelligence(original_text)
+        response = render_response(research)
+        conversation_turns.remember(
+            original_text,
+            response,
+            "WEB_INTELLIGENCE",
+        )
+        return {
+            "route": "WEB_INTELLIGENCE",
+            "response": response,
+            "raw": safe(research),
         }
 
 
@@ -903,6 +1090,9 @@ def dispatch_command(
         conversation_turns.is_explanation_followup(
             original_text
         )
+        or conversation_turns.is_reference_followup(
+            original_text
+        )
     ):
         contextual_text = conversation_turns.augment(
             original_text
@@ -1054,6 +1244,9 @@ def status():
         "agents":
             [],
 
+        "agent_health":
+            [],
+
         "components":
             {},
     }
@@ -1073,6 +1266,8 @@ def status():
         try:
 
             values = specs()
+
+            result["agent_health"] = agent_readiness(values)
 
 
             for item in values:
@@ -1766,6 +1961,26 @@ class Handler(
                 )
 
 
+            if parsed.path == "/api/paper-portfolio":
+
+                from workstation.paper_trading_desk import (
+                    paper_dashboard_payload,
+                )
+
+                return self.send_json(
+                    paper_dashboard_payload()
+                )
+
+
+            if parsed.path == "/api/company-os":
+
+                from omni.company_os import COMPANY_OS
+
+                return self.send_json(
+                    COMPANY_OS.snapshot()
+                )
+
+
             if parsed.path == "/api/chart":
 
                 query = parse_qs(
@@ -1911,6 +2126,15 @@ class Handler(
                 )
             ).strip()
 
+            input_mode = str(
+                data.get("input_mode", "typed")
+                or "typed"
+            ).strip().lower()
+
+            speech_confidence = data.get(
+                "speech_confidence"
+            )
+
 
             if not text:
 
@@ -1920,6 +2144,27 @@ class Handler(
                             "command required"
                     },
                     400,
+                )
+
+            if (
+                input_mode == "voice"
+                and uncertain_voice_transcript(
+                    text,
+                    speech_confidence,
+                )
+            ):
+
+                return self.send_json(
+                    {
+                        "success": True,
+                        "route": "VOICE_CLARIFICATION",
+                        "response": (
+                            f'I may have heard "{text[:240]}" incorrectly. '
+                            "I will not invent its meaning or origin. Please repeat it more slowly "
+                            "in Hindi, Hinglish, or English, or type the sentence."
+                        ),
+                        "workspace_actions": [],
+                    }
                 )
 
 
@@ -2003,6 +2248,16 @@ class Handler(
                         result[
                             "response"
                         ],
+
+                    # Preserve the specialist payload for route-owned windows.
+                    # safe() removes non-JSON runtime objects; no credentials
+                    # or broker-order capability is added at this boundary.
+                    "raw":
+                        safe(
+                            result.get(
+                                "raw"
+                            )
+                        ),
 
                     "workspace_actions":
                         actions,

@@ -1,0 +1,17 @@
+# JARVIS development / verification toolchain.
+#
+# The master blueprint test policy (section 27) requires compiling
+# touched Python, running the full regression suite, safety scans and a
+# Protected Core import on every milestone.  None of that was runnable
+# because pytest was configured in pyproject.toml but never declared as
+# a dependency, and ruff was configured under [tool.ruff] while absent
+# from every virtualenv.  Declare the toolchain here so the documented
+# gates are reproducible.
+#
+# Install into the primary runtime:
+#   C:\Jarvis\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+
+pytest==8.4.2
+pytest-timeout==2.4.0
+ruff==0.14.5
+coverage==7.11.0

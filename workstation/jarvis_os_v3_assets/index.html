@@ -81,6 +81,10 @@ JARVIS OS V3.1
             MISSIONS
         </button>
 
+        <button data-open="company">
+            COMPANY OS
+        </button>
+
         <button data-open="paper">
             PAPER
         </button>
@@ -112,6 +116,10 @@ JARVIS OS V3.1
         <span class="status red">
             ● EXECUTION LOCKED
         </span>
+
+        <button id="depthButton" title="Toggle spatial depth mode" aria-pressed="true">
+            3D
+        </button>
 
         <button id="fullscreenButton">
             ⛶
@@ -751,18 +759,26 @@ JARVIS OS V3.1
 </header>
 
 
-<div class="windowBody">
+<div class="windowBody paperWorkspace">
 
-    <div class="paperStatus">
-        SYNTHETIC EXECUTION ONLY
+    <div class="paperHero">
+        <div>
+            <div class="paperStatus">AUTONOMOUS PAPER DESK</div>
+            <strong id="paperRunState">CHECKING</strong>
+        </div>
+        <div class="paperLockBadge">PAPER / SANDBOX · LIVE LOCKED</div>
     </div>
 
-    <p>
-
-        Strategy simulation and paper positions.
-        Broker execution remains locked.
-
-    </p>
+    <div class="paperMetricGrid">
+        <div><span>EQUITY</span><b id="paperEquity">—</b></div>
+        <div><span>TOTAL P&amp;L</span><b id="paperTotalPnl">—</b></div>
+        <div><span>GROSS EXPOSURE</span><b id="paperGross">—</b></div>
+        <div><span>RISK AT STOPS</span><b id="paperRisk">—</b></div>
+        <div><span>DAILY P&amp;L / LIMIT</span><b id="paperDailyPnl">—</b></div>
+        <div><span>DRAWDOWN / PEAK</span><b id="paperDrawdown">—</b></div>
+        <div><span>ENTRY RISK GATE</span><b id="paperEntryGate">—</b></div>
+        <div><span>CORRELATION MODEL</span><b id="paperCorrelation">—</b></div>
+    </div>
 
 
     <div class="paperControls">
@@ -792,6 +808,97 @@ JARVIS OS V3.1
 
     </div>
 
+    <div class="paperSplit">
+        <section class="paperBook">
+            <header><span>OPEN SYNTHETIC POSITIONS</span><em id="paperOpenCount">0 OPEN</em></header>
+            <div id="paperPositions" class="paperRows">No open paper positions.</div>
+        </section>
+        <section class="paperBook">
+            <header><span>CLOSED TRADE JOURNAL</span><em id="paperClosedCount">0 CLOSED</em></header>
+            <div id="paperClosedTrades" class="paperRows">No closed paper trades.</div>
+        </section>
+    </div>
+
+    <section class="paperBook paperOptionBook">
+        <header><span>DEFINED-RISK OPTION SPREADS</span><em id="paperOptionCount">0 OPEN</em></header>
+        <div id="paperOptionSpreads" class="paperRows">No governed option spreads.</div>
+    </section>
+
+    <section class="paperBook paperTelemetry">
+        <header><span>AUTONOMY / RISK TELEMETRY</span><em id="paperLastScan">WAITING</em></header>
+        <div id="paperBlockers" class="paperBlockers">Loading governed scanner telemetry…</div>
+    </section>
+
+    <div class="feed paperAgentFeed" id="paperFeed">
+        Paper portfolio, scan and synthetic execution results will appear here.
+    </div>
+
+</div>
+
+</section>
+
+
+<!-- ====================================================== -->
+<!-- COMPANY OS -->
+<!-- ====================================================== -->
+
+<section
+    class="jarvisWindow companyWindow"
+    data-window="company"
+    id="win-company"
+>
+
+<header class="windowHeader">
+    <span>COMPANY BUILDER / VENTURE OPERATING SYSTEM</span>
+    <div class="windowControls">
+        <button data-minimize>—</button>
+        <button data-maximize>□</button>
+        <button data-close>×</button>
+    </div>
+</header>
+
+<div class="windowBody companyWorkspace">
+    <div class="companyHero">
+        <div>
+            <div class="eyebrow">IDEA → EVIDENCE → PROTOTYPE → COMPANY</div>
+            <h2 id="companyName">NO ACTIVE VENTURE</h2>
+            <p id="companyMission">Tell JARVIS: “I have an idea for … start building the company.”</p>
+        </div>
+        <span id="companyAutopilot">SUPERVISED</span>
+    </div>
+
+    <div class="companyStageGrid">
+        <div><span>DEPARTMENTS</span><b id="companyAgentCount">16</b></div>
+        <div><span>RESEARCH TRACKS</span><b id="companyTrackCount">0</b></div>
+        <div><span>LOCAL ARTIFACTS</span><b id="companyArtifactCount">0</b></div>
+        <div><span>APPROVAL GATES</span><b id="companyApprovalCount">0</b></div>
+    </div>
+
+    <div class="companyColumns">
+        <section class="companyPanel">
+            <header>DEPARTMENT WORKBOARD</header>
+            <div id="companyWorkboard" class="companyWorkboard">No active department work orders.</div>
+        </section>
+        <section class="companyPanel">
+            <header>1 / 4 / 5 YEAR EVIDENCE GATES</header>
+            <div id="companyRoadmap" class="companyRoadmap">No venture roadmap yet.</div>
+        </section>
+    </div>
+
+    <section class="companyPanel companyResearchPanel">
+        <header>HYPOTHESES / OBSTACLES / RESEARCH TRUTH</header>
+        <div id="companyResearchState">Unverified ideas stay hypotheses until evidence supports them.</div>
+    </section>
+
+    <div class="paperControls">
+        <button class="actionButton" data-command="Show my latest company operating plan and department progress.">STATUS</button>
+        <button class="actionButton" data-command="Coordinate all departments as a mission for my latest company idea.">RUN DEPARTMENTS</button>
+        <button class="actionButton" data-command="Research current evidence, obstacles and competitors for my latest company idea.">RESEARCH</button>
+    </div>
+
+    <div class="feed companyFeed" id="companyFeed">
+        Company research and department results will appear here. External actions remain approval-gated.
+    </div>
 </div>
 
 </section>

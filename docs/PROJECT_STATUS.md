@@ -1,5 +1,58 @@
 # OMNI-JARVIS Project Status
 
+## Latest verified checkpoint — governed multi-market paper autonomy V5.5
+
+On 2026-08-25 the misleading NIFTY50-only morning workflow was replaced with a
+bounded multi-market scanner covering NIFTY 50, BANKNIFTY constituents, SENSEX
+30, Indian indices, MCX majors and public crypto. Explicit 1m-only, 5m-only and
+15m-only profiles now control the decision engine instead of changing only the
+chart. Strategies exclude forming bars, enforce data freshness/session gates,
+revalidate entries against a current mark, apply INR valuation to crypto paper
+risk (with a public central-bank reference-rate fallback when FYERS USDINR is
+unavailable), and use bar-level idempotency so a later same-day signal may
+re-enter.
+
+Closed synthetic trades now feed an auditable bounded reviewer. It may tighten
+entry gates, reduce risk or temporarily quarantine a weak strategy/timeframe
+cohort, but cannot increase risk, self-modify code or place a live order. The
+Quant UI now shows all scanner universes, profile controls, actual paper
+cycles/fills and the current blocker histogram. Live execution remains locked.
+Registry-approved Bank Nifty constituents now retain explicit FYERS exchange
+symbols; the verified live universe returned data for all 14 current rows.
+
+Regression checkpoint: **1042 tests passed**, including completed-bar,
+single-timeframe, multi-universe, holiday, FX valuation, immediate-scan-to-real
+SQLite fill, adaptive rollback/cooldown, restart and no-order-surface coverage.
+
+The same checkpoint adds a deliberately separate `paper_exploration` profile:
+completed 5m bars, 62 minimum score, 1.5 minimum R:R and 25% of normal paper
+risk. On the live 2026-08-25 evening verification it scanned 71 deduplicated
+instruments across the configured universes, produced 11 governed watch
+candidates and automatically opened two synthetic positions (NATURALGAS long
+and CRUDEOIL short). Fresh-price, live R:R, session and portfolio gates remained
+active; Indian cash instruments stayed blocked after their market closed.
+
+Company OS now materializes a four-page local website prototype, market
+research evidence, brand copy, Instagram/short-form and YouTube content drafts,
+and an executive autopilot report from one company idea. Research runs in a
+bounded background worker. Publishing, account creation, deployment, messages
+and spending remain explicit approval-and-connector gates.
+
+## Latest verified checkpoint — Quant V5 stabilization
+
+On 2026-08-24 the canonical Python environment and isolated Nautilus runtime
+were repaired, the voice compile lock was removed, deterministic paper routing
+was source-integrated, and the Quant Terminal gained automatic chart opening,
+EMA/VWAP/Bollinger/RSI indicators and explainable BUY/SELL/WAIT paper signals.
+The blank-chart failure was then fixed end to end: slot state is complete, the
+expired-FYERS observer no longer loops, crypto rendering is throttled, and the
+pinned chart library is served locally. Master JARVIS can now diagnose/repair
+its Quant service and analyze governed local videos with an installed local
+vision model. The launcher now safely reuses an already-running verified Master
+instead of crashing on port 8797. Full regression: **1002 tests passed**.
+Browser proof: **11 chart
+canvases, 0 LOADING labels, 0 page errors**. See `PROJECT_HANDOFF.md`.
+
 ## Repository-controlled phases
 
 All planned repository-controlled Local V1 phases are complete:

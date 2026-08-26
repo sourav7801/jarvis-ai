@@ -1,5 +1,17 @@
 # OMNI-JARVIS Blueprint Alignment
 
+## Quant V5 checkpoint — 2026-08-24
+
+The verified checkpoint adds a command-driven live signal terminal, EMA20/50,
+VWAP, Bollinger Bands and RSI14 overlays, explainable BUY/SELL/WAIT paper
+signals, deterministic paper-entry routing, Paper Desk precedence, verified
+FYERS/Nautilus runtime selection, governed local-video intelligence, Quant
+self-diagnostics, idempotent verified startup and a green 1002-test regression. See
+`PROJECT_HANDOFF.md` for the service map, evidence and remaining V6-V11 work.
+
+V5 stabilization is complete. V6-V10 have substantial foundations but remain
+partial; V11 remains a research foundation. Live broker execution is locked.
+
 This document distinguishes implemented capabilities from target-state ideas.
 It is intentionally conservative: a prototype or placeholder is not marked as
 production-ready.
@@ -14,7 +26,7 @@ production-ready.
 | Web intelligence | Governed public-web search/read foundation | `agents/web_intelligence_agent.py`, `omni/web_research.py`, Web Intelligence page | Optional authorized interactive-browser adapter and premium indexes |
 | Research agent | Provenance foundation | `omni/web_research.py`, `agents/research_agent.py` | Credibility calibration and academic connectors |
 | Coding agent | Early | `agents/coding_agent.py` | AST index, isolated test loop, patch governance |
-| Trading engine | Read-only FYERS plus multi-timeframe intelligence | `workstation/trading_intelligence.py`, `trading/research/`, `agents/trading_core/`, `agents/fyers_*` | Additional licensed providers, walk-forward suite, audited paper reconciliation |
+| Trading engine | Read-only FYERS/public crypto, live signal charts, Nautilus research and persistent guarded Paper Desk | `workstation/quant_terminal_v2.py`, `workstation/quant_signal_terminal.py`, `workstation/paper_trade_action_router.py`, `omni/trading_intelligence/` | More licensed history, calibrated OOS evidence, derivatives depth and audited paper reconciliation |
 | Universal memory | Hybrid foundation | JSON compatibility, Chroma, SQLite FTS/episodic audit, semantic fusion interface | Production embedding adapter and retention policy |
 | Mission Control | Governed local foundation | `omni/mission_control.py`, Mission Control workstation page | Background queue, resumable long-running remote jobs, and approved connector execution |
 | 3D dashboard | Voice-first 3D master, mission graph, and department mesh | `workstation/app.py`, V7 static UI | Streaming execution traces and interactive approval controls |

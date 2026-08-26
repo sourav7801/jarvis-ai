@@ -17,6 +17,8 @@ import subprocess
 from pathlib import Path
 from typing import Any, Callable
 
+from omni.runtime_paths import fyers_python
+
 
 ROOT = (
     Path(__file__)
@@ -24,12 +26,7 @@ ROOT = (
     .parents[1]
 )
 
-FYERS_PYTHON = (
-    ROOT
-    / ".venv-fyers"
-    / "Scripts"
-    / "python.exe"
-)
+FYERS_PYTHON = fyers_python()
 
 
 WORKER_CODE = r"""

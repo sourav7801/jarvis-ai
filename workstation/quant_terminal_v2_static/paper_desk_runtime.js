@@ -35,7 +35,7 @@
     card.className="intel-card";
     card.id="paperDeskV4";
     card.innerHTML=`
-      <div class="eyebrow">AUTONOMOUS PAPER DESK · V4</div>
+      <div class="eyebrow">AUTONOMOUS PAPER DESK · MTF CONSENSUS</div>
       <div class="hero-row"><b id="paperDeskEquity">₹100,000.00</b><span id="paperAutoState" class="auto-stopped">STOPPED</span></div>
       <div class="paper-metrics">
         <div class="paper-metric"><span>TOTAL P&amp;L</span><b id="paperDeskPnl">—</b></div>
@@ -82,7 +82,7 @@
     const running=Boolean(payload?.running);
     state.textContent=running?"RUNNING":"STOPPED";
     state.className=running?"auto-running":"auto-stopped";
-    state.title=`Scans ${payload?.scan_cycles||0} · Opens ${payload?.positions_opened||0} · Closes ${payload?.positions_closed||0}`;
+    state.title=`5m/15m/1h consensus · score ≥ ${payload?.min_score||68} · R:R ≥ ${payload?.min_risk_reward||1.8} · scans ${payload?.scan_cycles||0} · opens ${payload?.positions_opened||0} · closes ${payload?.positions_closed||0}`;
   }
 
   async function fetchJson(url,options){const response=await fetch(url,options);const payload=await response.json();if(!response.ok)throw new Error(payload.message||`HTTP ${response.status}`);return payload}

@@ -25,12 +25,13 @@ ROLE_GUIDANCE: dict[str, tuple[str, tuple[str, ...]]] = {
 
 
 def _analyze(role: str, text: str) -> dict[str, Any]:
-    objective = re.sub(r"\s+", " ", str(text or "")).strip()
+    public_text = str(text or "").split("[JARVIS INTERNAL CONTEXT]", 1)[0]
+    objective = re.sub(r"\s+", " ", public_text).strip()
     if not objective:
         raise ValueError("A department objective is required.")
     mission_match = re.search(
         r"MISSION OBJECTIVE:\s*(.+?)(?:\n\s*\n|$)",
-        str(text or ""),
+        public_text,
         flags=re.IGNORECASE | re.DOTALL,
     )
     if mission_match:

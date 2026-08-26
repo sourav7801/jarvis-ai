@@ -94,7 +94,17 @@ class VoiceV316B2Tests(
     ):
 
         self.assertIn(
-            "execute.click()",
+            "executeCommand(",
+            self.source,
+        )
+
+        self.assertIn(
+            'inputMode: "voice"',
+            self.source,
+        )
+
+        self.assertIn(
+            "speechConfidence: confidence",
             self.source,
         )
 

@@ -5,6 +5,8 @@ from math import sqrt
 from statistics import fmean, pstdev
 from typing import Any, Iterable
 
+from omni.trading_intelligence.strategy_registry import strategy_registry
+
 
 @dataclass(frozen=True)
 class StrategyVote:
@@ -13,6 +15,10 @@ class StrategyVote:
     side: str
     score: float
     evidence: tuple[str, ...]
+    strategy_version: str = "unknown"
+    required_features: tuple[str, ...] = ()
+    compatible_regimes: tuple[str, ...] = ()
+    regime_compatible: bool | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -32,6 +38,11 @@ class QuantDecision:
     votes: tuple[StrategyVote, ...]
     paper_only: bool = True
     live_execution: bool = False
+    evidence_graph: tuple[dict[str, Any], ...] = ()
+    contradictions: tuple[dict[str, Any], ...] = ()
+    reasons_not_to_trade: tuple[str, ...] = ()
+    registry_versioned: bool = True
+    risk_model: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         value = asdict(self)
@@ -121,7 +132,58 @@ def _regime(candles: list[dict[str, Any]]) -> str:
 
 
 def _vote(strategy: str, family: str, side: str, score: float, *evidence: str) -> StrategyVote:
-    return StrategyVote(strategy, family, side, max(0.0, min(100.0, float(score))), tuple(evidence))
+    spec = strategy_registry.get(strategy)
+    if spec is None:
+        raise KeyError(f"Unregistered quant strategy: {strategy}")
+    return StrategyVote(
+        strategy,
+        spec.family or family,
+        side,
+        max(0.0, min(100.0, float(score))),
+        tuple(evidence),
+        spec.version,
+        spec.required_features,
+        spec.compatible_regimes,
+        None,
+    )
+
+
+def _explain_votes(votes: tuple[StrategyVote, ...], regime: str, family_weights: dict[str, float]):
+    graph = []
+    for vote in votes:
+        compatible = not vote.compatible_regimes or regime in vote.compatible_regimes
+        graph.append(
+            {
+                "strategy_id": vote.strategy,
+                "strategy_version": vote.strategy_version,
+                "family": vote.family,
+                "side": vote.side,
+                "raw_score": vote.score,
+                "regime": regime,
+                "regime_compatible": compatible,
+                "regime_weight": float(family_weights.get(vote.family, 1.0)),
+                "required_features": list(vote.required_features),
+                "evidence": list(vote.evidence),
+                "paper_only": True,
+                "live_execution": False,
+            }
+        )
+
+    contradictions = []
+    longs = [item for item in graph if item["side"] == "LONG"]
+    shorts = [item for item in graph if item["side"] == "SHORT"]
+    for long_vote in longs:
+        for short_vote in shorts:
+            contradictions.append(
+                {
+                    "long_strategy": long_vote["strategy_id"],
+                    "short_strategy": short_vote["strategy_id"],
+                    "long_score": long_vote["raw_score"],
+                    "short_score": short_vote["raw_score"],
+                    "reason": "opposing registered strategy votes",
+                }
+            )
+    return tuple(graph), tuple(contradictions)
 
 
 def strategy_votes(candles: list[dict[str, Any]]) -> tuple[StrategyVote, ...]:
@@ -221,7 +283,10 @@ def decide(symbol: str, timeframe: str, candles: list[dict[str, Any]]) -> QuantD
     votes = strategy_votes(candles)
     regime = _regime(candles)
     if not votes:
-        return QuantDecision(symbol, timeframe, regime, "WAIT", 0.0, None, None, None, None, ())
+        return QuantDecision(
+            symbol, timeframe, regime, "WAIT", 0.0, None, None, None, None, (),
+            reasons_not_to_trade=("NO_REGISTERED_STRATEGY_SIGNAL",),
+        )
 
     regime_family_weight = {
         "TRENDING": {"trend": 1.25, "momentum": 1.20, "breakout": 1.15, "structure": 1.0, "volume": 1.0, "mean_reversion": 0.55},
@@ -229,11 +294,26 @@ def decide(symbol: str, timeframe: str, candles: list[dict[str, Any]]) -> QuantD
         "HIGH_VOLATILITY": {"breakout": 1.20, "structure": 1.15, "momentum": 1.05, "trend": 1.0, "volume": 1.05, "mean_reversion": 0.60},
     }.get(regime, {})
 
+    enriched_votes = tuple(
+        StrategyVote(
+            vote.strategy,
+            vote.family,
+            vote.side,
+            vote.score,
+            vote.evidence,
+            vote.strategy_version,
+            vote.required_features,
+            vote.compatible_regimes,
+            (not vote.compatible_regimes or regime in vote.compatible_regimes),
+        )
+        for vote in votes
+    )
+
     long_score = 0.0
     short_score = 0.0
     long_weight = 0.0
     short_weight = 0.0
-    for vote in votes:
+    for vote in enriched_votes:
         weight = float(regime_family_weight.get(vote.family, 1.0))
         if vote.side == "LONG":
             long_score += vote.score * weight
@@ -249,12 +329,40 @@ def decide(symbol: str, timeframe: str, candles: list[dict[str, Any]]) -> QuantD
     if abs(long_avg - short_avg) >= 8 and score >= 58:
         side = "LONG" if long_avg > short_avg else "SHORT"
 
+    reasons_not_to_trade: list[str] = []
+    if side == "WAIT":
+        if score < 58:
+            reasons_not_to_trade.append("ENSEMBLE_SCORE_BELOW_58")
+        if abs(long_avg - short_avg) < 8:
+            reasons_not_to_trade.append("CONTRADICTORY_VOTES_WITHOUT_8_POINT_EDGE")
+        if regime == "INSUFFICIENT_DATA":
+            reasons_not_to_trade.append("INSUFFICIENT_DATA")
+
     entry = stop = target = rr = None
+    risk_model = None
     atr14 = _atr(candles, 14)
     if side in {"LONG", "SHORT"} and atr14:
         entry = float(candles[-1]["close"])
-        stop_distance = 1.25 * atr14
-        target_distance = 2.5 * atr14
+        atr_stop_distance = 1.25 * atr14
+        lookback = candles[-11:-1] if len(candles) >= 11 else candles[:-1]
+        structural_level = (
+            min(float(row["low"]) for row in lookback) - 0.10 * atr14
+            if side == "LONG" and lookback
+            else max(float(row["high"]) for row in lookback) + 0.10 * atr14
+            if lookback
+            else None
+        )
+        structural_distance = (
+            abs(entry - structural_level) if structural_level is not None else None
+        )
+        # A structural stop is used only when it is neither inside ordinary
+        # noise nor so distant that position sizing becomes misleading.
+        structural_valid = bool(
+            structural_distance is not None
+            and 0.75 * atr14 <= structural_distance <= 2.0 * atr14
+        )
+        stop_distance = structural_distance if structural_valid else atr_stop_distance
+        target_distance = 2.0 * stop_distance
         if side == "LONG":
             stop = entry - stop_distance
             target = entry + target_distance
@@ -262,8 +370,37 @@ def decide(symbol: str, timeframe: str, candles: list[dict[str, Any]]) -> QuantD
             stop = entry + stop_distance
             target = entry - target_distance
         rr = target_distance / stop_distance
+        risk_model = {
+            "method": "STRUCTURE_PLUS_ATR" if structural_valid else "ATR_VOLATILITY_FALLBACK",
+            "atr14": atr14,
+            "atr_multiple": 1.25,
+            "structure_lookback_bars": len(lookback),
+            "structural_level": structural_level,
+            "structural_distance": structural_distance,
+            "chosen_stop_distance": stop_distance,
+            "target_r_multiple": 2.0,
+            "money_management": "POSITION_SIZE_FROM_STOP_RISK",
+            "paper_only": True,
+            "live_execution": False,
+        }
 
-    return QuantDecision(symbol, timeframe, regime, side, round(score, 2), entry, stop, target, rr, votes)
+    evidence_graph, contradictions = _explain_votes(enriched_votes, regime, regime_family_weight)
+    return QuantDecision(
+        symbol,
+        timeframe,
+        regime,
+        side,
+        round(score, 2),
+        entry,
+        stop,
+        target,
+        rr,
+        enriched_votes,
+        evidence_graph=evidence_graph,
+        contradictions=contradictions,
+        reasons_not_to_trade=tuple(reasons_not_to_trade),
+        risk_model=risk_model,
+    )
 
 
 def position_size(equity: float, entry: float, stop: float, risk_fraction: float = 0.005, max_notional_fraction: float = 0.20) -> int:

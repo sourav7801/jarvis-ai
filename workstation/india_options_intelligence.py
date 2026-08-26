@@ -270,6 +270,22 @@ def analyze_india_option_request(text: str, *, today: date | None = None) -> dic
     call_oi = _safe_float(full_data.get("callOi")) if isinstance(full_data, dict) else None
     put_oi = _safe_float(full_data.get("putOi")) if isinstance(full_data, dict) else None
     pcr = (put_oi / call_oi) if put_oi is not None and call_oi not in (None, 0) else None
+    from workstation.options_chain_analytics import analyze_chain, normalize_contracts
+
+    expiry_iso = _expiry_iso(chosen) if chosen else None
+    normalized_chain = normalize_contracts(
+        rows,
+        underlying=request.underlying,
+        provider="FYERS_READ_ONLY",
+        expiry=expiry_iso,
+        provider_symbol=UNDERLYINGS[request.underlying],
+    )
+    chain_analytics = analyze_chain(
+        normalized_chain,
+        spot=spot,
+        verified=True,
+        stale=False,
+    )
 
     if request.option_type is None:
         speech = (
@@ -329,6 +345,8 @@ def analyze_india_option_request(text: str, *, today: date | None = None) -> dic
         "pcr_oi": pcr,
         "call_oi": call_oi,
         "put_oi": put_oi,
+        "chain": [item.to_dict() for item in normalized_chain],
+        "chain_analytics": chain_analytics,
         "paper_intent": paper_intent,
         "risk_gate": risk_gate,
         "speech": speech,

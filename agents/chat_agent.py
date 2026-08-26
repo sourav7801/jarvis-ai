@@ -1,3 +1,5 @@
+import re
+
 import requests
 
 
@@ -7,6 +9,30 @@ import requests
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "llama3.2:3b"
+
+
+UNVERIFIED_ORIGIN_CLAIM = re.compile(
+    r"\b(?:famous (?:line|quote)|from the (?:film|movie)|spoken by|"
+    r"mahabharata|ramayana|ancient (?:epic|text)|you meant|"
+    r"correct phrase would be|roughly translates? to)\b",
+    flags=re.IGNORECASE,
+)
+
+
+def _truthful_chat_message(query, message):
+    """Fail closed when the small local model invents cultural provenance."""
+
+    text = str(message or "").strip()
+    if not text:
+        return "I could not form a reliable answer. Please rephrase the sentence."
+    if UNVERIFIED_ORIGIN_CLAIM.search(text):
+        heard = re.sub(r"\s+", " ", str(query or "")).strip()
+        return (
+            f'I may be misunderstanding the sentence "{heard[:240]}". '
+            "I will not invent a translation, quotation, film, person, or historical origin. "
+            "Please repeat it more slowly in Hindi, Hinglish, or English, or ask me to verify it on the web."
+        )
+    return text
 
 
 class ChatAgent:
@@ -42,6 +68,14 @@ Rules:
 12. When prior conversational context is present, resolve references such as
     "first one", "that song", "go ahead with it", or a repeated title against it
     before interpreting them as unrelated entities.
+13. A transcript may contain misheard Hindi, Hinglish, names, or background speech.
+    If its meaning is unclear, quote the words you received and ask the user to
+    repeat or rephrase. Never manufacture a translation or continue a guessed story.
+14. Never claim that an unclear phrase comes from a film, song, book, epic,
+    historical person, or quotation unless verified evidence is supplied in this
+    prompt. Sounding plausible is not evidence.
+15. Do not "correct" the user's wording unless the correction is certain and
+    necessary. Prefer: "I may have heard that incorrectly."
 
 USER:
 
@@ -56,6 +90,7 @@ USER:
                     "model": OLLAMA_MODEL,
                     "prompt": prompt,
                     "stream": False,
+                    "options": {"temperature": 0.1},
                 },
                 timeout=120,
             )
@@ -68,6 +103,7 @@ USER:
                 "response",
                 "",
             ).strip()
+            message = _truthful_chat_message(query, message)
 
             return {
                 "success": True,

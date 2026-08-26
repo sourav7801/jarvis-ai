@@ -2,16 +2,11 @@
 setlocal
 cd /d "%~dp0"
 
-if not exist ".venv-new\Scripts\python.exe" (
-  echo JARVIS could not find .venv-new\Scripts\python.exe
-  echo Create the Python environment first, then run this launcher again.
-  pause
-  exit /b 1
-)
-
-echo Starting the canonical JARVIS dashboard...
-echo Keep this window open. Press Ctrl+C here to stop JARVIS.
-".venv-new\Scripts\python.exe" -m scripts.launch_workstation
+echo Starting the complete JARVIS V5 system...
+echo Master dashboard: http://127.0.0.1:8797
+echo Quant signal terminal: http://127.0.0.1:8787
+echo Keep this window open. Press Ctrl+C here to stop Master JARVIS.
+call "%~dp0JARVIS.bat"
 
 if errorlevel 1 (
   echo.

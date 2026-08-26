@@ -214,10 +214,13 @@ class JarvisBrain:
                 "Office/document request."
             )
 
-        if any(x in text for x in (
-            "business", "company", "startup",
-            "venture", "business plan",
-        )):
+        company_intent = any(x in text for x in (
+            "business plan", "company strategy", "startup idea", "startup plan",
+            "venture thesis", "start a company", "start my company",
+            "build a company", "build my company", "create a company",
+            "create my company", "launch a company", "launch my company",
+        ))
+        if company_intent:
             return self._decision(
                 "company_strategy",
                 "strategy",

@@ -1,5 +1,14 @@
 # Local V1 Release Readiness
 
+## 2026-08-24 verification update
+
+The V5 checkpoint passes 1002 tests. Authorized Playwright browser observation
+is installed locally, Nautilus Trader 1.231.0 runs in a dedicated Python 3.12
+environment, and the Quant Terminal provides live indicator overlays and
+explainable paper signals. The browser smoke renders 11 chart canvases with no
+LOADING labels or page errors, using a locally bundled pinned chart library.
+Live execution remains locked.
+
 ## Repository-controlled capabilities completed
 
 - Deterministic and model-assisted command routing
@@ -26,7 +35,7 @@
 - Licensed TradingView Advanced Charts/Trading Platform source
 - Hardware-backed or biometric authorization
 - Production container/VM isolation and OS-level resource quotas
-- Optional Playwright browser adapter for authorized interactive workflows
+- Production hardening and independent review of the installed Playwright browser adapter
 
 ## Release boundary
 

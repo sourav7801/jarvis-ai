@@ -1294,7 +1294,8 @@ function executeWorkspaceActions(
 
 
 async function executeCommand(
-    forced = null
+    forced = null,
+    metadata = {}
 ) {
 
     const input =
@@ -1401,7 +1402,18 @@ async function executeCommand(
                     body:
                         JSON.stringify(
                             {
-                                text
+                                text,
+
+                                input_mode:
+                                    metadata.inputMode
+                                    || "typed",
+
+                                speech_confidence:
+                                    Number.isFinite(
+                                        Number(metadata.speechConfidence)
+                                    )
+                                    ? Number(metadata.speechConfidence)
+                                    : null
                             }
                         )
                 }
@@ -1424,6 +1436,11 @@ async function executeCommand(
             result.response
             || "Completed.",
             lastRoute
+        );
+
+
+        renderSpecialistResult(
+            result
         );
 
 
@@ -1478,6 +1495,239 @@ async function executeCommand(
 
 
     refreshEvidence();
+}
+
+
+function specialistTargetForRoute(
+    route
+) {
+
+    const value =
+        String(route || "")
+        .toUpperCase();
+
+
+    if (
+        value.includes("WEB")
+        || value.includes("RESEARCH")
+        || value.includes("NEWS")
+    ) {
+
+        return {
+            feed: "researchFeed",
+            window: "research"
+        };
+    }
+
+
+    if (
+        value.includes("PAPER")
+        || value.includes("PORTFOLIO")
+        || value.includes("AUTONOM")
+    ) {
+
+        return {
+            feed: "paperFeed",
+            window: "paper"
+        };
+    }
+
+
+    if (
+        value.includes("COMPANY")
+        || value.includes("VENTURE")
+        || value.includes("BUSINESS")
+    ) {
+
+        return {
+            feed: "companyFeed",
+            window: "company"
+        };
+    }
+
+
+    return null;
+}
+
+
+function sourceLinksFromPayload(
+    payload
+) {
+
+    const links = [];
+    const seen = new Set();
+
+
+    const visit = value => {
+
+        if (
+            !value
+            || links.length >= 12
+        ) return;
+
+
+        if (Array.isArray(value)) {
+
+            value.forEach(visit);
+            return;
+        }
+
+
+        if (typeof value !== "object")
+            return;
+
+
+        const url =
+            value.url
+            || value.link
+            || value.source_url;
+
+
+        if (
+            typeof url === "string"
+            && /^https?:\/\//i.test(url)
+            && !seen.has(url)
+        ) {
+
+            seen.add(url);
+            links.push({
+                url,
+                label:
+                    String(
+                        value.title
+                        || value.name
+                        || value.source
+                        || new URL(url).hostname
+                    )
+            });
+        }
+
+
+        Object.values(value).forEach(visit);
+    };
+
+
+    visit(payload);
+    return links;
+}
+
+
+function renderSpecialistResult(
+    result
+) {
+
+    const target =
+        specialistTargetForRoute(
+            result?.route
+        );
+
+
+    if (!target)
+        return;
+
+
+    const feed =
+        document.getElementById(
+            target.feed
+        );
+
+
+    if (!feed)
+        return;
+
+
+    const card =
+        document.createElement(
+            "article"
+        );
+
+    card.className =
+        "resultCard specialistResultCard";
+
+
+    const meta =
+        document.createElement(
+            "div"
+        );
+
+    meta.className =
+        "resultMeta";
+
+    meta.textContent =
+        String(result.route || "SPECIALIST")
+        + " · VERIFIED RESULT · "
+        + new Date().toLocaleTimeString();
+
+
+    const body =
+        document.createElement(
+            "div"
+        );
+
+    body.className =
+        "resultBody";
+
+    body.textContent =
+        String(
+            result.response
+            || "The specialist completed without a text summary."
+        );
+
+
+    card.append(
+        meta,
+        body
+    );
+
+
+    const sources =
+        sourceLinksFromPayload(
+            result.raw
+        );
+
+
+    if (sources.length) {
+
+        const sourceHolder =
+            document.createElement(
+                "div"
+            );
+
+        sourceHolder.className =
+            "specialistSources";
+
+
+        sources.forEach(
+            source => {
+
+                const link =
+                    document.createElement(
+                        "a"
+                    );
+
+                link.href = source.url;
+                link.target = "_blank";
+                link.rel = "noopener noreferrer";
+                link.textContent = source.label;
+                sourceHolder.appendChild(link);
+            }
+        );
+
+
+        card.appendChild(
+            sourceHolder
+        );
+    }
+
+
+    feed.replaceChildren(
+        card
+    );
+
+
+    openWindow(
+        target.window
+    );
 }
 
 
@@ -2080,11 +2330,15 @@ async function refreshStatus() {
         document.getElementById(
             "agentCount"
         ).textContent =
-            agents.length;
+            (
+                value.agent_health
+                || agents
+            ).length;
 
 
         renderAgentMesh(
-            agents
+            value.agent_health
+            || agents
         );
 
 
@@ -2128,10 +2382,7 @@ function renderAgentMesh(
 
     for (
         const name
-        of agents.slice(
-            0,
-            24
-        )
+        of agents
     ) {
 
         const card =
@@ -2140,13 +2391,39 @@ function renderAgentMesh(
             );
 
 
+        const record =
+            typeof name === "string"
+            ? {
+                name,
+                status: "REGISTERED",
+                detail: "Registered entrypoint; health detail unavailable."
+            }
+            : name;
+
+
         card.className =
-            "agentCard";
+            "agentCard "
+            + String(
+                record.status
+                || "degraded"
+            ).toLowerCase();
 
         card.textContent =
             String(
-                name
+                record.name
             ).toUpperCase();
+
+
+        card.title =
+            String(
+                record.status
+                || "UNKNOWN"
+            )
+            + " · "
+            + String(
+                record.detail
+                || "No readiness detail."
+            );
 
 
         holder.appendChild(
@@ -2315,6 +2592,229 @@ async function refreshMarket() {
 
 
     } catch (_) {}
+}
+
+
+function paperMoney(value) {
+    const number = Number(value || 0);
+    return new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 2
+    }).format(number);
+}
+
+
+function paperTradeRow(item, closed = false) {
+    const row = document.createElement("div");
+    row.className = "paperTradeRow";
+    const pnl = Number(closed ? item.realized_pnl : item.unrealized_pnl || 0);
+    const values = [
+        `${item.symbol || "—"} · ${item.side || "—"}`,
+        `QTY ${Number(item.quantity || 0).toLocaleString("en-IN")}`,
+        `ENTRY ${Number(item.entry || 0).toLocaleString("en-IN")}`,
+        closed
+            ? `EXIT ${Number(item.exit_price || 0).toLocaleString("en-IN")}`
+            : `SL ${Number(item.stop || 0).toLocaleString("en-IN")} · TP ${Number(item.target || 0).toLocaleString("en-IN")}`,
+        `${pnl >= 0 ? "+" : ""}${paperMoney(pnl)}`
+    ];
+    values.forEach((value, index) => {
+        const cell = index === 0 ? document.createElement("strong") : document.createElement("span");
+        cell.textContent = value;
+        if (index === 4) cell.className = pnl >= 0 ? "positive" : "negative";
+        row.appendChild(cell);
+    });
+    row.title = [
+        `Timeframe: ${item.timeframe || "—"}`,
+        `Strategy: ${item.strategy || "—"}`,
+        `Multiplier: ${item.contract_multiplier || 1}`,
+        `Currency: ${item.native_currency || "—"} → ${item.valuation_currency || "INR"}`,
+        `Costs: ${item.cost_model_status || "UNCONFIGURED"}`,
+        ...(!closed ? [
+            `Current mark: ${Number(item.mark || 0).toLocaleString("en-IN")}`,
+            `Initial stop: ${Number(item.initial_stop || item.stop || 0).toLocaleString("en-IN")}`,
+            item.exit_policy
+                ? `Exit policy: breakeven ${Number(item.exit_policy.breakeven_at_r || 0).toFixed(2)}R · trail starts ${Number(item.exit_policy.trailing_at_r || 0).toFixed(2)}R · distance ${Number(item.exit_policy.trailing_distance_r || 0).toFixed(2)}R · max hold ${Number(item.exit_policy.max_hold_minutes || 0)}m`
+                : "Exit policy: fixed stop and target"
+        ] : [
+            `Exit reason: ${item.exit_reason || item.metadata?.exit_reason || "—"}`,
+            `MAE: ${paperMoney(item.mae_pnl)} · ${Number(item.mae_r || 0).toFixed(2)}R`,
+            `MFE: ${paperMoney(item.mfe_pnl)} · ${Number(item.mfe_r || 0).toFixed(2)}R`
+        ])
+    ].join("\n");
+    return row;
+}
+
+
+async function refreshPaperPortfolio() {
+    const paperWindow = document.getElementById("win-paper");
+    if (!paperWindow || paperWindow.style.display === "none") return;
+    try {
+        const data = await api("/api/paper-portfolio");
+        const portfolio = data.portfolio || {};
+        const autonomy = data.autonomy || {};
+        document.getElementById("paperRunState").textContent = autonomy.running ? "AUTONOMY RUNNING" : "AUTONOMY PAUSED";
+        document.getElementById("paperEquity").textContent = paperMoney(portfolio.equity);
+        const totalPnl = Number(portfolio.total_pnl || 0);
+        const pnlElement = document.getElementById("paperTotalPnl");
+        pnlElement.textContent = `${totalPnl >= 0 ? "+" : ""}${paperMoney(totalPnl)}`;
+        pnlElement.className = totalPnl >= 0 ? "positive" : "negative";
+        document.getElementById("paperGross").textContent = paperMoney(portfolio.gross_exposure);
+        document.getElementById("paperRisk").textContent = `${paperMoney(portfolio.risk_at_stops)} · ${Number(portfolio.risk_percent_of_equity || 0).toFixed(2)}%`;
+        const dailyPnl = Number(portfolio.daily_total_pnl || 0);
+        const dailyElement = document.getElementById("paperDailyPnl");
+        dailyElement.textContent = `${dailyPnl >= 0 ? "+" : ""}${paperMoney(dailyPnl)} / ${paperMoney(portfolio.daily_loss_limit)}`;
+        dailyElement.className = dailyPnl >= 0 ? "positive" : "negative";
+        document.getElementById("paperDrawdown").textContent =
+            `${paperMoney(portfolio.drawdown)} · ${Number(portfolio.drawdown_percent || 0).toFixed(2)}% / ${paperMoney(portfolio.peak_equity)}`;
+        const locks = Array.isArray(portfolio.risk_locks) ? portfolio.risk_locks : [];
+        const entryGate = document.getElementById("paperEntryGate");
+        entryGate.textContent = locks.length ? locks.join(" · ").replaceAll("_", " ") : "OPEN · ALL DESK GATES PASS";
+        entryGate.className = locks.length ? "negative" : "positive";
+        document.getElementById("paperCorrelation").textContent =
+            `${portfolio.correlation_clusters_status || "UNCONFIGURED"} · ${Object.keys(portfolio.correlation_cluster_exposure || {}).length} CLUSTERS`;
+
+        const positions = Array.isArray(portfolio.positions) ? portfolio.positions : [];
+        const closed = Array.isArray(data.closed_positions) ? data.closed_positions : [];
+        document.getElementById("paperOpenCount").textContent = `${positions.length} OPEN`;
+        document.getElementById("paperClosedCount").textContent = `${closed.length} CLOSED`;
+        const openHolder = document.getElementById("paperPositions");
+        const closedHolder = document.getElementById("paperClosedTrades");
+        openHolder.innerHTML = "";
+        closedHolder.innerHTML = "";
+        if (positions.length) positions.forEach(item => openHolder.appendChild(paperTradeRow(item)));
+        else openHolder.textContent = "No open paper positions.";
+        if (closed.length) closed.slice(0, 30).forEach(item => closedHolder.appendChild(paperTradeRow(item, true)));
+        else closedHolder.textContent = "No closed paper trades.";
+
+        const optionDesk = data.defined_risk_option_spreads || {};
+        const optionAutonomy = data.options_paper_autonomy || {};
+        const optionRows = Array.isArray(optionDesk.positions) ? optionDesk.positions : [];
+        const optionHolder = document.getElementById("paperOptionSpreads");
+        document.getElementById("paperOptionCount").textContent = `${Number(optionDesk.open_count || 0)} OPEN`;
+        optionHolder.innerHTML = "";
+        if (optionRows.length) {
+            optionRows.slice(0, 20).forEach(item => {
+                const payload = item.payload || {};
+                optionHolder.appendChild(companyRow("paperTradeRow", [
+                    `${item.underlying || "—"} · ${item.strategy || "DEFINED RISK"}`,
+                    `LOTS ${Number(item.quantity || 0)}`,
+                    `BUY ${payload.long_symbol || "—"}`,
+                    `HEDGE ${payload.short_symbol || "—"}`,
+                    `MAX LOSS ${paperMoney(item.max_loss)}`
+                ]));
+            });
+        } else {
+            optionHolder.textContent = "No governed option spreads. Naked short options remain blocked.";
+        }
+        document.getElementById("paperOptionCount").title =
+            `${Number(optionAutonomy.processed || 0)} chains processed · ${Number(optionAutonomy.opened || 0)} opened · `
+            + `${Object.entries(optionAutonomy.rejections || {}).map(([key, value]) => `${key}: ${value}`).join(" · ") || "no rejection telemetry"}`;
+
+        document.getElementById("paperLastScan").textContent = autonomy.last_scan_at
+            ? `LAST SCAN ${new Date(autonomy.last_scan_at).toLocaleTimeString()}`
+            : "NO COMPLETED SCAN";
+        const blockers = Object.entries(autonomy.last_rejection_counts || {})
+            .sort((a, b) => Number(b[1]) - Number(a[1]));
+        const marks = Object.entries(autonomy.last_mark_rejection_counts || {});
+        const blockerText = blockers.length
+            ? blockers.map(([name, count]) => `${name.replaceAll("_", " ")}: ${count}`).join(" · ")
+            : "No entry rejection telemetry yet.";
+        const markText = marks.length
+            ? ` Mark safety: ${marks.map(([name, count]) => `${name}: ${count}`).join(" · ")}.`
+            : "";
+        const exposureSummary = [
+            `asset ${Object.keys(portfolio.asset_class_exposure || {}).length}`,
+            `strategy ${Object.keys(portfolio.strategy_exposure || {}).length}`,
+            `direction ${Object.keys(portfolio.direction_exposure || {}).length}`
+        ].join(" · ");
+        document.getElementById("paperBlockers").textContent =
+            `Profile ${autonomy.profile || "—"} · ${Number(autonomy.scan_cycles || 0)} scans · ${Number(autonomy.positions_opened || 0)} opened · ${Number(autonomy.positions_closed || 0)} closed. `
+            + `Exposure groups: ${exposureSummary}. Entry locks: ${locks.join(", ") || "none"}. ${blockerText}.${markText}`;
+    } catch (error) {
+        document.getElementById("paperRunState").textContent = "TELEMETRY DEGRADED";
+        document.getElementById("paperBlockers").textContent = error.message;
+    }
+}
+
+
+function companyRow(className, values) {
+    const row = document.createElement("div");
+    row.className = className;
+    values.forEach((value, index) => {
+        const cell = index === 0 ? document.createElement("strong") : document.createElement("span");
+        cell.textContent = String(value ?? "—");
+        row.appendChild(cell);
+    });
+    return row;
+}
+
+
+async function refreshCompanyOS() {
+    const companyWindow = document.getElementById("win-company");
+    if (!companyWindow || companyWindow.style.display === "none") return;
+    try {
+        const state = await api("/api/company-os");
+        const plan = state.latest_plan || null;
+        document.getElementById("companyAgentCount").textContent = Number(state.agent_count || 0);
+        document.getElementById("companyAutopilot").textContent =
+            plan?.autopilot?.status || state.autonomy || "SUPERVISED";
+        if (!plan) return;
+
+        const research = plan.research_program || {};
+        const tracks = Array.isArray(research.research_tracks) ? research.research_tracks : [];
+        const orders = Array.isArray(research.department_work_orders) ? research.department_work_orders : [];
+        const departmentRun = plan.department_run || null;
+        const departmentResults = Array.isArray(departmentRun?.results) ? departmentRun.results : [];
+        const horizons = Array.isArray(research.horizons) ? research.horizons : [];
+        const approvals = Array.isArray(plan.tasks)
+            ? plan.tasks.filter(item => item.approval_required).length
+            : 0;
+        document.getElementById("companyName").textContent = plan.company_name || "ACTIVE VENTURE";
+        document.getElementById("companyMission").textContent = plan.venture_thesis?.mission || plan.idea || "—";
+        document.getElementById("companyTrackCount").textContent = tracks.length;
+        document.getElementById("companyArtifactCount").textContent = Array.isArray(plan.artifacts) ? plan.artifacts.length : 0;
+        document.getElementById("companyApprovalCount").textContent = approvals;
+
+        const workboard = document.getElementById("companyWorkboard");
+        workboard.innerHTML = "";
+        if (departmentResults.length) {
+            departmentResults.forEach(item => workboard.appendChild(companyRow("companyWorkRow", [
+                String(item.department_id || "DEPARTMENT").replaceAll("_", " ").toUpperCase(),
+                String(item.status || "UNKNOWN"),
+                item.message || "No local brief was produced."
+            ])));
+        } else {
+            orders.forEach(item => workboard.appendChild(companyRow("companyWorkRow", [
+                item.id, String(item.agent || "").toUpperCase(), `${item.status} · ${item.deliverable}`
+            ])));
+        }
+        if (!orders.length && !departmentResults.length) workboard.textContent = "No department work orders.";
+
+        const roadmap = document.getElementById("companyRoadmap");
+        roadmap.innerHTML = "";
+        horizons.forEach(item => roadmap.appendChild(companyRow("companyRoadmapRow", [
+            item.horizon, item.gate, item.outcome
+        ])));
+        if (!horizons.length) roadmap.textContent = "No long-horizon roadmap.";
+
+        const hypotheses = Array.isArray(research.hypotheses) ? research.hypotheses : [];
+        const obstacles = Array.isArray(research.obstacle_register) ? research.obstacle_register : [];
+        const actionQueue = state.external_action_queue || {};
+        const actionCounts = actionQueue.counts || {};
+        const queuedActions = Array.isArray(actionQueue.actions) ? actionQueue.actions.length : 0;
+        const radar = state.opportunity_radar_schedule || plan.opportunity_radar_schedule || {};
+        document.getElementById("companyResearchState").textContent =
+            `${research.truth_policy || "HYPOTHESES ARE NOT FACTS"} · ${hypotheses.length} hypotheses · ${obstacles.length} obstacle classes · `
+            + `background research ${plan.autopilot?.research || "NOT STARTED"}; `
+            + `department specialists ${plan.autopilot?.department_specialists || plan.autopilot?.department_workboard || "NOT STARTED"}. `
+            + `Opportunity radar ${radar.last_status || "ENROLLED"}, next due ${radar.next_due_at || "—"}. `
+            + `External queue ${queuedActions} exact drafts (${Number(actionCounts.DRAFT_REVIEW_REQUIRED || 0)} awaiting review); nothing executed. `
+            + `Publishing, accounts, spending, contracts, hiring, production deployment, outreach and live trading remain approval-gated.`;
+    } catch (error) {
+        document.getElementById("companyAutopilot").textContent = "DEGRADED";
+        document.getElementById("companyResearchState").textContent = error.message;
+    }
 }
 
 
@@ -3246,6 +3746,10 @@ refreshMarket();
 
 refreshEvidence();
 
+refreshPaperPortfolio();
+
+refreshCompanyOS();
+
 
 setInterval(
     refreshStatus,
@@ -3260,6 +3764,16 @@ setInterval(
 setInterval(
     refreshEvidence,
     6000
+);
+
+setInterval(
+    refreshPaperPortfolio,
+    2500
+);
+
+setInterval(
+    refreshCompanyOS,
+    4000
 );
 
 
@@ -3344,6 +3858,29 @@ Compatibility marker retained for previous regression tests.
             "http://127.0.0.1:8798",
 
     };
+
+
+const depthButton = document.getElementById("depthButton");
+const depthPreference = localStorage.getItem("jarvis-spatial-depth");
+document.body.classList.toggle("spatial-mode", depthPreference !== "off");
+if (depthButton) {
+    depthButton.setAttribute("aria-pressed", String(depthPreference !== "off"));
+    depthButton.onclick = () => {
+        const enabled = !document.body.classList.contains("spatial-mode");
+        document.body.classList.toggle("spatial-mode", enabled);
+        depthButton.setAttribute("aria-pressed", String(enabled));
+        localStorage.setItem("jarvis-spatial-depth", enabled ? "on" : "off");
+    };
+}
+
+window.addEventListener("pointermove", event => {
+    if (!document.body.classList.contains("spatial-mode")) return;
+    const x = (event.clientX / Math.max(window.innerWidth, 1) - .5) * 2;
+    const y = (event.clientY / Math.max(window.innerHeight, 1) - .5) * 2;
+    document.documentElement.style.setProperty("--depth-x", `${(x * 18).toFixed(2)}px`);
+    document.documentElement.style.setProperty("--depth-y", `${(y * 12).toFixed(2)}px`);
+    document.documentElement.style.setProperty("--shadow-x", `${(x * -10).toFixed(2)}px`);
+}, {passive: true});
 
 
     window.JARVISVoice = J;
@@ -4378,7 +4915,8 @@ Compatibility marker retained for previous regression tests.
     // ========================================================
 
     function submitCommand(
-        text
+        text,
+        confidence = null
     ) {
 
         const value =
@@ -4442,22 +4980,16 @@ Compatibility marker retained for previous regression tests.
         );
 
 
-        input.value =
-            value;
+        input.value = value;
 
 
-        input.dispatchEvent(
-            new Event(
-                "input",
-                {
-                    bubbles:
-                        true,
-                }
-            )
+        executeCommand(
+            value,
+            {
+                inputMode: "voice",
+                speechConfidence: confidence,
+            }
         );
-
-
-        execute.click();
 
 
         return true;
@@ -4964,7 +5496,8 @@ Compatibility marker retained for previous regression tests.
             submitCommand(
                 wakeCommand[
                     1
-                ]
+                ],
+                confidence
             );
 
 
@@ -4984,7 +5517,8 @@ Compatibility marker retained for previous regression tests.
         ) {
 
             submitCommand(
-                transcript
+                transcript,
+                confidence
             );
 
 
@@ -5004,7 +5538,8 @@ Compatibility marker retained for previous regression tests.
         ) {
 
             submitCommand(
-                transcript
+                transcript,
+                confidence
             );
 
 
@@ -5619,5 +6154,3 @@ Compatibility marker retained for previous regression tests.
 
 
 })();
-
-

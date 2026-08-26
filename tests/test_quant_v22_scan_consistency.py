@@ -29,6 +29,8 @@ class QuantV22ScanConsistencyTests(unittest.TestCase):
         self.assertIn("requestId !== scanSequence || symbol !== selectedSymbol", source)
         self.assertIn("payloadSymbol !== symbol", source)
         self.assertIn("cancelActiveScan", source)
+        self.assertNotIn("/api/decision?", source)
+        self.assertIn("const decision = payload", source)
 
     def test_switching_market_clears_previous_setup(self):
         source = (

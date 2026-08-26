@@ -31,6 +31,15 @@ WINDOW_ALIASES = {
     "paper desk":
         "paper",
 
+    "company":
+        "company",
+
+    "company os":
+        "company",
+
+    "venture":
+        "company",
+
     "research":
         "research",
 
@@ -491,6 +500,22 @@ def interpret_workspace_command(
 
                 "window":
                     "paper",
+            }
+        )
+
+
+    if re.search(
+        r"\b(?:i have (?:this |an? )?idea|(?:build|create|start|set ?up|launch) (?:a |my )?(?:company|business|startup|venture))\b",
+        lowered,
+    ):
+
+        actions.append(
+            {
+                "type":
+                    "open_window",
+
+                "window":
+                    "company",
             }
         )
 

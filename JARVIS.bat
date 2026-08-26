@@ -3,12 +3,17 @@ setlocal
 
 cd /d C:\Jarvis
 
-title JARVIS OS V3.2
+title JARVIS OS V5
+
+set "JARVIS_PY=C:\Jarvis\.venv\Scripts\python.exe"
+if exist "%JARVIS_PY%" "%JARVIS_PY%" -c "import omni, numpy, pandas, workstation.jarvis_os_v3" >nul 2>&1
+if errorlevel 1 set "JARVIS_PY=C:\Jarvis\.venv-new\Scripts\python.exe"
+if exist "%JARVIS_PY%" "%JARVIS_PY%" -c "import omni, numpy, pandas, workstation.jarvis_os_v3" >nul 2>&1
 
 REM JARVIS_NATIVE_VOICE_V32
 start "JARVIS Native Voice" /min powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\Jarvis\start_jarvis_native_voice.ps1"
 
-if not exist "C:\Jarvis\.venv\Scripts\python.exe" (
+if not exist "%JARVIS_PY%" (
     echo.
     echo JARVIS Python environment not found.
     pause
@@ -16,21 +21,26 @@ if not exist "C:\Jarvis\.venv\Scripts\python.exe" (
 )
 
 REM JARVIS_NAUTILUS_QUANT_CORE_V5
-if exist "C:\Jarvis\.venv-nautilus\Scripts\python.exe" (
-    start "JARVIS Nautilus Quant Core" /min "C:\Jarvis\.venv-nautilus\Scripts\python.exe" "C:\Jarvis\start_jarvis_nautilus_core.py"
+set "JARVIS_NAUTILUS_PY=C:\Jarvis\.venv-nautilus\Scripts\python.exe"
+if exist "%JARVIS_NAUTILUS_PY%" "%JARVIS_NAUTILUS_PY%" -c "import nautilus_trader, nautilus_trader.backtest.config, numpy, pandas; assert nautilus_trader.__version__ == '1.231.0'" >nul 2>&1
+if errorlevel 1 set "JARVIS_NAUTILUS_PY=C:\Jarvis\.venv-nautilus-new\Scripts\python.exe"
+if exist "%JARVIS_NAUTILUS_PY%" "%JARVIS_NAUTILUS_PY%" -c "import nautilus_trader, nautilus_trader.backtest.config, numpy, pandas; assert nautilus_trader.__version__ == '1.231.0'" >nul 2>&1
+if errorlevel 1 set "JARVIS_NAUTILUS_PY=%JARVIS_PY%"
+if exist "%JARVIS_NAUTILUS_PY%" (
+    start "JARVIS Nautilus Quant Core" /min "%JARVIS_NAUTILUS_PY%" "C:\Jarvis\start_jarvis_nautilus_core.py"
 ) else (
-    echo JARVIS Nautilus environment not found. Quant Core will remain offline.
+    start "JARVIS Nautilus Quant Core" /min "%JARVIS_PY%" "C:\Jarvis\start_jarvis_nautilus_core.py"
 )
 
 REM JARVIS_QUANT_TRADING_INTELLIGENCE_V1
-start "JARVIS Quant Trading Intelligence" /min "C:\Jarvis\.venv\Scripts\python.exe" "C:\Jarvis\start_jarvis_quant_terminal.py"
+start "JARVIS Quant Trading Intelligence" /min "%JARVIS_PY%" "C:\Jarvis\start_jarvis_quant_terminal.py"
 
-"C:\Jarvis\.venv\Scripts\python.exe" ^
+"%JARVIS_PY%" ^
 "C:\Jarvis\start_jarvis_v3.py"
 
 if errorlevel 1 (
     echo.
-    echo JARVIS OS V3.2 exited with an error.
+    echo JARVIS OS V5 exited with an error.
     pause
 )
 

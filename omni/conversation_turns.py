@@ -220,6 +220,27 @@ class ConversationTurns:
         if not value:
             return False
 
+        # These are complete standalone utterances or acknowledgements, not
+        # semantic references to the previous agent route.  Treating them as
+        # follow-ups can leak a trading/news route into an unrelated command.
+        standalone = lowered.strip(" .!?,;:")
+        if standalone in {
+            "ok",
+            "okay",
+            "yes",
+            "no",
+            "sure",
+            "thanks",
+            "thank you",
+            "hi",
+            "hello",
+            "now can",
+            "latest news",
+            "current news",
+            "news today",
+        }:
+            return False
+
         if cls.is_reference_followup(value):
             return True
 

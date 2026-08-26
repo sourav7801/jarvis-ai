@@ -69,6 +69,10 @@ class StrategySpec:
 
     required_features: tuple[str, ...]
 
+    version: str = "1.0.0"
+
+    compatible_regimes: tuple[str, ...] = ()
+
     long_entry: tuple[Condition, ...] = ()
 
     short_entry: tuple[Condition, ...] = ()
@@ -99,6 +103,13 @@ class StrategySpec:
 
             raise ValueError(
                 "strategy name is required."
+            )
+
+
+        if not self.version:
+
+            raise ValueError(
+                "strategy version is required."
             )
 
 
@@ -221,6 +232,25 @@ def strategy_from_dict(
                     str,
                     data.get(
                         "required_features",
+                        (),
+                    ),
+                )
+            ),
+
+        version=
+            str(
+                data.get(
+                    "version",
+                    "1.0.0",
+                )
+            ),
+
+        compatible_regimes=
+            tuple(
+                map(
+                    str,
+                    data.get(
+                        "compatible_regimes",
                         (),
                     ),
                 )

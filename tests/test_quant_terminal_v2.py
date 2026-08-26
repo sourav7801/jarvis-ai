@@ -33,8 +33,36 @@ class QuantTerminalV2Tests(unittest.TestCase):
         self.assertTrue(result["success"])
         crypto_loader.assert_called_once_with("BTC", "5m", 100)
 
+    @patch("workstation.quant_terminal_v2.candles_payload")
+    def test_timeframe_evidence_marks_nested_quant_decision_successful(self, candles_loader):
+        candles = []
+        price = 100.0
+        for index in range(90):
+            price += 0.25
+            candles.append(
+                {
+                    "time": index + 1,
+                    "open": price - 0.1,
+                    "high": price + 0.3,
+                    "low": price - 0.4,
+                    "close": price,
+                    "volume": 1000 + index,
+                }
+            )
+        candles_loader.return_value = {
+            "success": True,
+            "source": "TEST",
+            "data_quality": "VERIFIED",
+            "provider_symbol": "TEST:BTC",
+            "candles": candles,
+        }
+        result = quant_terminal_v2._timeframe_evidence("BTC", "5m")
+        self.assertTrue(result["decision"]["success"])
+        self.assertFalse(result["decision"]["live_execution"])
+
+    @patch("workstation.quant_terminal_v2._paper_session_open", return_value=True)
     @patch("workstation.quant_terminal_v2._timeframe_evidence")
-    def test_scan_stays_research_and_paper_only(self, evidence):
+    def test_scan_stays_research_and_paper_only(self, evidence, _session):
         evidence.side_effect = [
             {
                 "timeframe": "5m",
@@ -64,7 +92,75 @@ class QuantTerminalV2Tests(unittest.TestCase):
         self.assertFalse(result["live_execution"])
         self.assertEqual(result["bias"], "BULLISH")
         self.assertEqual(result["alignment"], 100)
-        self.assertEqual(result["setup"]["status"], "RESEARCH_CANDIDATE")
+        self.assertTrue(result["qualified"])
+        self.assertEqual(result["side"], "LONG")
+        self.assertEqual(result["setup"]["status"], "PAPER_QUALIFIED")
+
+    @patch("workstation.quant_terminal_v2._paper_session_open", return_value=True)
+    @patch("workstation.quant_terminal_v2._timeframe_evidence")
+    def test_conflicting_timeframe_signals_fail_closed_to_wait(self, evidence, _session):
+        def row(timeframe, side, trend):
+            return {
+                "timeframe": timeframe,
+                "available": True,
+                "trend": trend,
+                "close": 100.0,
+                "atr14": 2.0,
+                "decision": {
+                    "success": True,
+                    "symbol": "BTC",
+                    "timeframe": timeframe,
+                    "regime": "TRENDING",
+                    "side": side,
+                    "score": 75.0,
+                    "entry": 100.0,
+                    "stop": 98.0 if side == "LONG" else 102.0,
+                    "target": 104.0 if side == "LONG" else 96.0,
+                    "risk_reward": 2.0,
+                    "votes": [],
+                },
+            }
+
+        evidence.side_effect = [
+            row("5m", "SHORT", "BEARISH"),
+            row("15m", "LONG", "BULLISH"),
+            row("1h", "LONG", "BULLISH"),
+        ]
+        result = quant_terminal_v2.scan_payload("BTC")
+        self.assertEqual(result["side"], "WAIT")
+        self.assertFalse(result["qualified"])
+        self.assertIsNone(result["setup"])
+        self.assertIn("TIMEFRAME_DIRECTION_CONFLICT", result["blockers"])
+
+    @patch("workstation.quant_terminal_v2._paper_session_open", return_value=False)
+    @patch("workstation.quant_terminal_v2._timeframe_evidence")
+    def test_closed_market_blocks_automatic_entry(self, evidence, _session):
+        evidence.side_effect = [
+            {
+                "timeframe": timeframe,
+                "available": True,
+                "trend": "BULLISH",
+                "close": 100.0,
+                "atr14": 2.0,
+                "decision": {
+                    "success": True,
+                    "symbol": "NIFTY",
+                    "timeframe": timeframe,
+                    "regime": "TRENDING",
+                    "side": "LONG",
+                    "score": 75.0,
+                    "entry": 100.0,
+                    "stop": 98.0,
+                    "target": 104.0,
+                    "risk_reward": 2.0,
+                    "votes": [],
+                },
+            }
+            for timeframe in ("5m", "15m", "1h")
+        ]
+        result = quant_terminal_v2.scan_payload("NIFTY")
+        self.assertEqual(result["side"], "WAIT")
+        self.assertIn("MARKET_SESSION_CLOSED", result["blockers"])
 
     def test_professional_terminal_static_shell_uses_lightweight_charts(self):
         index = (
@@ -73,12 +169,30 @@ class QuantTerminalV2Tests(unittest.TestCase):
         app = (
             ROOT / "workstation" / "quant_terminal_v2_static" / "app.js"
         ).read_text(encoding="utf-8")
-        self.assertIn("lightweight-charts@5.2.0", index)
+        vendor = (
+            ROOT
+            / "workstation"
+            / "quant_terminal_v2_static"
+            / "lightweight-charts.standalone.production.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn('src="/lightweight-charts.standalone.production.js"', index)
+        self.assertIn('return"5.2.0"', vendor)
         self.assertIn("TradingView Lightweight Charts", index)
         self.assertIn("CandlestickSeries", app)
         self.assertIn("HistogramSeries", app)
         self.assertIn("wss://stream.binance.com", app)
         self.assertIn("/api/live", app)
+        self.assertNotIn("/api/decision?", app)
+
+    def test_automatic_paper_consensus_starts_on_boot_without_live_execution(self):
+        with patch.object(quant_terminal_v2, "AUTO_PAPER_START", True), patch(
+            "workstation.paper_autonomy_engine.paper_autonomy.start",
+            return_value={"running": True, "paper_only": True, "live_execution": False},
+        ) as start:
+            result = quant_terminal_v2.start_paper_autonomy_on_boot()
+        self.assertTrue(result["running"])
+        self.assertFalse(result["live_execution"])
+        start.assert_called_once_with()
 
     def test_quant_launcher_uses_v2_terminal(self):
         launcher = (ROOT / "start_jarvis_quant_terminal.py").read_text(encoding="utf-8")

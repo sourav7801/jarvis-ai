@@ -13,15 +13,12 @@ import json
 import subprocess
 import tempfile
 
+from omni.runtime_paths import nautilus_python
+
 
 ROOT = Path(__file__).resolve().parents[2]
 
-NAUTILUS_PY = (
-    ROOT
-    / ".venv-nautilus"
-    / "Scripts"
-    / "python.exe"
-)
+NAUTILUS_PY = nautilus_python()
 
 WORKER = (
     ROOT

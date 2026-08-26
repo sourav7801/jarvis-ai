@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>JARVIS Quant Trading Intelligence</title>
 <link rel="stylesheet" href="/style.css">
-<script src="https://unpkg.com/lightweight-charts@5.2.0/dist/lightweight-charts.standalone.production.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/lightweight-charts@5.2.0/dist/lightweight-charts.standalone.production.js'"></script>
+<script src="/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
 <header class="topbar">
@@ -53,6 +53,13 @@
         <button data-timeframe="1h">1h</button>
         <button data-timeframe="1d">1D</button>
       </div>
+      <div class="toolbar-group indicators">
+        <span>INDICATORS</span>
+        <button data-indicator="ema" class="active">EMA</button>
+        <button data-indicator="vwap" class="active">VWAP</button>
+        <button data-indicator="bb" class="active">BB</button>
+        <button data-indicator="rsi" class="active">RSI</button>
+      </div>
       <div class="toolbar-group right">
         <button id="fitButton">FIT</button>
         <button id="reloadCharts">RELOAD DATA</button>
@@ -75,6 +82,16 @@
       <div class="hero-row"><b id="scanSymbol">NIFTY</b><span id="scanRegime">WAITING</span></div>
       <div class="bias-row"><strong id="scanBias">NO SCAN</strong><em id="scanAlignment">—</em></div>
       <button id="scanButton">SCAN SELECTED MARKET</button>
+    </section>
+
+    <section class="intel-card signal-card">
+      <div class="eyebrow">LIVE PAPER SIGNAL</div>
+      <div class="signal-row">
+        <b id="liveSignal" class="signal-badge wait">WAIT</b>
+        <span id="signalScore">0.0 SCORE</span>
+      </div>
+      <strong id="signalRegime">WAITING FOR VERIFIED DATA</strong>
+      <p id="signalReason">JARVIS combines strategy votes, regime, risk/reward and multi-timeframe evidence. No broker order is sent.</p>
     </section>
 
     <section class="intel-card">
@@ -113,5 +130,6 @@
 <script src="/option_chart_runtime.js"></script>
 <script src="/paper_desk_runtime.js"></script>
 <script src="/nautilus_core_runtime.js"></script>
+<script src="/advanced_terminal_runtime.js"></script>
 </body>
 </html>

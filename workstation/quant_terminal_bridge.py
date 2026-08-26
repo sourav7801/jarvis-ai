@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import subprocess
+import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import webbrowser
 from dataclasses import dataclass
@@ -66,6 +70,15 @@ _TRADING_ACTION_RE = re.compile(
     r"vwap|fvg|fair value gap|option chain|option|call|put|expiry|"
     r"open interest|oi|buy|sell|paper trade|paper trading"
     r")\b",
+    flags=re.IGNORECASE,
+)
+_TERMINAL_DIAGNOSTIC_RE = re.compile(
+    r"\b(?:scan|check|diagnos(?:e|is)|inspect|fix|repair|self[- ]?heal|why)\b"
+    r"[^.]{0,100}\b(?:quant|trading)\b[^.]{0,80}"
+    r"\b(?:window|terminal|chart|charts|data|loading|working)\b|"
+    r"\b(?:quant|trading)\b[^.]{0,100}"
+    r"\b(?:chart|charts|window|terminal)\b[^.]{0,80}"
+    r"\b(?:not loading|blank|stuck|not working|failed|broken|fix|repair)\b",
     flags=re.IGNORECASE,
 )
 
@@ -135,6 +148,27 @@ def requested_symbols(text: str) -> tuple[str, ...]:
         if symbol not in found:
             found.append(symbol)
 
+    # Recover narrowly-scoped speech splits/typos such as ``bitcoi n`` using
+    # the same resolver as deterministic paper execution.  Exact matches
+    # above remain authoritative and fuzzy results only fill missing markets.
+    try:
+        from workstation.paper_trade_action_router import resolve_trade_symbols
+
+        for symbol in resolve_trade_symbols(text):
+            if symbol not in found:
+                found.append(symbol)
+    except Exception:
+        pass
+
+    try:
+        from workstation.equity_universe import resolve_equity_symbols_from_text
+
+        for symbol in resolve_equity_symbols_from_text(text):
+            if symbol not in found:
+                found.append(symbol)
+    except Exception:
+        pass
+
     return tuple(found)
 
 
@@ -179,7 +213,7 @@ def is_quant_terminal_request(text: str) -> bool:
     such as "what is Nifty 50" stay with Master JARVIS.
     """
 
-    if is_explicit_terminal_open(text):
+    if is_explicit_terminal_open(text) or is_terminal_diagnostic_request(text):
         return True
 
     if _PAPER_DESK_REQUEST_RE.search(normalize(text)):
@@ -196,6 +230,10 @@ def is_quant_terminal_request(text: str) -> bool:
     return bool(_TRADING_ACTION_RE.search(normalize(text)))
 
 
+def is_terminal_diagnostic_request(text: str) -> bool:
+    return bool(_TERMINAL_DIAGNOSTIC_RE.search(normalize(text)))
+
+
 def requested_timeframe(text: str, default: str = "15m") -> str:
     value = normalize(text)
     patterns = (
@@ -208,6 +246,7 @@ def requested_timeframe(text: str, default: str = "15m") -> str:
         (r"\b2\s*(?:h|hour)s?\b", "2h"),
         (r"\b4\s*(?:h|hour)s?\b", "4h"),
         (r"\b1\s*(?:d|day)s?\b", "1d"),
+        (r"\b(?:daily|day\s+chart|swing)\b", "1d"),
     )
 
     for pattern, timeframe in patterns:
@@ -222,9 +261,15 @@ def monitor_requested(text: str) -> bool:
     return any(marker in value for marker in _MONITOR_MARKERS)
 
 
-def _open_terminal_browser() -> bool:
+def _open_terminal_browser(symbol: str | None = None, timeframe: str = "5m") -> bool:
     try:
-        return bool(webbrowser.open(TRADING_URL, new=2))
+        url = TRADING_URL
+        if symbol:
+            query = urllib.parse.urlencode(
+                {"symbol": symbol, "timeframe": timeframe, "analyze": "1"}
+            )
+            url = f"{TRADING_URL}/?{query}"
+        return bool(webbrowser.open(url, new=2))
     except Exception:
         return False
 
@@ -251,6 +296,124 @@ def _post_terminal_agent(text: str, timeout: float = 1.5):
             return value if isinstance(value, dict) else {"result": value}
     except (urllib.error.URLError, TimeoutError, ValueError, OSError):
         return None
+
+
+def _terminal_json(path: str, method: str = "GET", timeout: float = 8.0):
+    body = b"{}" if method == "POST" else None
+    request = urllib.request.Request(
+        TRADING_URL + path,
+        data=body,
+        method=method,
+        headers={"Content-Type": "application/json"} if body is not None else {},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            value = json.loads(response.read().decode("utf-8", errors="replace"))
+        return value if isinstance(value, dict) else None
+    except (urllib.error.URLError, TimeoutError, ValueError, OSError):
+        return None
+
+
+def _start_terminal_service() -> bool:
+    if _terminal_json("/api/health", timeout=1.0):
+        return True
+    try:
+        from pathlib import Path
+        from omni.runtime_paths import fyers_python
+
+        root = Path(__file__).resolve().parents[1]
+        environment = os.environ.copy()
+        environment["JARVIS_WORKSTATION_PORT"] = str(TRADING_PORT)
+        flags = 0
+        if os.name == "nt":
+            flags = int(getattr(subprocess, "CREATE_NO_WINDOW", 0)) | int(
+                getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+            )
+        subprocess.Popen(
+            [str(fyers_python()), "-m", "workstation.quant_terminal_v2"],
+            cwd=str(root),
+            env=environment,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=flags,
+        )
+    except Exception:
+        return False
+
+    deadline = time.monotonic() + 6.0
+    while time.monotonic() < deadline:
+        if _terminal_json("/api/health", timeout=0.8):
+            return True
+        time.sleep(0.2)
+    return False
+
+
+def diagnose_and_repair_terminal() -> dict:
+    started = _start_terminal_service()
+    health = _terminal_json("/api/health", timeout=3.0) if started else None
+    provider = _terminal_json("/api/provider", timeout=4.0) if health else None
+    probe = (
+        _terminal_json("/api/candles?symbol=BTC&timeframe=5m&bars=80", timeout=12.0)
+        if health
+        else None
+    )
+    actions = []
+
+    if health and provider and str(provider.get("state") or "") not in {"CONNECTED", "LOGIN_REQUIRED"}:
+        restarted = _terminal_json("/api/market/restart", method="POST", timeout=8.0)
+        if restarted is not None:
+            actions.append("restarted the read-only FYERS data bridge")
+            provider = _terminal_json("/api/provider", timeout=4.0) or provider
+
+    cache_busted_url = (
+        f"{TRADING_URL}/?symbol=BTC&timeframe=5m&analyze=1&repair={int(time.time())}"
+    )
+    browser_opened = False
+    if health:
+        try:
+            browser_opened = bool(webbrowser.open(cache_busted_url, new=2))
+        except Exception:
+            browser_opened = False
+        actions.append("opened a fresh cache-busted Quant Terminal")
+
+    data_ok = bool(probe and probe.get("success") and probe.get("candles"))
+    terminal_ok = bool(health)
+    if terminal_ok and data_ok:
+        diagnosis = (
+            f"I checked the Quant Terminal directly. Its service is healthy and the candle API returned "
+            f"{int(probe.get('bars') or len(probe.get('candles') or []))} verified BTC 5 minute bars. "
+            "The blank LOADING panels were a browser chart-rendering failure, not missing crypto data."
+        )
+    elif terminal_ok:
+        diagnosis = (
+            "I reached the Quant Terminal, but its candle probe did not return verified data. "
+            f"Provider state is {str((provider or {}).get('state') or 'UNKNOWN').replace('_', ' ')}."
+        )
+    else:
+        diagnosis = "The Quant Terminal service did not become reachable after an automatic restart attempt."
+
+    if actions:
+        diagnosis += " Automatic repair: " + "; ".join(actions) + "."
+    if not browser_opened and health:
+        diagnosis += f" If the repaired tab did not open, use {cache_busted_url}."
+    diagnosis += " Live broker execution remains locked."
+
+    return {
+        "success": terminal_ok and data_ok,
+        "speech": diagnosis,
+        "health": health,
+        "provider": provider,
+        "probe": {
+            "success": data_ok,
+            "source": (probe or {}).get("source"),
+            "bars": (probe or {}).get("bars"),
+            "message": (probe or {}).get("message"),
+        },
+        "repair_actions": actions,
+        "browser_opened": browser_opened,
+        "paper_only": True,
+        "live_execution": False,
+    }
 
 
 def _start_paper_monitors(
@@ -280,8 +443,17 @@ def dispatch_quant_terminal(text: str) -> QuantTerminalDispatch:
     sessions = ()
     explicit_open = is_explicit_terminal_open(text)
 
-    # Do not spawn a new browser tab for every scan/analyze follow-up.
-    browser_opened = _open_terminal_browser() if explicit_open else False
+    if is_terminal_diagnostic_request(text):
+        diagnosis = diagnose_and_repair_terminal()
+        return QuantTerminalDispatch(
+            success=bool(diagnosis.get("success")),
+            response=str(diagnosis.get("speech") or "Quant Terminal diagnostics completed."),
+            workspace_actions=(),
+            symbols=(),
+            monitor_sessions=(),
+            terminal_agent=diagnosis,
+            browser_opened=bool(diagnosis.get("browser_opened")),
+        )
 
     if monitor_requested(text) and symbols:
         sessions = _start_paper_monitors(
@@ -291,6 +463,18 @@ def dispatch_quant_terminal(text: str) -> QuantTerminalDispatch:
         )
 
     terminal_agent = _post_terminal_agent(text)
+    chart_requested = bool(
+        isinstance(terminal_agent, dict)
+        and (
+            terminal_agent.get("chart")
+            or str(terminal_agent.get("action") or "") == "open_signal_chart"
+        )
+    )
+    browser_opened = (
+        _open_terminal_browser(symbols[0] if symbols else None, timeframe)
+        if explicit_open or chart_requested
+        else False
+    )
 
     response_parts = []
 

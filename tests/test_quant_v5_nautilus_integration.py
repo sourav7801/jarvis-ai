@@ -39,6 +39,9 @@ class QuantV5NautilusIntegrationTests(unittest.TestCase):
     def test_launcher_starts_nautilus_in_isolated_environment(self):
         source = (ROOT / "JARVIS.bat").read_text(encoding="utf-8", errors="replace")
         self.assertIn("JARVIS_NAUTILUS_QUANT_CORE_V5", source)
+        self.assertIn("import nautilus_trader, nautilus_trader.backtest.config, numpy, pandas", source)
+        self.assertIn("nautilus_trader.__version__ == '1.231.0'", source)
+        self.assertIn("import omni, numpy, pandas, workstation.jarvis_os_v3", source)
         self.assertIn(".venv-nautilus", source)
         self.assertIn("start_jarvis_nautilus_core.py", source)
 

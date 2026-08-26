@@ -7,6 +7,9 @@ import os
 
 class GoogleTokenVault:
 
+    DPAPI_PREFIX = b"DPAPI1:"
+    FERNET_PREFIX = b"FERNET1:"
+
     DESCRIPTION = (
         "JARVIS Google OAuth Token"
     )
@@ -58,9 +61,6 @@ class GoogleTokenVault:
         text,
     ):
 
-        import win32crypt
-
-
         data = str(
             text
         ).encode(
@@ -68,8 +68,16 @@ class GoogleTokenVault:
         )
 
 
-        encrypted = (
-            win32crypt.CryptProtectData(
+        self.path.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        provider = "WINDOWS_DPAPI"
+        try:
+            import win32crypt
+
+            encrypted = self.DPAPI_PREFIX + win32crypt.CryptProtectData(
                 data,
                 self.DESCRIPTION,
                 None,
@@ -77,13 +85,21 @@ class GoogleTokenVault:
                 None,
                 0,
             )
-        )
+        except Exception:
+            from cryptography.fernet import Fernet
 
-
-        self.path.parent.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
+            provider = "LOCAL_FERNET"
+            key_path = self._fallback_key_path()
+            if key_path.exists():
+                key = key_path.read_bytes()
+            else:
+                key = Fernet.generate_key()
+                key_path.write_bytes(key)
+                try:
+                    os.chmod(key_path, 0o600)
+                except Exception:
+                    pass
+            encrypted = self.FERNET_PREFIX + Fernet(key).encrypt(data)
 
 
         temporary = (
@@ -128,6 +144,9 @@ class GoogleTokenVault:
             "encrypted":
                 True,
 
+            "provider":
+                provider,
+
             "bytes":
                 len(
                     encrypted
@@ -138,9 +157,6 @@ class GoogleTokenVault:
     def load_text(
         self,
     ):
-
-        import win32crypt
-
 
         if not self.exists():
 
@@ -155,15 +171,26 @@ class GoogleTokenVault:
         )
 
 
-        description, data = (
-            win32crypt.CryptUnprotectData(
-                encrypted,
+        if encrypted.startswith(self.FERNET_PREFIX):
+            from cryptography.fernet import Fernet
+
+            key = self._fallback_key_path().read_bytes()
+            data = Fernet(key).decrypt(encrypted[len(self.FERNET_PREFIX):])
+        else:
+            import win32crypt
+
+            payload = (
+                encrypted[len(self.DPAPI_PREFIX):]
+                if encrypted.startswith(self.DPAPI_PREFIX)
+                else encrypted
+            )
+            _description, data = win32crypt.CryptUnprotectData(
+                payload,
                 None,
                 None,
                 None,
                 0,
             )
-        )
 
 
         return data.decode(
@@ -182,6 +209,10 @@ class GoogleTokenVault:
             missing_ok=True
         )
 
+        self._fallback_key_path().unlink(
+            missing_ok=True
+        )
+
 
         return {
             "success":
@@ -190,6 +221,13 @@ class GoogleTokenVault:
             "existed":
                 existed,
         }
+
+
+    def _fallback_key_path(self):
+
+        return self.path.with_suffix(
+            self.path.suffix + ".key"
+        )
 
 
 google_token_vault = (

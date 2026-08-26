@@ -137,6 +137,21 @@ def snapshot_payload(symbol: str) -> dict[str, Any]:
     }
 
 
+def subscribe_payload(symbol: str) -> dict[str, Any]:
+    requested = str(symbol or "").strip().upper()
+    if not requested:
+        return {"success": False, "message": "A FYERS symbol is required.", "live_orders": False}
+    try:
+        result = fyers_live_stream.subscribe([requested])
+        return {"success": True, **result, "live_orders": False}
+    except Exception as exc:
+        return {
+            "success": False,
+            "message": f"{type(exc).__name__}: {exc}"[:300],
+            "live_orders": False,
+        }
+
+
 class Handler(BaseHTTPRequestHandler):
     def send_json(self, payload: dict[str, Any], status: int = 200) -> None:
         raw = json.dumps(payload, default=str).encode("utf-8")
@@ -164,6 +179,14 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/api/restart":
             return self.send_json(start_stream())
+        if parsed.path == "/api/subscribe":
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                body = json.loads(self.rfile.read(length).decode("utf-8")) if length else {}
+            except Exception:
+                body = {}
+            payload = subscribe_payload(str(body.get("symbol") or ""))
+            return self.send_json(payload, 200 if payload.get("success") else 400)
         self.send_error(404)
 
     def log_message(self, *_args) -> None:

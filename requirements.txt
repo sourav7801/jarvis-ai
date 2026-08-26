@@ -2,15 +2,24 @@
 # Generate a fully pinned lock file after rebuilding the local environment.
 chromadb
 comtypes
+cryptography
 fyers-apiv3
+google-api-core==2.25.1
+google-api-python-client
+google-auth
+google-auth-oauthlib
 numpy
 openpyxl
+opencv-python-headless
 pandas
+pillow
+playwright
 plotly
 psutil
+pywinauto
 pycaw
 pyttsx3
-requests
+requests==2.31.0
 sentence-transformers
 SpeechRecognition
 ta

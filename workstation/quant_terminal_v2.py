@@ -6,6 +6,7 @@ import os
 import socket
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -22,11 +23,19 @@ PORT = int(os.getenv("JARVIS_WORKSTATION_PORT", "8787"))
 LIVE_BRIDGE_HOST = os.getenv("JARVIS_FYERS_BRIDGE_HOST", "127.0.0.1")
 LIVE_BRIDGE_PORT = int(os.getenv("JARVIS_FYERS_BRIDGE_PORT", "8790"))
 LIVE_BRIDGE_URL = f"http://{LIVE_BRIDGE_HOST}:{LIVE_BRIDGE_PORT}"
+AUTO_PAPER_START = os.getenv("JARVIS_AUTO_PAPER_START", "1").strip().lower() not in {
+    "0",
+    "false",
+    "no",
+    "off",
+}
 
 CRYPTO_SYMBOLS = {
     "BTC": "BTCUSDT",
     "ETH": "ETHUSDT",
     "SOL": "SOLUSDT",
+    "BNB": "BNBUSDT",
+    "XRP": "XRPUSDT",
 }
 INDIA_SYMBOLS = {
     "NIFTY",
@@ -43,7 +52,18 @@ SUPPORTED_SYMBOLS = tuple(
 )
 SUPPORTED_TIMEFRAMES = {"1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "1d"}
 
+# One governed decision horizon is used by the scanner, chart signal and paper
+# executor.  A chart's visual timeframe may change, but that must never create
+# a second, contradictory trade instruction.
+CONSENSUS_TIMEFRAMES = ("5m", "15m", "1h")
+SWING_CONSENSUS_TIMEFRAMES = ("1h", "4h", "1d")
+CONSENSUS_MIN_SCORE = 68.0
+CONSENSUS_MIN_ALIGNMENT = 67
+CONSENSUS_MIN_RISK_REWARD = 1.8
+
 _LIVE_BRIDGE_PROCESS: subprocess.Popen | None = None
+_QUOTE_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
+_QUOTE_CACHE_LOCK = threading.RLock()
 
 
 def _safe_message(value: Any) -> str:
@@ -67,7 +87,8 @@ def _json_safe(value: Any) -> Any:
 
 
 def normalize_symbol(value: str) -> str:
-    symbol = str(value or "").strip().upper().replace(" ", "")
+    raw = str(value or "").strip()
+    symbol = raw.upper().replace(" ", "")
     aliases = {
         "NIFTY50": "NIFTY",
         "NIFTY": "NIFTY",
@@ -88,9 +109,47 @@ def normalize_symbol(value: str) -> str:
         "SOL": "SOL",
     }
     result = aliases.get(symbol, symbol)
-    if result not in SUPPORTED_SYMBOLS:
-        raise ValueError(f"Unsupported Quant Terminal symbol: {value}")
-    return result
+    if result in SUPPORTED_SYMBOLS:
+        return result
+    from workstation.equity_universe import resolve_equity_symbol
+
+    equity = resolve_equity_symbol(raw)
+    if equity is not None:
+        return equity.symbol
+    raise ValueError(
+        f"Unsupported Quant Terminal symbol: {value}. For global equities use an explicit "
+        "ticker such as NASDAQ:AAPL, NYSE:IBM, or YF:7203.T."
+    )
+
+
+def symbol_metadata(value: str) -> dict[str, Any]:
+    canonical = normalize_symbol(value)
+    if canonical in CRYPTO_SYMBOLS:
+        return {
+            "symbol": canonical,
+            "label": canonical,
+            "kind": "CRYPTO",
+            "market": "CRYPTO",
+            "provider": "BINANCE_PUBLIC",
+            "provider_symbol": CRYPTO_SYMBOLS[canonical],
+            "auto_execution_eligible": True,
+        }
+    if canonical in INDIA_SYMBOLS:
+        return {
+            "symbol": canonical,
+            "label": canonical,
+            "kind": "INDIA",
+            "market": "INDIA",
+            "provider": "FYERS",
+            "provider_symbol": canonical,
+            "auto_execution_eligible": True,
+        }
+    from workstation.equity_universe import resolve_equity_symbol
+
+    equity = resolve_equity_symbol(canonical) or resolve_equity_symbol(value)
+    if equity is None:
+        raise ValueError(f"Equity metadata is unavailable for {value}.")
+    return {**equity.to_dict(), "auto_execution_eligible": equity.market == "INDIA"}
 
 
 def normalize_timeframe(value: str) -> str:
@@ -175,11 +234,17 @@ def _frame_candles(frame: Any) -> list[dict[str, Any]]:
     return candles
 
 
-def _fyers_candles(symbol: str, timeframe: str, bars: int) -> dict[str, Any]:
+def _fyers_candles(
+    symbol: str,
+    timeframe: str,
+    bars: int,
+    *,
+    provider_symbol: str | None = None,
+) -> dict[str, Any]:
     from workstation.fyers_isolated_history_bridge import get_intraday_data_isolated_frame
 
     result = get_intraday_data_isolated_frame(
-        symbol,
+        provider_symbol or symbol,
         market="india",
         timeframe=timeframe,
         bars=bars,
@@ -194,7 +259,7 @@ def _fyers_candles(symbol: str, timeframe: str, bars: int) -> dict[str, Any]:
             "BROKER_HISTORICAL" if candles else "UNAVAILABLE"
         ),
         "symbol": symbol,
-        "provider_symbol": payload.get("provider_symbol") or symbol,
+        "provider_symbol": payload.get("provider_symbol") or provider_symbol or symbol,
         "timeframe": timeframe,
         "bars": len(candles),
         "candles": candles,
@@ -219,6 +284,45 @@ def _binance_interval(timeframe: str) -> str:
         "1d": "1d",
     }
     return mapping[timeframe]
+
+
+_TIMEFRAME_SECONDS = {
+    "1m": 60,
+    "3m": 180,
+    "5m": 300,
+    "15m": 900,
+    "30m": 1800,
+    "1h": 3600,
+    "2h": 7200,
+    "4h": 14400,
+    "1d": 86400,
+}
+
+
+def completed_candles(
+    candles: list[dict[str, Any]],
+    timeframe: str,
+    *,
+    now_epoch: float | None = None,
+) -> list[dict[str, Any]]:
+    """Exclude a provider's still-forming final bar from strategy evidence."""
+
+    if not candles:
+        return []
+    now_value = float(now_epoch if now_epoch is not None else time.time())
+    interval_seconds = _TIMEFRAME_SECONDS.get(normalize_timeframe(timeframe))
+    result: list[dict[str, Any]] = []
+    for row in candles:
+        close_time = row.get("close_time")
+        if close_time is None and interval_seconds:
+            opened = row.get("time", row.get("timestamp"))
+            try:
+                close_time = float(opened) + interval_seconds
+            except (TypeError, ValueError):
+                close_time = None
+        if close_time is None or float(close_time) <= now_value:
+            result.append(row)
+    return result
 
 
 def _binance_json(path: str, params: dict[str, Any]) -> Any:
@@ -255,6 +359,7 @@ def _crypto_candles(symbol: str, timeframe: str, bars: int) -> dict[str, Any]:
                     "low": float(row[3]),
                     "close": float(row[4]),
                     "volume": float(row[5]),
+                    "close_time": int(int(row[6]) / 1000) if len(row) > 6 else None,
                 }
             )
         return {
@@ -292,11 +397,42 @@ def candles_payload(symbol: str, timeframe: str = "5m", bars: int = 500) -> dict
     bounded_bars = max(20, min(int(bars), 7500))
     if canonical in CRYPTO_SYMBOLS:
         return _crypto_candles(canonical, resolved_timeframe, bounded_bars)
+    if canonical not in INDIA_SYMBOLS:
+        metadata = symbol_metadata(canonical)
+        if metadata.get("market") == "GLOBAL":
+            from workstation.global_equity_data import global_equity_candles
+
+            payload = global_equity_candles(
+                str(metadata["provider_symbol"]), resolved_timeframe, bounded_bars
+            )
+            payload["symbol"] = canonical
+            payload["instrument"] = metadata
+            return payload
+        payload = _fyers_candles(
+            canonical,
+            resolved_timeframe,
+            bounded_bars,
+            provider_symbol=str(metadata["provider_symbol"]),
+        )
+        payload["instrument"] = metadata
+        if payload.get("success") and _port_open(LIVE_BRIDGE_HOST, LIVE_BRIDGE_PORT):
+            _bridge_request(
+                "/api/subscribe",
+                method="POST",
+                timeout=1.5,
+                payload={"symbol": metadata["provider_symbol"]},
+            )
+        return payload
     return _fyers_candles(canonical, resolved_timeframe, bounded_bars)
 
 
-def _bridge_request(path: str, method: str = "GET", timeout: float = 1.5) -> dict[str, Any] | None:
-    data = b"{}" if method == "POST" else None
+def _bridge_request(
+    path: str,
+    method: str = "GET",
+    timeout: float = 1.5,
+    payload: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    data = json.dumps(payload or {}).encode("utf-8") if method == "POST" else None
     request = urllib.request.Request(
         LIVE_BRIDGE_URL + path,
         method=method,
@@ -325,8 +461,10 @@ def start_live_bridge() -> bool:
     if _port_open(LIVE_BRIDGE_HOST, LIVE_BRIDGE_PORT):
         return True
 
-    fyers_python = PROJECT_ROOT / ".venv-fyers" / "Scripts" / "python.exe"
-    if not fyers_python.exists():
+    from omni.runtime_paths import fyers_python
+
+    python = fyers_python()
+    if not python.exists():
         return False
 
     flags = 0
@@ -336,7 +474,7 @@ def start_live_bridge() -> bool:
         )
     try:
         _LIVE_BRIDGE_PROCESS = subprocess.Popen(
-            [str(fyers_python), "-m", "workstation.fyers_live_bridge_service"],
+            [str(python), "-m", "workstation.fyers_live_bridge_service"],
             cwd=str(PROJECT_ROOT),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -420,15 +558,64 @@ def live_payload(symbol: str) -> dict[str, Any]:
                 "live_orders": False,
             }
 
+    metadata = symbol_metadata(canonical)
+    if metadata.get("market") == "GLOBAL":
+        from workstation.global_equity_data import global_equity_quote
+
+        payload = global_equity_quote(str(metadata["provider_symbol"]))
+        payload["symbol"] = canonical
+        payload["instrument"] = metadata
+        payload["live_orders"] = False
+        return payload
+
     if not _port_open(LIVE_BRIDGE_HOST, LIVE_BRIDGE_PORT):
         start_live_bridge()
+    bridge_symbol = str(metadata.get("provider_symbol") or canonical)
     payload = _bridge_request(
-        "/api/snapshot?" + urllib.parse.urlencode({"symbol": canonical}),
+        "/api/snapshot?" + urllib.parse.urlencode({"symbol": bridge_symbol}),
         timeout=1.2,
     )
     if payload:
+        payload["symbol"] = canonical
+        payload["instrument"] = metadata
         payload["live_orders"] = False
         return payload
+
+    if canonical not in INDIA_SYMBOLS:
+        # Dynamic Indian equities are not part of the bridge's fixed startup
+        # subscription. Use a short cached, read-only quote for the selected
+        # chart without exposing any broker order surface.
+        now_mono = time.monotonic()
+        with _QUOTE_CACHE_LOCK:
+            cached = _QUOTE_CACHE.get(canonical)
+            if cached and now_mono - cached[0] < 2.0:
+                return dict(cached[1])
+        try:
+            from agents.fyers_data_adapter import get_quote
+
+            quote = get_quote(bridge_symbol)
+            if quote.get("success"):
+                result = {
+                    "success": True,
+                    "source": "FYERS",
+                    "symbol": canonical,
+                    "provider_symbol": bridge_symbol,
+                    "instrument": metadata,
+                    "snapshot": {
+                        key: quote.get(key)
+                        for key in (
+                            "ltp", "change", "change_percent", "open", "high", "low",
+                            "previous_close", "volume", "bid", "ask", "exchange_timestamp"
+                        )
+                    },
+                    "live_orders": False,
+                }
+                result["snapshot"]["received_at"] = datetime.now(timezone.utc).isoformat()
+                with _QUOTE_CACHE_LOCK:
+                    _QUOTE_CACHE[canonical] = (now_mono, result)
+                return result
+        except Exception:
+            pass
     return {
         "success": False,
         "source": "FYERS",
@@ -480,13 +667,17 @@ def _atr(candles: list[dict[str, Any]], period: int = 14) -> float | None:
 
 def _timeframe_evidence(symbol: str, timeframe: str) -> dict[str, Any]:
     payload = candles_payload(symbol, timeframe, 220)
-    candles = payload.get("candles") or []
+    raw_candles = list(payload.get("candles") or [])
+    candles = completed_candles(raw_candles, timeframe)
     if not payload.get("success") or len(candles) < 55:
         return {
             "timeframe": timeframe,
             "available": False,
             "message": payload.get("message") or "Market data unavailable.",
             "source": payload.get("source"),
+            "raw_bars": len(raw_candles),
+            "complete_bars": len(candles),
+            "forming_bar_excluded": len(candles) < len(raw_candles),
         }
 
     closes = [float(row["close"]) for row in candles]
@@ -511,6 +702,47 @@ def _timeframe_evidence(symbol: str, timeframe: str) -> dict[str, Any]:
     else:
         trend = "MIXED"
 
+    from omni.trading_intelligence.quant_firm_engine import decide
+    from workstation.unified_feature_engine import UNIFIED_FEATURE_ENGINE
+
+    decision = decide(symbol, timeframe, candles).to_dict()
+    decision["success"] = True
+    interval_seconds = _TIMEFRAME_SECONDS.get(normalize_timeframe(timeframe), 300)
+    try:
+        last_open_epoch = float(candles[-1].get("time", candles[-1].get("timestamp")))
+        last_close_epoch = float(candles[-1].get("close_time") or (last_open_epoch + interval_seconds))
+        data_age_seconds = max(0.0, time.time() - last_close_epoch)
+    except (TypeError, ValueError):
+        data_age_seconds = None
+    features = UNIFIED_FEATURE_ENGINE.analyze(
+        candles,
+        symbol=symbol,
+        timeframe=timeframe,
+        provider=payload.get("source"),
+        provider_symbol=payload.get("provider_symbol"),
+        data_quality=payload.get("data_quality"),
+        verified=bool(payload.get("success")),
+        stale=bool(data_age_seconds is not None and data_age_seconds > interval_seconds * 3),
+    )
+    feature_storage = {
+        "stored": False,
+        "reason": "FEATURE_SNAPSHOT_NOT_VERIFIED_OR_FRESH",
+        "paper_only": True,
+        "live_execution": False,
+    }
+    if features.get("success") and features.get("data", {}).get("verified") and not features.get("data", {}).get("stale"):
+        try:
+            from workstation.multi_timeframe_feature_store import MULTI_TIMEFRAME_FEATURE_STORE
+
+            feature_storage = MULTI_TIMEFRAME_FEATURE_STORE.record(features)
+        except (OSError, ValueError) as error:
+            feature_storage = {
+                "stored": False,
+                "reason": type(error).__name__,
+                "paper_only": True,
+                "live_execution": False,
+            }
+    patterns = dict(features.get("patterns") or {})
     return {
         "timeframe": timeframe,
         "available": True,
@@ -527,88 +759,362 @@ def _timeframe_evidence(symbol: str, timeframe: str) -> dict[str, Any]:
         "volume_ratio": volume_ratio,
         "trend": trend,
         "last_candle_time": candles[-1]["time"],
+        "raw_bars": len(raw_candles),
+        "complete_bars": len(candles),
+        "forming_bar_excluded": len(candles) < len(raw_candles),
+        "data_age_seconds": data_age_seconds,
+        "fresh": data_age_seconds is None or data_age_seconds <= interval_seconds * 3,
+        "decision": decision,
+        "patterns": patterns,
+        "features": features,
+        "feature_storage": feature_storage,
     }
 
 
-def scan_payload(symbol: str) -> dict[str, Any]:
+def _decision_from_evidence(row: dict[str, Any], symbol: str) -> dict[str, Any]:
+    """Return the strategy decision attached to a timeframe evidence row.
+
+    The small trend-derived fallback keeps the public scan contract compatible
+    with older integrations that supply evidence rows without a nested decision.
+    Production evidence always carries the full Quant Firm decision.
+    """
+
+    decision = row.get("decision")
+    if isinstance(decision, dict):
+        return dict(decision)
+    trend = str(row.get("trend") or "").upper()
+    side = "LONG" if trend == "BULLISH" else "SHORT" if trend == "BEARISH" else "WAIT"
+    close = row.get("close")
+    atr = row.get("atr14")
+    entry = stop = target = risk_reward = None
+    if side in {"LONG", "SHORT"} and close is not None and atr:
+        entry = float(close)
+        distance = float(atr)
+        stop = entry - distance if side == "LONG" else entry + distance
+        target = entry + (2.0 * distance) if side == "LONG" else entry - (2.0 * distance)
+        risk_reward = 2.0
+    return {
+        "success": bool(row.get("available")),
+        "symbol": symbol,
+        "timeframe": row.get("timeframe"),
+        "regime": "TRENDING" if side != "WAIT" else "RANGE",
+        "side": side,
+        "score": 70.0 if side != "WAIT" else 0.0,
+        "entry": entry,
+        "stop": stop,
+        "target": target,
+        "risk_reward": risk_reward,
+        "votes": [],
+        "evidence_graph": [],
+        "contradictions": [],
+        "reasons_not_to_trade": ["LEGACY_EVIDENCE_WITHOUT_REGISTERED_STRATEGY_SIGNAL"],
+        "registry_versioned": False,
+        "paper_only": True,
+        "live_execution": False,
+    }
+
+
+def _paper_session_open(symbol: str) -> bool:
+    try:
+        from workstation.paper_market_data import PAPER_MARKET_DATA
+
+        return bool(PAPER_MARKET_DATA.session_open(symbol))
+    except Exception:
+        # Fail closed for automatic entries when the calendar cannot be checked.
+        return False
+
+
+def _consensus_message(
+    blockers: list[str],
+    side: str,
+    score: float,
+    timeframes: tuple[str, ...],
+) -> str:
+    labels = {
+        "INSUFFICIENT_TIMEFRAME_DATA": "fewer than two verified timeframes are available",
+        "TIMEFRAME_DIRECTION_CONFLICT": "the selected timeframe strategy decisions disagree",
+        "INSUFFICIENT_DIRECTIONAL_CONFIRMATION": "fewer than two timeframes confirm one direction",
+        "ALIGNMENT_BELOW_GATE": "timeframe alignment is below the active profile gate",
+        "SCORE_BELOW_GATE": "the strategy score is below the active profile gate",
+        "REGIME_INCOMPATIBLE_SIGNAL": "no supporting strategy is compatible with the detected regime",
+        "STRATEGY_VOTE_CONFLICT": "opposing registered strategy votes remain unresolved",
+        "HIGHER_TIMEFRAME_TREND_CONFLICT": "15m or 1h trend evidence opposes the candidate",
+        "ALL_TIMEFRAMES_RANGE": "all verified timeframes are range-bound",
+        "PATTERN_NOT_CONFIRMED": "the selected single timeframe has no confirmed breakout or breakdown aligned with the strategy",
+        "INVALID_RISK_LEVELS": "verified entry, stop and target levels are unavailable",
+        "RISK_REWARD_BELOW_GATE": "risk/reward is below 1.8 to 1",
+        "MARKET_SESSION_CLOSED": "the configured market session is closed",
+        "RESEARCH_ONLY_GLOBAL_FEED": "the global fallback feed is delayed/unofficial and excluded from automatic entries",
+        "STALE_MARKET_DATA": "the latest completed market bar is stale",
+    }
+    if not blockers:
+        return (
+            f"Qualified {side} paper setup: {', '.join(timeframes)} consensus passed "
+            f"direction, regime, score ({score:.1f}) and risk gates."
+        )
+    reasons = "; ".join(labels.get(item, item.replace("_", " ").lower()) for item in blockers)
+    return f"WAIT. No automatic paper entry: {reasons}."
+
+
+def _analysis_profile(value: str | None) -> tuple[str, tuple[str, ...]]:
+    from workstation.trading_timeframe_profiles import resolve_trading_profile
+
+    profile = resolve_trading_profile(value)
+    return profile.name, profile.timeframes
+
+
+def scan_payload(symbol: str, profile: str = "intraday") -> dict[str, Any]:
+    from workstation.trading_timeframe_profiles import resolve_trading_profile
+
     canonical = normalize_symbol(symbol)
-    evidence = [_timeframe_evidence(canonical, tf) for tf in ("5m", "15m", "1h")]
+    profile_spec = resolve_trading_profile(profile)
+    profile_name, consensus_timeframes = profile_spec.name, profile_spec.timeframes
+    metadata = symbol_metadata(canonical)
+    evidence = [_timeframe_evidence(canonical, tf) for tf in consensus_timeframes]
     available = [row for row in evidence if row.get("available")]
     if not available:
         return {
             "success": False,
             "symbol": canonical,
+            "timeframe": " / ".join(consensus_timeframes),
+            "profile": profile_name,
+            "decision_version": "QUANT_ENSEMBLE_V2_GOVERNED_CONSENSUS_V4",
+            "qualified": False,
+            "side": "WAIT",
+            "candidate_side": "WAIT",
+            "score": 0.0,
             "bias": "NO DATA",
             "regime": "DATA UNAVAILABLE",
             "alignment": 0,
+            "session_open": _paper_session_open(canonical),
+            "blockers": ["INSUFFICIENT_TIMEFRAME_DATA"],
+            "entry": None,
+            "stop": None,
+            "target": None,
+            "risk_reward": None,
+            "votes": [],
+            "evidence_graph": [],
+            "contradictions": [],
+            "reasons_not_to_trade": ["INSUFFICIENT_TIMEFRAME_DATA"],
             "setup": None,
             "evidence": evidence,
+            "decisions": [],
+            "instrument": metadata,
+            "profile_rules": profile_spec.to_dict(),
             "message": "No verified multi-timeframe market data is available.",
             "paper_only": True,
             "live_execution": False,
         }
 
-    bullish = sum(row.get("trend") == "BULLISH" for row in available)
-    bearish = sum(row.get("trend") == "BEARISH" for row in available)
-    total = len(available)
-    alignment = round(max(bullish, bearish) / total * 100)
-    if bullish > bearish:
-        bias = "BULLISH"
-    elif bearish > bullish:
-        bias = "BEARISH"
-    else:
-        bias = "MIXED"
+    decisions = [_decision_from_evidence(row, canonical) for row in available]
+    usable = [row for row in decisions if row.get("success")]
+    directional = [row for row in usable if str(row.get("side") or "").upper() in {"LONG", "SHORT"}]
+    sides = {str(row.get("side") or "").upper() for row in directional}
+    candidate_side = next(iter(sides)) if len(sides) == 1 else "WAIT"
+    confirming = [row for row in directional if str(row.get("side") or "").upper() == candidate_side]
+    alignment = round(len(confirming) / max(len(usable), 1) * 100)
+    score = (
+        sum(float(row.get("score") or 0.0) for row in confirming) / len(confirming)
+        if confirming
+        else 0.0
+    )
 
-    anchor = next((row for row in available if row["timeframe"] == "15m"), available[0])
-    atr = anchor.get("atr14")
-    close = anchor.get("close")
+    pattern_row = next((row for row in available if row.get("timeframe") == consensus_timeframes[0]), None)
+    pattern = dict((pattern_row or {}).get("patterns") or {})
+    pattern_state = str(pattern.get("state") or "NO_EDGE").upper()
+    pattern_direction = str(pattern.get("direction") or "NEUTRAL").upper()
+    if profile_spec.single_timeframe and pattern.get("success") and confirming:
+        score = 0.70 * score + 0.30 * float(pattern.get("score") or 0.0)
+
+    anchor_order = (
+        consensus_timeframes
+        if profile_spec.single_timeframe
+        else ("1d", "4h", "1h")
+        if profile_name == "swing"
+        else ("15m", "5m", "1h")
+    )
+    anchor = next(
+        (
+            row
+            for tf in anchor_order
+            for row in confirming
+            if row.get("timeframe") == tf
+            and row.get("entry") is not None
+            and row.get("stop") is not None
+            and row.get("target") is not None
+        ),
+        None,
+    )
+    risk_reward = float(anchor.get("risk_reward") or 0.0) if anchor else 0.0
+    session_open = _paper_session_open(canonical)
+    blockers: list[str] = []
+    required_confirmations = 1 if profile_spec.single_timeframe else 2
+    if len(usable) < required_confirmations:
+        blockers.append("INSUFFICIENT_TIMEFRAME_DATA")
+    if len(sides) > 1:
+        blockers.append("TIMEFRAME_DIRECTION_CONFLICT")
+    if len(confirming) < required_confirmations:
+        blockers.append("INSUFFICIENT_DIRECTIONAL_CONFIRMATION")
+    if alignment < profile_spec.minimum_alignment:
+        blockers.append("ALIGNMENT_BELOW_GATE")
+    if score < profile_spec.minimum_score:
+        blockers.append("SCORE_BELOW_GATE")
+    supporting_nodes = [
+        node
+        for row in confirming
+        for node in (row.get("evidence_graph") or [])
+        if str(node.get("side") or "").upper() == candidate_side
+    ]
+    if supporting_nodes and not any(node.get("regime_compatible") is not False for node in supporting_nodes):
+        blockers.append("REGIME_INCOMPATIBLE_SIGNAL")
+    if any(row.get("contradictions") for row in confirming):
+        blockers.append("STRATEGY_VOTE_CONFLICT")
+
+    trend_side = {"BULLISH": "LONG", "BEARISH": "SHORT"}
+    higher_timeframes = set(consensus_timeframes[1:])
+    if not profile_spec.single_timeframe and candidate_side in {"LONG", "SHORT"} and any(
+        row.get("timeframe") in higher_timeframes
+        and trend_side.get(str(row.get("trend") or "").upper()) not in {None, candidate_side}
+        for row in available
+    ):
+        blockers.append("HIGHER_TIMEFRAME_TREND_CONFLICT")
+    if (
+        profile_name != "paper_exploration"
+        and usable
+        and all(str(row.get("regime") or "").upper() == "RANGE" for row in usable)
+    ):
+        blockers.append("ALL_TIMEFRAMES_RANGE")
+    if profile_spec.require_confirmed_pattern:
+        expected_pattern_direction = (
+            "BULLISH" if candidate_side == "LONG" else "BEARISH" if candidate_side == "SHORT" else "NEUTRAL"
+        )
+        if pattern_state not in {"CONFIRMED_BREAKOUT", "CONFIRMED_BREAKDOWN"} or pattern_direction != expected_pattern_direction:
+            blockers.append("PATTERN_NOT_CONFIRMED")
+    if anchor is None:
+        blockers.append("INVALID_RISK_LEVELS")
+    elif risk_reward < profile_spec.minimum_risk_reward:
+        blockers.append("RISK_REWARD_BELOW_GATE")
+    if not session_open:
+        blockers.append("MARKET_SESSION_CLOSED")
+    elif any(row.get("fresh") is False for row in available):
+        blockers.append("STALE_MARKET_DATA")
+    if not metadata.get("auto_execution_eligible", True):
+        blockers.append("RESEARCH_ONLY_GLOBAL_FEED")
+
+    blockers = list(dict.fromkeys(blockers))
+    qualified = not blockers and candidate_side in {"LONG", "SHORT"}
+    analysis_blockers = [
+        item for item in blockers if item not in {"MARKET_SESSION_CLOSED", "RESEARCH_ONLY_GLOBAL_FEED"}
+    ]
+    research_candidate = (
+        not analysis_blockers and candidate_side in {"LONG", "SHORT"} and anchor is not None
+    )
+    side = candidate_side if qualified else "WAIT"
+    bias = "BULLISH" if candidate_side == "LONG" else "BEARISH" if candidate_side == "SHORT" else "MIXED"
+    regimes = {str(row.get("regime") or "").upper() for row in usable}
+    regime = (
+        "CONFLICT / WAIT"
+        if "TIMEFRAME_DIRECTION_CONFLICT" in blockers
+        else "RANGE / WAIT"
+        if "ALL_TIMEFRAMES_RANGE" in blockers
+        else "TRENDING"
+        if "TRENDING" in regimes
+        else "HIGH VOLATILITY"
+        if "HIGH_VOLATILITY" in regimes
+        else "MIXED / WAIT"
+    )
     setup = None
-    if alignment >= 67 and atr and close:
-        if bias == "BULLISH":
-            stop = close - atr
-            target = close + (2 * atr)
-        elif bias == "BEARISH":
-            stop = close + atr
-            target = close - (2 * atr)
-        else:
-            stop = target = None
-        if stop is not None and target is not None:
-            setup = {
-                "side": bias,
-                "entry_reference": close,
-                "stop_reference": stop,
-                "target_reference": target,
-                "risk_reward_reference": 2.0,
-                "status": "RESEARCH_CANDIDATE",
+    if research_candidate and anchor is not None:
+        setup = {
+            "side": bias,
+            "entry_reference": float(anchor["entry"]),
+            "stop_reference": float(anchor["stop"]),
+            "target_reference": float(anchor["target"]),
+            "risk_reward_reference": risk_reward,
+            "status": "PAPER_QUALIFIED" if qualified else "CONDITIONAL_RESEARCH_ONLY",
+            "timeframe": anchor.get("timeframe"),
+            "executable_now": qualified,
+        }
+    votes = []
+    evidence_graph = []
+    contradictions = []
+    for row in confirming:
+        for vote in list(row.get("votes") or [])[:3]:
+            enriched = dict(vote)
+            enriched["timeframe"] = row.get("timeframe")
+            votes.append(enriched)
+    for row in usable:
+        timeframe_label = row.get("timeframe")
+        for node in list(row.get("evidence_graph") or []):
+            enriched = dict(node)
+            enriched["timeframe"] = timeframe_label
+            evidence_graph.append(enriched)
+        for contradiction in list(row.get("contradictions") or []):
+            enriched = dict(contradiction)
+            enriched["timeframe"] = timeframe_label
+            contradictions.append(enriched)
+    if len(sides) > 1:
+        contradictions.append(
+            {
+                "reason": "opposing directional decisions across selected timeframes",
+                "timeframes": [row.get("timeframe") for row in directional],
+                "sides": [row.get("side") for row in directional],
             }
+        )
+    reasons_not_to_trade = list(blockers)
+    if not qualified:
+        for row in usable:
+            reasons_not_to_trade.extend(list(row.get("reasons_not_to_trade") or []))
+    reasons_not_to_trade = list(dict.fromkeys(reasons_not_to_trade))
 
-    regime = "TRENDING" if alignment >= 67 and bias in {"BULLISH", "BEARISH"} else "MIXED / RANGE"
     return {
         "success": True,
         "symbol": canonical,
+        "timeframe": " / ".join(consensus_timeframes),
+        "profile": profile_name,
+        "decision_version": "QUANT_ENSEMBLE_V2_GOVERNED_CONSENSUS_V4",
+        "qualified": qualified,
+        "side": side,
+        "candidate_side": candidate_side,
+        "score": round(score, 2),
         "bias": bias,
         "regime": regime,
         "alignment": alignment,
+        "session_open": session_open,
+        "blockers": blockers,
+        "research_candidate": research_candidate,
+        "entry": float(anchor["entry"]) if research_candidate and anchor else None,
+        "stop": float(anchor["stop"]) if research_candidate and anchor else None,
+        "target": float(anchor["target"]) if research_candidate and anchor else None,
+        "risk_reward": risk_reward if research_candidate else None,
+        "risk_model": dict(anchor.get("risk_model") or {}) if research_candidate and anchor else None,
+        "votes": votes,
+        "evidence_graph": evidence_graph,
+        "contradictions": contradictions,
+        "reasons_not_to_trade": reasons_not_to_trade,
+        "registry_versioned": all(bool(row.get("registry_versioned")) for row in usable),
         "setup": setup,
         "evidence": evidence,
-        "message": (
-            "Multi-timeframe research candidate generated."
-            if setup
-            else "No setup passed the current multi-timeframe alignment gate."
-        ),
+        "decisions": decisions,
+        "instrument": metadata,
+        "profile_rules": profile_spec.to_dict(),
+        "pattern_confirmation": pattern,
+        "message": _consensus_message(blockers, candidate_side, score, consensus_timeframes),
         "paper_only": True,
         "live_execution": False,
     }
 
 
 def _spawn_fyers_login() -> bool:
-    fyers_python = PROJECT_ROOT / ".venv-fyers" / "Scripts" / "python.exe"
-    if not fyers_python.exists():
+    from omni.runtime_paths import fyers_python
+
+    python = fyers_python()
+    if not python.exists():
         return False
     if os.name == "nt":
         command = (
             f'Set-Location -LiteralPath "{PROJECT_ROOT}"; '
-            f'& "{fyers_python}" -m agents.fyers_auth_manager login'
+            f'& "{python}" -m agents.fyers_auth_manager login'
         )
         subprocess.Popen(
             ["powershell.exe", "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", command],
@@ -617,7 +1123,7 @@ def _spawn_fyers_login() -> bool:
         )
     else:
         subprocess.Popen(
-            [str(fyers_python), "-m", "agents.fyers_auth_manager", "login"],
+            [str(python), "-m", "agents.fyers_auth_manager", "login"],
             cwd=str(PROJECT_ROOT),
         )
     return True
@@ -630,14 +1136,50 @@ def _restart_market_bridge() -> dict[str, Any]:
     return response or provider_payload()
 
 
+def start_paper_autonomy_on_boot() -> dict[str, Any]:
+    if not AUTO_PAPER_START:
+        return {
+            "success": True,
+            "running": False,
+            "reason": "AUTO_START_DISABLED",
+            "paper_only": True,
+            "live_execution": False,
+        }
+    from workstation.paper_autonomy_engine import paper_autonomy
+
+    return paper_autonomy.start()
+
+
 def agent_payload(text: str) -> dict[str, Any]:
     from workstation.jarvis_trading_workstation_v7 import app as legacy
     from workstation.options_intelligence_router import options_command_payload
     from workstation.option_chart_data import attach_chart_directive
     from workstation.paper_trading_desk import paper_command_payload
+    from workstation.paper_trade_action_router import paper_trade_action_payload
+    from workstation.quant_signal_terminal import attach_signal_chart, signal_terminal_payload
     from workstation.nautilus_universe_router import universe_command_payload
 
     command = str(text or "").strip()
+
+    from workstation.morning_trading_coordinator import morning_command_payload
+    from workstation.multi_market_scanner import multi_market_scan_command_payload
+    from workstation.nifty50_breakout_scanner import nifty50_scan_command_payload
+
+    morning_result = morning_command_payload(command)
+    if morning_result is not None:
+        return morning_result
+
+    universe_result = universe_command_payload(command)
+    if universe_result is not None:
+        return universe_result
+
+    multi_scan_result = multi_market_scan_command_payload(command)
+    if multi_scan_result is not None:
+        return multi_scan_result
+
+    nifty_scan_result = nifty50_scan_command_payload(command)
+    if nifty_scan_result is not None:
+        return nifty_scan_result
 
     option_result = options_command_payload(command)
     if option_result is not None:
@@ -647,9 +1189,13 @@ def agent_payload(text: str) -> dict[str, Any]:
     if paper_result is not None:
         return paper_result
 
-    universe_result = universe_command_payload(command)
-    if universe_result is not None:
-        return universe_result
+    trade_action = paper_trade_action_payload(command)
+    if trade_action is not None:
+        return attach_signal_chart(command, trade_action)
+
+    signal_result = signal_terminal_payload(command)
+    if signal_result is not None:
+        return signal_result
 
     result = legacy.local_agent(command) or {
         "action": "conversation_only",
@@ -692,12 +1238,23 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_file(STATIC / "index.html", "text/html; charset=utf-8")
         if path == "/app.js":
             return self.send_file(STATIC / "app.js", "application/javascript; charset=utf-8")
+        if path == "/lightweight-charts.standalone.production.js":
+            return self.send_file(
+                STATIC / "lightweight-charts.standalone.production.js",
+                "application/javascript; charset=utf-8",
+            )
+        if path == "/session_hotfix.js":
+            return self.send_file(STATIC / "session_hotfix.js", "application/javascript; charset=utf-8")
+        if path == "/scan_consistency_hotfix.js":
+            return self.send_file(STATIC / "scan_consistency_hotfix.js", "application/javascript; charset=utf-8")
         if path == "/option_chart_runtime.js":
             return self.send_file(STATIC / "option_chart_runtime.js", "application/javascript; charset=utf-8")
         if path == "/paper_desk_runtime.js":
             return self.send_file(STATIC / "paper_desk_runtime.js", "application/javascript; charset=utf-8")
         if path == "/nautilus_core_runtime.js":
             return self.send_file(STATIC / "nautilus_core_runtime.js", "application/javascript; charset=utf-8")
+        if path == "/advanced_terminal_runtime.js":
+            return self.send_file(STATIC / "advanced_terminal_runtime.js", "application/javascript; charset=utf-8")
         if path == "/style.css":
             return self.send_file(STATIC / "style.css", "text/css; charset=utf-8")
         if path == "/api/health":
@@ -773,13 +1330,54 @@ class Handler(BaseHTTPRequestHandler):
             from workstation.paper_autonomy_engine import paper_autonomy
 
             return self.send_json(paper_autonomy.status())
+        if path == "/api/equity/nifty50-scan":
+            from workstation.nifty50_breakout_scanner import nifty50_scanner
+
+            return self.send_json(nifty50_scanner.status())
+        if path == "/api/scanner/multi":
+            from workstation.multi_market_scanner import multi_market_scanner
+
+            return self.send_json(multi_market_scanner.status())
+        if path == "/api/paper/review":
+            from workstation.bounded_decision_review import decision_review_coordinator
+
+            return self.send_json(
+                {
+                    **decision_review_coordinator.status(),
+                    "snapshot": decision_review_coordinator.snapshot(),
+                }
+            )
+        if path == "/api/options/readiness":
+            from workstation.options_readiness import options_readiness_payload
+
+            return self.send_json(options_readiness_payload())
         if path == "/api/scan":
             try:
                 symbol = str((params.get("symbol") or ["NIFTY"])[0])
-                payload = scan_payload(symbol)
+                profile = str((params.get("profile") or ["intraday"])[0])
+                payload = scan_payload(symbol, profile=profile)
                 return self.send_json(payload, 200 if payload.get("success") else 503)
             except Exception as exc:
                 return self.send_json({"success": False, "message": _safe_message(exc)}, 400)
+        if path == "/api/decision":
+            try:
+                from workstation.quant_firm_runtime import decision_payload
+
+                symbol = str((params.get("symbol") or ["NIFTY"])[0])
+                timeframe = str((params.get("timeframe") or ["5m"])[0])
+                payload = decision_payload(symbol, timeframe)
+                return self.send_json(payload, 200 if payload.get("success") else 503)
+            except Exception as exc:
+                return self.send_json(
+                    {
+                        "success": False,
+                        "side": "WAIT",
+                        "paper_only": True,
+                        "live_execution": False,
+                        "message": _safe_message(exc),
+                    },
+                    400,
+                )
         self.send_error(404)
 
     def do_POST(self) -> None:
@@ -810,11 +1408,60 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/paper/autonomy/start":
             from workstation.paper_autonomy_engine import paper_autonomy
 
-            return self.send_json(paper_autonomy.start())
+            return self.send_json(
+                paper_autonomy.start(
+                    profile=str(body.get("profile") or "") or None,
+                    scan_now=bool(body.get("scan_now", True)),
+                )
+            )
         if path == "/api/paper/autonomy/stop":
             from workstation.paper_autonomy_engine import paper_autonomy
 
             return self.send_json(paper_autonomy.stop())
+        if path == "/api/equity/nifty50-scan/start":
+            from workstation.nifty50_breakout_scanner import nifty50_scanner
+
+            return self.send_json(
+                nifty50_scanner.start(
+                    force=bool(body.get("force", True)),
+                    auto_enroll=bool(body.get("auto_enroll", False)),
+                )
+            )
+        if path == "/api/scanner/multi/start":
+            from workstation.multi_market_scanner import (
+                DEFAULT_MORNING_UNIVERSES,
+                multi_market_scanner,
+            )
+
+            requested = body.get("universes")
+            universes = tuple(requested) if isinstance(requested, list) else DEFAULT_MORNING_UNIVERSES
+            return self.send_json(
+                multi_market_scanner.start(
+                    universes=universes,
+                    force=bool(body.get("force", True)),
+                    auto_enroll=bool(body.get("auto_enroll", False)),
+                    profile=str(body.get("profile") or "intraday"),
+                )
+            )
+        if path == "/api/morning/start":
+            from workstation.morning_trading_coordinator import (
+                morning_command_payload,
+                start_morning_paper_workflow,
+            )
+
+            text = str(body.get("text") or "").strip()
+            if text:
+                routed = morning_command_payload(text)
+                if routed is not None:
+                    return self.send_json(routed)
+            requested = body.get("universes")
+            universes = tuple(requested) if isinstance(requested, list) else None
+            return self.send_json(
+                start_morning_paper_workflow(
+                    profile=str(body.get("profile") or "intraday"),
+                    universes=universes,
+                )
+            )
         if path == "/api/agent":
             text = str(body.get("text") or "").strip()
             if not text:
@@ -845,6 +1492,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> int:
     start_live_bridge()
+    auto_status = start_paper_autonomy_on_boot()
     print("=" * 72)
     print("JARVIS QUANT TRADING INTELLIGENCE V5")
     print("=" * 72)
@@ -853,6 +1501,7 @@ def main() -> int:
     print("Indian markets: FYERS read-only historical + live bridge")
     print("Crypto: public Binance market data")
     print("Mode: PAPER / RESEARCH")
+    print(f"Automatic paper consensus: {'RUNNING' if auto_status.get('running') else 'STOPPED'}")
     print("Live broker execution: LOCKED")
     try:
         ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()

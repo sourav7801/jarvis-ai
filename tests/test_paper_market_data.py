@@ -45,6 +45,9 @@ class UnifiedPaperMarketDataTests(unittest.TestCase):
         contract = data._resolve_front_month("GOLDM")
         self.assertEqual(contract["provider_symbol"], "MCX:GOLDM26SEPFUT")
         self.assertIn("Sep", contract["description"])
+        self.assertEqual(contract["lot_size"], 1.0)
+        self.assertEqual(contract["tick_size"], 1.0)
+        self.assertTrue(contract["spec_verified"])
 
     def test_friendly_commodity_resolves_to_active_provider_symbol(self):
         master = (
@@ -83,6 +86,12 @@ class UnifiedPaperMarketDataTests(unittest.TestCase):
         self.assertTrue(quote["success"])
         self.assertEqual(quote["valuation_ltp"], 560.0)
         self.assertEqual(quote["asset_class"], "OPTION")
+        self.assertEqual(quote["provider"], "FYERS")
+        self.assertEqual(quote["timeframe"], "tick")
+        self.assertEqual(quote["quality_flag"], "BROKER_LIVE")
+        self.assertTrue(quote["verified"])
+        self.assertIn("received_timestamp", quote)
+        self.assertTrue(quote["event_bus"]["accepted"])
 
     def test_crypto_quote_is_public_and_valued_in_inr(self):
         currency_master = (
@@ -115,6 +124,10 @@ class UnifiedPaperMarketDataTests(unittest.TestCase):
         self.assertEqual(quote["valuation_ltp"], 5_760_000.0)
         self.assertEqual(quote["asset_class"], "CRYPTO")
         self.assertEqual(quote["source"], "BINANCE_PUBLIC")
+        self.assertEqual(quote["provider"], "BINANCE_PUBLIC")
+        self.assertEqual(quote["quality_flag"], "PUBLIC_LIVE")
+        self.assertTrue(quote["verified"])
+        self.assertTrue(quote["stale"])
 
     def test_crypto_history_normalizes_public_klines(self):
         rows = []
@@ -130,6 +143,55 @@ class UnifiedPaperMarketDataTests(unittest.TestCase):
         self.assertEqual(result["data_quality"], "PUBLIC_SPOT_OHLCV")
         self.assertEqual(len(result["data"]), 80)
         self.assertIsInstance(result["data"], pd.DataFrame)
+        self.assertEqual(result["event_type"], "BAR")
+        self.assertEqual(result["provider"], "BINANCE_PUBLIC")
+        self.assertEqual(result["provider_symbol"], "ETHUSDT")
+        self.assertEqual(result["timeframe"], "5m")
+        self.assertEqual(result["quality_flag"], "PUBLIC_LIVE")
+        self.assertTrue(result["verified"])
+        self.assertIn("received_timestamp", result)
+        self.assertTrue(result["event_bus"]["accepted"])
+
+    def test_crypto_instrument_spec_comes_from_public_exchange_filters(self):
+        exchange_info = json.dumps(
+            {
+                "symbols": [{
+                    "symbol": "BTCUSDT",
+                    "filters": [
+                        {"filterType": "PRICE_FILTER", "tickSize": "0.01000000"},
+                        {"filterType": "LOT_SIZE", "stepSize": "0.00001000"},
+                    ],
+                }]
+            }
+        ).encode()
+        data = UnifiedPaperMarketData(
+            market_runtime=FakeRuntime(),
+            urlopen=lambda *_args, **_kwargs: Response(exchange_info),
+            now=self.now,
+        )
+        spec = data.instrument_spec("BTC")
+        self.assertTrue(spec["verified"])
+        self.assertEqual(spec["source"], "BINANCE_PUBLIC_EXCHANGE_INFO")
+        self.assertEqual(spec["tick_size"], 0.01)
+        self.assertEqual(spec["quantity_step"], 0.00001)
+
+    def test_crypto_valuation_uses_public_fx_when_fyers_fx_is_unavailable(self):
+        public_fx = json.dumps(
+            {"amount": 1.0, "base": "USD", "date": "2026-08-24", "rates": {"INR": 90.5}}
+        ).encode()
+
+        def opener(request, **_kwargs):
+            if "frankfurter" in request.full_url:
+                return Response(public_fx)
+            raise OSError("FYERS currency master unavailable")
+
+        data = UnifiedPaperMarketData(
+            market_runtime=FakeRuntime(),
+            urlopen=opener,
+            now=self.now,
+        )
+        self.assertEqual(data._usd_inr(), 90.5)
+        self.assertTrue(data.status()["providers"]["PUBLIC_FX"]["ready"])
 
     def test_market_sessions_are_asset_specific(self):
         data = UnifiedPaperMarketData(market_runtime=FakeRuntime(), now=self.now)

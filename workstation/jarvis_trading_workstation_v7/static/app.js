@@ -750,6 +750,10 @@ function renderCompany(company){
   $("companyTaskCount").textContent=plan.tasks?.length||0;
   $("companyGateCount").textContent=(plan.tasks||[]).filter(task=>task.approval_required).length;
   $("companyArtifactCount").textContent=plan.artifacts?.length||0;
+  const autopilot=plan.autopilot||{};
+  $("companyAutopilotState").textContent=`${titleCase(autopilot.status||"LOCAL ASSETS READY")} · RESEARCH ${titleCase(autopilot.research||"QUEUED")} · WEBSITE ${titleCase(autopilot.website||"READY")} · CONTENT ${titleCase(autopilot.content_studio||"READY")}`;
+  const connectors=autopilot.connectors||{};
+  $("companyConnectorState").textContent=`External publishing: ${titleCase(autopilot.publishing||"APPROVAL REQUIRED")}. ${Object.entries(connectors).map(([name,status])=>`${titleCase(name)} ${titleCase(status)}`).join(" · ")}`;
   const roadmap=$("companyRoadmap");roadmap.replaceChildren();
   (plan.roadmap||[]).forEach(phase=>{
     const card=document.createElement("div");card.className="roadmap-phase";

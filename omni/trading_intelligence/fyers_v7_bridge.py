@@ -10,6 +10,8 @@ from pathlib import (
     Path,
 )
 
+from omni.runtime_paths import fyers_python
+
 
 ROOT = (
     Path(__file__)
@@ -18,12 +20,7 @@ ROOT = (
 )
 
 
-FYERS_PY = (
-    ROOT
-    / ".venv-fyers"
-    / "Scripts"
-    / "python.exe"
-)
+FYERS_PY = fyers_python()
 
 
 WORKER = (
