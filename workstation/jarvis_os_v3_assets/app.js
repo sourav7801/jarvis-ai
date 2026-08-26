@@ -6473,3 +6473,456 @@ window.addEventListener("pointermove", event => {
         window.setTimeout(initTerminalX, 80);
     }
 })();
+
+/* JARVIS_V6_TERMINAL_X2_JS */
+(function () {
+    "use strict";
+
+    const MARKET_URL = "http://127.0.0.1:8787";
+
+    function q(selector, root = document) {
+        return root.querySelector(selector);
+    }
+
+    function qa(selector, root = document) {
+        return Array.from(root.querySelectorAll(selector));
+    }
+
+    function el(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+    }
+
+    function sendCommand(text) {
+        const input = document.getElementById("commandInput");
+        const execute = document.getElementById("executeButton");
+
+        if (!input || !execute) return;
+
+        input.value = text;
+        input.focus();
+        execute.click();
+    }
+
+    function buildHome(frame) {
+        let home = document.getElementById("v6x2-home");
+        if (home) return home;
+
+        home = el("section", "v6x2-home");
+        home.id = "v6x2-home";
+
+        home.innerHTML = `
+            <div class="v6x2-home-field">
+                <div class="v6x2-core-wrap">
+                    <div class="v6x2-orbit orbit-a"></div>
+                    <div class="v6x2-orbit orbit-b"></div>
+                    <div class="v6x2-orbit orbit-c"></div>
+                    <div class="v6x2-orbit orbit-d"></div>
+
+                    <div class="v6x2-core">
+                        <span class="v6x2-core-j">J</span>
+                        <span class="v6x2-core-state">ACTIVE</span>
+                    </div>
+
+                    <div class="v6x2-node node-1"></div>
+                    <div class="v6x2-node node-2"></div>
+                    <div class="v6x2-node node-3"></div>
+                    <div class="v6x2-node node-4"></div>
+                </div>
+            </div>
+
+            <div class="v6x2-home-content">
+                <div class="v6x2-kicker">
+                    JARVIS · UNIFIED AUTONOMOUS INTELLIGENCE
+                </div>
+
+                <h1>
+                    Command the
+                    <span>whole system.</span>
+                </h1>
+
+                <p class="v6x2-lead">
+                    One interface for research, coding, computer control,
+                    missions, memory and governed market intelligence.
+                </p>
+
+                <div class="v6x2-primary-actions">
+                    <button
+                        type="button"
+                        data-x2-command="Show me what needs my attention right now across JARVIS."
+                    >
+                        <span>01</span>
+                        Brief me
+                    </button>
+
+                    <button
+                        type="button"
+                        data-x2-mode="market"
+                    >
+                        <span>02</span>
+                        Open market intelligence
+                    </button>
+
+                    <button
+                        type="button"
+                        data-x2-mode="missions"
+                    >
+                        <span>03</span>
+                        Mission control
+                    </button>
+                </div>
+
+                <div class="v6x2-system-grid">
+                    <article>
+                        <small>ORCHESTRATION</small>
+                        <strong id="v6x2-agent-count">— agents</strong>
+                        <p>Capability-routed specialist mesh</p>
+                    </article>
+
+                    <article>
+                        <small>ACTIVE ROUTE</small>
+                        <strong id="v6x2-route">MASTER</strong>
+                        <p>Dynamic intent routing</p>
+                    </article>
+
+                    <article>
+                        <small>MEMORY</small>
+                        <strong>HYBRID</strong>
+                        <p>Scoped persistent context</p>
+                    </article>
+
+                    <article>
+                        <small>TRADING</small>
+                        <strong class="safe">PAPER / SHADOW</strong>
+                        <p>Live broker execution locked</p>
+                    </article>
+                </div>
+            </div>
+
+            <div class="v6x2-edge-data">
+                <div>
+                    <small>CORE</small>
+                    <strong id="v6x2-core-status">READY</strong>
+                </div>
+                <div>
+                    <small>VOICE</small>
+                    <strong>ONLINE</strong>
+                </div>
+                <div>
+                    <small>CONTROL</small>
+                    <strong>GOVERNED</strong>
+                </div>
+            </div>
+        `;
+
+        frame.appendChild(home);
+
+        qa("[data-x2-command]", home).forEach((button) => {
+            button.addEventListener("click", () => {
+                sendCommand(button.dataset.x2Command || "");
+            });
+        });
+
+        qa("[data-x2-mode]", home).forEach((button) => {
+            button.addEventListener("click", () => {
+                if (window.jarvisV6SetMode) {
+                    window.jarvisV6SetMode(button.dataset.x2Mode);
+                }
+            });
+        });
+
+        return home;
+    }
+
+    function buildMarket(frame) {
+        let market = document.getElementById("v6x2-market");
+        if (market) return market;
+
+        market = el("section", "v6x2-market");
+        market.id = "v6x2-market";
+
+        market.innerHTML = `
+            <div class="v6x2-market-bar">
+                <div class="v6x2-market-title">
+                    <span class="v6x2-live-dot"></span>
+                    <div>
+                        <small>JARVIS QUANT CORE</small>
+                        <strong>MARKET INTELLIGENCE</strong>
+                    </div>
+                </div>
+
+                <div class="v6x2-market-status">
+                    <span id="v6x2-market-state">CONNECTING · 8787</span>
+
+                    <button type="button" id="v6x2-market-reload">
+                        RELOAD
+                    </button>
+
+                    <button type="button" id="v6x2-market-external">
+                        OPEN FULL ↗
+                    </button>
+                </div>
+            </div>
+
+            <div class="v6x2-market-frame-wrap">
+                <iframe
+                    id="v6x2-market-frame"
+                    title="JARVIS Quant Trading Intelligence"
+                    loading="eager"
+                    referrerpolicy="no-referrer"
+                ></iframe>
+
+                <div class="v6x2-market-loading" id="v6x2-market-loading">
+                    <div class="v6x2-loader-core">J</div>
+                    <strong>CONNECTING TO QUANT CORE</strong>
+                    <small>127.0.0.1:8787</small>
+                </div>
+            </div>
+        `;
+
+        frame.appendChild(market);
+
+        const iframe = q("#v6x2-market-frame", market);
+        const state = q("#v6x2-market-state", market);
+        const loading = q("#v6x2-market-loading", market);
+
+        function loadMarket(force = false) {
+            if (!iframe) return;
+
+            if (force || !iframe.src) {
+                state.textContent = "CONNECTING · 8787";
+                loading.classList.remove("hidden");
+
+                iframe.src =
+                    MARKET_URL
+                    + "/?jarvis_embed=1&v="
+                    + Date.now();
+            }
+        }
+
+        iframe.addEventListener("load", () => {
+            state.textContent = "QUANT CORE · CONNECTED";
+            loading.classList.add("hidden");
+        });
+
+        q("#v6x2-market-reload", market).addEventListener("click", () => {
+            loadMarket(true);
+        });
+
+        q("#v6x2-market-external", market).addEventListener("click", () => {
+            window.open(MARKET_URL, "_blank", "noopener");
+        });
+
+        market._jarvisLoadMarket = loadMarket;
+
+        return market;
+    }
+
+    function updateHomeTelemetry() {
+        const agents = document.getElementById("agentCount");
+        const route = document.getElementById("activeRoute");
+        const master = document.getElementById("masterState");
+
+        const a = document.getElementById("v6x2-agent-count");
+        const r = document.getElementById("v6x2-route");
+        const c = document.getElementById("v6x2-core-status");
+
+        if (a && agents) {
+            const value = (agents.textContent || "—").trim();
+            a.textContent = value + " agents";
+        }
+
+        if (r && route) {
+            r.textContent = (route.textContent || "MASTER").trim();
+        }
+
+        if (c && master) {
+            c.textContent = (master.textContent || "READY").trim();
+        }
+    }
+
+    function updateX2Header(mode) {
+        const title = document.getElementById("v6x-mode-title");
+        const sub = document.getElementById("v6x-mode-sub");
+
+        const values = {
+            home: [
+                "COMMAND NEXUS",
+                "Unified autonomous intelligence"
+            ],
+            market: [
+                "MARKET INTELLIGENCE",
+                "Embedded JARVIS Quant Core · 8787"
+            ],
+            research: [
+                "INTELLIGENCE",
+                "Research · evidence · synthesis"
+            ],
+            missions: [
+                "MISSION CONTROL",
+                "Agent orchestration · execution trace"
+            ],
+            system: [
+                "SYSTEM CORE",
+                "Runtime health · safeguards"
+            ]
+        };
+
+        const value = values[mode] || values.home;
+
+        if (title) title.textContent = value[0];
+        if (sub) sub.textContent = value[1];
+    }
+
+    function setRail(mode) {
+        qa(".v6x-rail-button").forEach((button) => {
+            const buttonMode = button.dataset.mode;
+            const active =
+                buttonMode === mode
+                || (mode === "market" && buttonMode === "chart");
+
+            button.classList.toggle("active", active);
+        });
+    }
+
+    function initX2() {
+        const root = document.getElementById("v6x-root");
+        const frame = q(".v6x-stage-frame");
+        const desktop = document.getElementById("desktop");
+
+        if (!root || !frame || !desktop) {
+            console.error(
+                "JARVIS V6 Terminal X2: Terminal X shell not found."
+            );
+            return;
+        }
+
+        if (document.body.classList.contains("v6x2-active")) {
+            return;
+        }
+
+        document.body.classList.add("v6x2-active");
+
+        const home = buildHome(frame);
+        const market = buildMarket(frame);
+
+        const oldSetMode = window.jarvisV6SetMode;
+
+        window.jarvisV6SetMode = function (requestedMode) {
+            const mode =
+                requestedMode === "chart"
+                ? "market"
+                : requestedMode;
+
+            home.classList.remove("visible");
+            market.classList.remove("visible");
+            desktop.classList.remove("v6x2-visible");
+
+            if (mode === "home") {
+                home.classList.add("visible");
+                document.body.dataset.v6xMode = "home";
+                updateX2Header("home");
+                setRail("home");
+            }
+            else if (mode === "market") {
+                market.classList.add("visible");
+                document.body.dataset.v6xMode = "market";
+                updateX2Header("market");
+                setRail("market");
+
+                if (market._jarvisLoadMarket) {
+                    market._jarvisLoadMarket(false);
+                }
+            }
+            else {
+                desktop.classList.add("v6x2-visible");
+
+                if (typeof oldSetMode === "function") {
+                    oldSetMode(mode);
+                }
+
+                document.body.dataset.v6xMode = mode;
+                updateX2Header(mode);
+                setRail(mode);
+            }
+
+            try {
+                localStorage.setItem(
+                    "jarvisV6TerminalX2Mode",
+                    mode
+                );
+            } catch (_) {}
+        };
+
+        // Replace the QUANT rail behavior with the integrated market workspace.
+        const quant = q('.v6x-rail-button[data-mode="trading"]');
+        if (quant) {
+            const replacement = quant.cloneNode(true);
+            replacement.dataset.mode = "market";
+            replacement.title = "QUANT CORE";
+            replacement.addEventListener("click", () => {
+                window.jarvisV6SetMode("market");
+            });
+            quant.replaceWith(replacement);
+        }
+
+        updateHomeTelemetry();
+        window.setInterval(updateHomeTelemetry, 700);
+
+        let initial = "home";
+
+        try {
+            initial =
+                localStorage.getItem("jarvisV6TerminalX2Mode")
+                || "home";
+        } catch (_) {}
+
+        if (
+            ![
+                "home",
+                "market",
+                "research",
+                "missions",
+                "system"
+            ].includes(initial)
+        ) {
+            initial = "home";
+        }
+
+        window.jarvisV6SetMode(initial);
+    }
+
+    function start() {
+        // Terminal X mounts shortly after DOMContentLoaded.
+        // Retry rather than depending on a brittle fixed timing assumption.
+        let attempts = 0;
+
+        const timer = window.setInterval(() => {
+            attempts += 1;
+
+            if (
+                document.getElementById("v6x-root")
+                && q(".v6x-stage-frame")
+            ) {
+                window.clearInterval(timer);
+                initX2();
+                return;
+            }
+
+            if (attempts >= 40) {
+                window.clearInterval(timer);
+                console.error(
+                    "JARVIS V6 Terminal X2 could not find Terminal X shell."
+                );
+            }
+        }, 100);
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", start);
+    } else {
+        start();
+    }
+})();

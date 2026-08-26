@@ -2683,3 +2683,656 @@ body[data-v6x-mode="system"] .v6x-context-rail {
         animation: none !important;
     }
 }
+
+/* JARVIS_V6_TERMINAL_X2_CSS */
+
+/* Hide legacy desktop on native X2 home/market. */
+body.v6x2-active #v6x-root #desktop {
+    display: none !important;
+}
+
+body.v6x2-active #v6x-root #desktop.v6x2-visible {
+    display: block !important;
+}
+
+/* ==============================================================
+   NATIVE HOME — completely independent of the legacy V3 core DOM
+   ============================================================== */
+
+.v6x2-home,
+.v6x2-market {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    display: none;
+    overflow: hidden;
+}
+
+.v6x2-home.visible,
+.v6x2-market.visible {
+    display: block;
+}
+
+.v6x2-home {
+    background:
+        radial-gradient(
+            circle at 28% 50%,
+            rgba(39, 167, 220, .10),
+            transparent 30%
+        ),
+        radial-gradient(
+            circle at 76% 28%,
+            rgba(77, 79, 222, .045),
+            transparent 35%
+        ),
+        linear-gradient(
+            145deg,
+            rgba(3, 13, 19, .90),
+            rgba(1, 7, 11, .96)
+        );
+}
+
+.v6x2-home::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: .16;
+    background-image:
+        linear-gradient(
+            rgba(89, 210, 250, .06) 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            90deg,
+            rgba(89, 210, 250, .06) 1px,
+            transparent 1px
+        );
+    background-size: 72px 72px;
+    mask-image:
+        radial-gradient(
+            circle at 40% 50%,
+            black,
+            transparent 70%
+        );
+}
+
+.v6x2-home-field {
+    position: absolute;
+    left: 3%;
+    top: 0;
+    width: 46%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+}
+
+.v6x2-core-wrap {
+    position: relative;
+    width: min(39vw, 540px);
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    filter: drop-shadow(0 0 42px rgba(71, 205, 255, .06));
+}
+
+.v6x2-core {
+    position: relative;
+    z-index: 10;
+    width: 122px;
+    height: 122px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 1px solid rgba(123, 232, 255, .34);
+    background:
+        radial-gradient(
+            circle,
+            rgba(75, 218, 255, .18),
+            rgba(7, 29, 40, .76) 49%,
+            rgba(2, 11, 16, .96) 72%
+        );
+    box-shadow:
+        0 0 28px rgba(70, 210, 255, .18),
+        0 0 100px rgba(42, 177, 231, .08),
+        inset 0 0 42px rgba(77, 214, 255, .08);
+}
+
+.v6x2-core::before {
+    content: "";
+    position: absolute;
+    inset: 9px;
+    border-radius: 50%;
+    border: 1px solid rgba(114, 227, 255, .12);
+}
+
+.v6x2-core-j {
+    color: #e9fbff;
+    font-size: 62px;
+    font-weight: 320;
+    line-height: 1;
+    text-shadow:
+        0 0 18px rgba(116, 231, 255, .95),
+        0 0 48px rgba(71, 204, 255, .45);
+}
+
+.v6x2-core-state {
+    position: absolute;
+    bottom: -28px;
+    color: #68e5a4;
+    font-size: 6px;
+    letter-spacing: 4px;
+}
+
+.v6x2-orbit {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    border-radius: 50%;
+    border: 1px solid rgba(98, 218, 255, .14);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.orbit-a {
+    width: 46%;
+    height: 46%;
+    animation: x2OrbitA 11s linear infinite;
+}
+
+.orbit-b {
+    width: 64%;
+    height: 38%;
+    border-color: rgba(98, 218, 255, .20);
+    animation: x2OrbitB 15s linear infinite;
+}
+
+.orbit-c {
+    width: 79%;
+    height: 54%;
+    border-color: rgba(98, 218, 255, .10);
+    animation: x2OrbitC 21s linear infinite;
+}
+
+.orbit-d {
+    width: 92%;
+    height: 92%;
+    border-style: dashed;
+    border-color: rgba(98, 218, 255, .055);
+    animation: x2OrbitA 32s linear reverse infinite;
+}
+
+@keyframes x2OrbitA {
+    from {
+        transform:
+            translate(-50%, -50%)
+            rotate(0deg)
+            rotateX(62deg);
+    }
+    to {
+        transform:
+            translate(-50%, -50%)
+            rotate(360deg)
+            rotateX(62deg);
+    }
+}
+
+@keyframes x2OrbitB {
+    from {
+        transform:
+            translate(-50%, -50%)
+            rotate(0deg)
+            rotateY(60deg);
+    }
+    to {
+        transform:
+            translate(-50%, -50%)
+            rotate(-360deg)
+            rotateY(60deg);
+    }
+}
+
+@keyframes x2OrbitC {
+    from {
+        transform:
+            translate(-50%, -50%)
+            rotate(18deg)
+            rotateX(54deg);
+    }
+    to {
+        transform:
+            translate(-50%, -50%)
+            rotate(378deg)
+            rotateX(54deg);
+    }
+}
+
+.v6x2-node {
+    position: absolute;
+    z-index: 12;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #71e6ff;
+    box-shadow:
+        0 0 12px rgba(113, 230, 255, .95),
+        0 0 28px rgba(113, 230, 255, .35);
+}
+
+.node-1 {
+    left: 18%;
+    top: 43%;
+}
+
+.node-2 {
+    right: 20%;
+    top: 28%;
+    background: #6ce9a5;
+}
+
+.node-3 {
+    right: 14%;
+    bottom: 28%;
+}
+
+.node-4 {
+    left: 27%;
+    bottom: 18%;
+    background: #6ce9a5;
+}
+
+.v6x2-home-content {
+    position: absolute;
+    left: 49%;
+    right: 5%;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 4;
+}
+
+.v6x2-kicker {
+    color: #5f8290;
+    font-size: 7px;
+    letter-spacing: 2.5px;
+}
+
+.v6x2-home-content h1 {
+    margin: 14px 0 15px;
+    max-width: 720px;
+    color: #eefbff;
+    font-size: clamp(48px, 5.1vw, 82px);
+    font-weight: 260;
+    line-height: .91;
+    letter-spacing: -4.5px;
+}
+
+.v6x2-home-content h1 span {
+    display: block;
+    color: #79ddf6;
+}
+
+.v6x2-lead {
+    max-width: 660px;
+    margin: 0;
+    color: #839da8;
+    font-size: 12px;
+    line-height: 1.75;
+}
+
+.v6x2-primary-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 25px;
+}
+
+.v6x2-primary-actions button {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 0 14px;
+    border: 1px solid rgba(107, 218, 255, .11) !important;
+    border-radius: 12px !important;
+    color: #a9c6d1 !important;
+    background: rgba(5, 21, 29, .54) !important;
+    box-shadow: none !important;
+    font-size: 9px;
+}
+
+.v6x2-primary-actions button:hover {
+    color: #e9fbff !important;
+    border-color: rgba(112, 225, 255, .30) !important;
+    background: rgba(10, 39, 51, .70) !important;
+}
+
+.v6x2-primary-actions button span {
+    color: #55b9d5;
+    font-size: 7px;
+    font-variant-numeric: tabular-nums;
+}
+
+.v6x2-system-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 24px;
+}
+
+.v6x2-system-grid article {
+    min-width: 0;
+    padding: 13px;
+    border: 1px solid rgba(104, 215, 252, .075);
+    border-radius: 13px;
+    background:
+        linear-gradient(
+            145deg,
+            rgba(7, 26, 35, .54),
+            rgba(3, 13, 18, .58)
+        );
+}
+
+.v6x2-system-grid small {
+    display: block;
+    color: #54727f;
+    font-size: 6px;
+    letter-spacing: 1.1px;
+}
+
+.v6x2-system-grid strong {
+    display: block;
+    overflow: hidden;
+    margin-top: 8px;
+    color: #cdeaf4;
+    font-size: 10px;
+    letter-spacing: .6px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.v6x2-system-grid strong.safe {
+    color: #6be6a2;
+}
+
+.v6x2-system-grid p {
+    margin: 6px 0 0;
+    color: #627d88;
+    font-size: 7px;
+    line-height: 1.4;
+}
+
+.v6x2-edge-data {
+    position: absolute;
+    left: 18px;
+    bottom: 18px;
+    z-index: 6;
+    display: flex;
+    gap: 7px;
+}
+
+.v6x2-edge-data > div {
+    min-width: 74px;
+    padding: 8px 10px;
+    border-left: 1px solid rgba(105, 219, 255, .15);
+}
+
+.v6x2-edge-data small {
+    display: block;
+    color: #46636f;
+    font-size: 5px;
+    letter-spacing: 1px;
+}
+
+.v6x2-edge-data strong {
+    display: block;
+    margin-top: 4px;
+    color: #7499a7;
+    font-size: 7px;
+    letter-spacing: .8px;
+}
+
+/* ==============================================================
+   MARKET — use dedicated Quant Terminal, not legacy canvas renderer
+   ============================================================== */
+
+.v6x2-market {
+    background: #01070b;
+}
+
+.v6x2-market-bar {
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 14px 0 16px;
+    border-bottom: 1px solid rgba(101, 216, 253, .08);
+    background:
+        linear-gradient(
+            180deg,
+            rgba(5, 20, 28, .94),
+            rgba(2, 11, 16, .90)
+        );
+}
+
+.v6x2-market-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.v6x2-market-title small {
+    display: block;
+    color: #52717e;
+    font-size: 5px;
+    letter-spacing: 1.5px;
+}
+
+.v6x2-market-title strong {
+    display: block;
+    margin-top: 2px;
+    color: #c9e8f3;
+    font-size: 8px;
+    letter-spacing: 1.2px;
+}
+
+.v6x2-live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #67e7a4;
+    box-shadow: 0 0 15px rgba(103, 231, 164, .9);
+}
+
+.v6x2-market-status {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.v6x2-market-status span {
+    margin-right: 6px;
+    color: #63818d;
+    font-size: 6px;
+    letter-spacing: 1px;
+}
+
+.v6x2-market-status button {
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid rgba(103, 217, 253, .10) !important;
+    border-radius: 9px !important;
+    color: #88a9b5 !important;
+    background: rgba(5, 20, 28, .66) !important;
+    box-shadow: none !important;
+    font-size: 7px;
+}
+
+.v6x2-market-frame-wrap {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 48px;
+    bottom: 0;
+    overflow: hidden;
+    background: #02090d;
+}
+
+#v6x2-market-frame {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #02090d;
+}
+
+.v6x2-market-loading {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 8px;
+    background:
+        radial-gradient(
+            circle,
+            rgba(41, 145, 187, .10),
+            transparent 28%
+        ),
+        #02090d;
+    transition:
+        opacity .25s ease,
+        visibility .25s ease;
+}
+
+.v6x2-market-loading.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.v6x2-loader-core {
+    width: 54px;
+    height: 54px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 5px;
+    border: 1px solid rgba(109, 225, 255, .25);
+    border-radius: 50%;
+    color: #e9fbff;
+    font-size: 22px;
+    box-shadow:
+        0 0 36px rgba(74, 204, 255, .11),
+        inset 0 0 24px rgba(74, 204, 255, .07);
+    animation: x2Loader 1.5s ease-in-out infinite;
+}
+
+@keyframes x2Loader {
+    0%, 100% {
+        transform: scale(.94);
+        opacity: .65;
+    }
+
+    50% {
+        transform: scale(1.06);
+        opacity: 1;
+    }
+}
+
+.v6x2-market-loading strong {
+    color: #8eacb7;
+    font-size: 8px;
+    letter-spacing: 1.5px;
+}
+
+.v6x2-market-loading small {
+    color: #496672;
+    font-size: 7px;
+}
+
+/* Market is a full specialist surface; right context rail is unnecessary. */
+body[data-v6x-mode="market"] .v6x-stage {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+body[data-v6x-mode="market"] .v6x-context-rail {
+    display: none !important;
+}
+
+/* Core native home does not need the old right-side helper cards either. */
+body[data-v6x-mode="home"] .v6x-stage {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+body[data-v6x-mode="home"] .v6x-context-rail {
+    display: none !important;
+}
+
+@media (max-width: 1050px) {
+    .v6x2-home-field {
+        left: 0;
+        width: 42%;
+    }
+
+    .v6x2-home-content {
+        left: 42%;
+        right: 3%;
+    }
+
+    .v6x2-system-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .v6x2-primary-actions {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 760px) {
+    .v6x2-home {
+        overflow: auto;
+    }
+
+    .v6x2-home-field {
+        position: relative;
+        left: auto;
+        top: auto;
+        width: 100%;
+        height: 42vh;
+        min-height: 300px;
+    }
+
+    .v6x2-home-content {
+        position: relative;
+        left: auto;
+        right: auto;
+        top: auto;
+        transform: none;
+        padding: 12px 22px 60px;
+        text-align: center;
+    }
+
+    .v6x2-home-content h1 {
+        font-size: 48px;
+    }
+
+    .v6x2-lead {
+        margin-inline: auto;
+    }
+
+    .v6x2-primary-actions {
+        justify-content: center;
+    }
+
+    .v6x2-edge-data {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .v6x2-orbit,
+    .v6x2-loader-core {
+        animation: none !important;
+    }
+}
