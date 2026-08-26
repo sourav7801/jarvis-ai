@@ -464,66 +464,29 @@ function applyLayout(
         name === "command"
     ) {
 
-        setGeometry(
-            "chart",
-            "1%",
-            "2%",
-            "31%",
-            "57%"
-        );
+        /*
+         * JARVIS V6 SIMPLE HOME
+         * One primary intelligence surface.
+         * Specialist workspaces open only when requested.
+         */
+        closeAllWindows();
 
         setGeometry(
             "core",
-            "33%",
-            "3%",
-            "34%",
-            "49%"
+            "10%",
+            "5%",
+            "80%",
+            "90%"
         );
 
-        setGeometry(
-            "missions",
-            "68%",
-            "2%",
-            "31%",
-            "46%"
-        );
-
-        setGeometry(
-            "paper",
-            "1%",
-            "61%",
-            "31%",
-            "37%"
-        );
-
-        setGeometry(
-            "quant",
-            "33%",
-            "54%",
-            "34%",
-            "44%"
-        );
-
-        setGeometry(
-            "research",
-            "68%",
-            "50%",
-            "31%",
-            "48%"
-        );
-
-
-        closeWindow(
-            "system"
-        );
-
-        closeWindow(
-            "evidence"
-        );
-
-        closeWindow(
-            "apps"
-        );
+        closeWindow("chart");
+        closeWindow("quant");
+        closeWindow("research");
+        closeWindow("missions");
+        closeWindow("paper");
+        closeWindow("system");
+        closeWindow("evidence");
+        closeWindow("apps");
     }
 
 
@@ -751,7 +714,7 @@ function persistWorkspace() {
 
 
     localStorage.setItem(
-        "jarvisV31Workspace",
+        "jarvisV6Workspace",
         JSON.stringify(
             state
         )
@@ -766,7 +729,7 @@ function restoreWorkspace() {
         const state =
             JSON.parse(
                 localStorage.getItem(
-                    "jarvisV31Workspace"
+                    "jarvisV6Workspace"
                 )
             );
 

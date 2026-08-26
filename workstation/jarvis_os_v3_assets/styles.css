@@ -1411,3 +1411,403 @@ body.spatial-mode .jarvisWindow.focused { transform: translateZ(24px) scale(1.00
     }
 
 }
+
+/* JARVIS_V6_SIMPLE_IMMERSIVE_UI */
+
+html,
+body {
+    background:
+        radial-gradient(circle at 50% 42%, rgba(42,132,177,.16), transparent 29%),
+        radial-gradient(circle at 50% 48%, rgba(72,92,220,.07), transparent 48%),
+        linear-gradient(155deg, #01060a 0%, #020b11 52%, #010407 100%);
+}
+
+body::before {
+    opacity: .045;
+    background-size: 74px 74px;
+    mask-image: radial-gradient(circle at center, black 0%, transparent 72%);
+}
+
+#ambient {
+    width: min(72vw, 940px);
+    height: min(72vw, 940px);
+    top: 56%;
+    opacity: .9;
+    filter: blur(24px);
+    background:
+        radial-gradient(
+            circle at center,
+            rgba(88,213,255,.13) 0%,
+            rgba(42,126,177,.055) 31%,
+            transparent 65%
+        );
+}
+
+#ambient::before,
+#ambient::after {
+    content: "";
+    position: absolute;
+    inset: 12%;
+    border-radius: 50%;
+    border: 1px solid rgba(100,220,255,.09);
+    box-shadow:
+        0 0 80px rgba(60,193,255,.04),
+        inset 0 0 80px rgba(60,193,255,.025);
+    animation: jarvisV6Depth 15s linear infinite;
+}
+
+#ambient::after {
+    inset: 25%;
+    animation-direction: reverse;
+    animation-duration: 22s;
+}
+
+@keyframes jarvisV6Depth {
+    from { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(180deg) scale(1.035); }
+    to { transform: rotate(360deg) scale(1); }
+}
+
+#topbar {
+    height: 58px;
+    padding: 8px 18px;
+    gap: 18px;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(5,14,21,.88),
+            rgba(2,8,13,.68)
+        );
+    backdrop-filter: blur(24px);
+    border-bottom-color: rgba(111,218,255,.10);
+    box-shadow: 0 12px 42px rgba(0,0,0,.28);
+}
+
+.brand { min-width: 224px; }
+
+.logo {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border-color: rgba(109,225,255,.52);
+    box-shadow:
+        0 0 30px rgba(70,207,255,.10),
+        inset 0 0 20px rgba(70,207,255,.08);
+}
+
+.brandName {
+    letter-spacing: 6px;
+    font-size: 14px;
+}
+
+.brandSub { display: none; }
+
+nav {
+    justify-content: center;
+    gap: 7px;
+}
+
+nav button {
+    display: none;
+    min-height: 34px;
+    padding: 7px 13px;
+    border-radius: 18px;
+    background: rgba(8,22,31,.62);
+    border-color: rgba(112,217,255,.11);
+    font-size: 9px;
+    letter-spacing: .55px;
+}
+
+nav button[data-layout="command"],
+nav button[data-open="chart"],
+nav button[data-open="research"],
+nav button[data-open="missions"],
+nav button[data-open="system"] {
+    display: inline-flex;
+    align-items: center;
+}
+
+.topStatus { gap: 7px; }
+
+.status {
+    font-size: 0;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 13px currentColor;
+}
+
+#fullscreenButton {
+    border-radius: 50%;
+    background: rgba(8,22,31,.58);
+}
+
+#masterConsole {
+    margin: 14px auto 8px;
+    width: min(1040px, calc(100% - 32px));
+    height: 164px;
+    padding: 12px;
+    border-radius: 24px;
+    border-color: rgba(115,219,255,.14);
+    background:
+        linear-gradient(145deg, rgba(8,25,36,.74), rgba(2,9,14,.80));
+    backdrop-filter: blur(28px);
+    box-shadow:
+        0 26px 90px rgba(0,0,0,.32),
+        inset 0 1px rgba(255,255,255,.025);
+}
+
+.consoleHeading {
+    margin: 0 7px 8px;
+    font-size: 8px;
+    letter-spacing: 2.4px;
+}
+
+#conversation {
+    height: 82px;
+    border: 0;
+    border-radius: 15px;
+    padding: 8px 12px;
+    background: rgba(0,5,9,.46);
+}
+
+.conversationItem {
+    grid-template-columns: 58px 1fr;
+    font-size: 12px;
+    border-bottom-color: rgba(93,200,238,.055);
+}
+
+.resultCard {
+    border-radius: 14px;
+    border-color: rgba(112,220,255,.11);
+    background: rgba(8,27,38,.54);
+}
+
+#commandRow {
+    gap: 8px;
+    margin-top: 8px;
+}
+
+#commandRow button,
+#commandInput {
+    min-height: 40px;
+    border-radius: 20px;
+}
+
+#commandInput {
+    padding: 9px 16px;
+    border-color: rgba(111,220,255,.14);
+    background: rgba(0,7,11,.64);
+    font-size: 12px;
+}
+
+#executeButton { min-width: 94px; }
+#stopButton { opacity: .66; }
+
+#desktop {
+    top: 244px;
+    left: 18px;
+    right: 18px;
+    bottom: 18px;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    perspective: 1500px;
+}
+
+.jarvisWindow {
+    resize: none;
+    border-radius: 24px;
+    border-color: rgba(127,225,255,.20);
+    background:
+        linear-gradient(155deg, rgba(8,24,34,.82), rgba(2,8,13,.90));
+    backdrop-filter: blur(30px) saturate(1.05);
+    box-shadow:
+        0 36px 120px rgba(0,0,0,.46),
+        0 0 0 1px rgba(255,255,255,.016) inset;
+    transition:
+        opacity .2s ease,
+        transform .25s ease,
+        border-color .2s ease,
+        box-shadow .2s ease;
+}
+
+.jarvisWindow.focused {
+    border-color: rgba(127,225,255,.48);
+    box-shadow:
+        0 42px 140px rgba(0,0,0,.52),
+        0 0 55px rgba(64,198,255,.055);
+}
+
+.windowHeader {
+    height: 44px;
+    padding: 0 12px 0 17px;
+    cursor: default;
+    border-bottom-color: rgba(104,210,250,.09);
+    background: rgba(8,24,34,.42);
+    font-size: 9px;
+    letter-spacing: 1.7px;
+}
+
+.windowControls button {
+    width: 29px;
+    height: 29px;
+    border-radius: 50%;
+    background: rgba(5,17,24,.54);
+}
+
+.windowBody {
+    height: calc(100% - 44px);
+    padding: 18px;
+}
+
+.coreWindow {
+    transform:
+        perspective(1500px)
+        rotateX(.65deg)
+        translateZ(0);
+    transform-origin: center center;
+}
+
+.coreWindow .windowHeader { background: transparent; }
+
+.coreBody {
+    gap: clamp(16px, 4vw, 72px);
+    padding: clamp(18px, 3vw, 48px);
+}
+
+.coreVisual {
+    width: 48%;
+    min-width: 280px;
+}
+
+.coreVisual::before,
+.coreVisual::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(72%, 360px);
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.coreVisual::before {
+    border: 1px solid rgba(110,226,255,.15);
+    box-shadow:
+        0 0 60px rgba(61,199,255,.08),
+        inset 0 0 80px rgba(61,199,255,.035);
+}
+
+.coreVisual::after {
+    width: min(52%, 255px);
+    border: 1px dashed rgba(110,226,255,.11);
+    animation: jarvisV6Depth 19s linear infinite;
+}
+
+.coreCenter strong {
+    font-size: clamp(68px, 8vw, 112px);
+    font-weight: 600;
+    text-shadow:
+        0 0 18px rgba(109,225,255,.70),
+        0 0 65px rgba(73,199,255,.35);
+}
+
+.coreCenter small {
+    font-size: 8px;
+    letter-spacing: 4px;
+}
+
+.coreInfo h1 {
+    margin: 10px 0 14px;
+    max-width: 570px;
+    font-size: clamp(32px, 4.2vw, 64px);
+    font-weight: 430;
+    line-height: .98;
+    letter-spacing: -2px;
+}
+
+.coreInfo p {
+    max-width: 560px;
+    font-size: 13px;
+    line-height: 1.65;
+    color: #a5bbc5;
+}
+
+.chartWindow,
+.quantWindow,
+.researchWindow,
+.paperWindow,
+.missionsWindow,
+.evidenceWindow,
+.appsWindow,
+.systemWindow,
+.legacyWindow {
+    left: 7% !important;
+    top: 3% !important;
+    width: 86% !important;
+    height: 94% !important;
+    max-width: none;
+}
+
+@media (max-width: 980px) {
+    #topbar { padding-inline: 10px; }
+    .brand { min-width: auto; }
+    .brandName { letter-spacing: 3px; }
+
+    nav button[data-open="research"],
+    nav button[data-open="missions"] {
+        display: none;
+    }
+
+    #masterConsole {
+        margin-top: 8px;
+        width: calc(100% - 16px);
+    }
+
+    #desktop {
+        left: 8px;
+        right: 8px;
+    }
+
+    .coreBody {
+        flex-direction: column;
+        overflow: auto;
+    }
+
+    .coreVisual {
+        width: 100%;
+        min-height: 260px;
+    }
+
+    .coreInfo {
+        width: 100%;
+        text-align: center;
+    }
+
+    .coreInfo p { margin-inline: auto; }
+
+    .chartWindow,
+    .quantWindow,
+    .researchWindow,
+    .paperWindow,
+    .missionsWindow,
+    .evidenceWindow,
+    .appsWindow,
+    .systemWindow,
+    .legacyWindow {
+        left: 1% !important;
+        width: 98% !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #ambient::before,
+    #ambient::after,
+    .coreVisual::after {
+        animation: none !important;
+    }
+}
