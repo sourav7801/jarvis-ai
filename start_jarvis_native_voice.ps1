@@ -6,12 +6,16 @@ $ErrorActionPreference = "Stop"
 
 $Root = "C:\Jarvis"
 $Source = Join-Path $Root "workstation\native_voice\JarvisVoiceService.cs"
-$Exe = Join-Path $Root "workstation\native_voice\JarvisVoiceService.exe"
+$BuildDir = Join-Path $Root ".jarvis-dev\native-voice-runtime"
 
 if (-not (Test-Path $Source)) {
     Write-Host "Native voice source not found: $Source" -ForegroundColor Red
     exit 2
 }
+
+New-Item -ItemType Directory -Path $BuildDir -Force | Out-Null
+$BuildId = (Get-FileHash -LiteralPath $Source -Algorithm SHA256).Hash.Substring(0, 16)
+$Exe = Join-Path $BuildDir "JarvisVoiceService.$BuildId.exe"
 
 Add-Type -AssemblyName System.Speech
 
@@ -33,9 +37,7 @@ if (-not $Csc) {
     exit 3
 }
 
-$NeedsBuild =
-    (-not (Test-Path $Exe)) -or
-    ((Get-Item $Source).LastWriteTimeUtc -gt (Get-Item $Exe).LastWriteTimeUtc)
+$NeedsBuild = -not (Test-Path $Exe)
 
 if ($NeedsBuild) {
 
@@ -55,9 +57,8 @@ if ($NeedsBuild) {
     Write-Host "Native voice compile: PASS" -ForegroundColor Green
 }
 
-$Existing = Get-Process `
-    -Name "JarvisVoiceService" `
-    -ErrorAction SilentlyContinue |
+$Existing = Get-Process -ErrorAction SilentlyContinue |
+    Where-Object { $_.ProcessName -like "JarvisVoiceService*" } |
     Select-Object -First 1
 
 if ($Existing) {
@@ -83,8 +84,13 @@ try {
         -Method Get `
         -TimeoutSec 2
 
-    if ($Health.success) {
+    if ($Health.success -and $Health.recognition_available) {
         Write-Host "Native voice service: READY" -ForegroundColor Green
+        exit 0
+    }
+
+    if ($Health.success) {
+        Write-Host "Native voice service: DEGRADED - browser speech fallback active" -ForegroundColor Yellow
         exit 0
     }
 }

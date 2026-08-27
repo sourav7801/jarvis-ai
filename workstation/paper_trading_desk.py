@@ -868,16 +868,20 @@ class PaperTradingDesk:
             if quantity <= 0:
                 return {"success": False, "reason": "NO_QUANTITY", "paper_only": True, "live_execution": False}
 
-            remaining = math.floor((quantity * (1.0 - share)) / step) * step
-            remaining = max(remaining, 0.0)
-            reduced = quantity - remaining
-            if reduced <= 0:
+            # Quantize the requested exit leg, not the remainder. Flooring the
+            # remainder implicitly rounded the exit *up* (30 x 34% became 11),
+            # over-banking profit and allowing a 0.1-unit request on a 1-unit
+            # grid to reduce a full unit. Exposure may only fall by an exact,
+            # explicitly requested tradable quantity.
+            reduced = quantize_quantity(quantity * share, step)
+            if reduced < step:
                 return {
                     "success": False,
                     "reason": "SCALE_OUT_BELOW_QUANTITY_STEP",
                     "paper_only": True,
                     "live_execution": False,
                 }
+            remaining = quantize_quantity(quantity - reduced, step)
             if remaining <= 0:
                 return self.close_position(
                     position_id=int(row["id"]),
@@ -1267,6 +1271,7 @@ class PaperTradingDesk:
                 if isinstance(ladder, list) and ladder:
                     fired = metadata.get("scale_out_fired")
                     fired = {int(item) for item in fired if isinstance(item, (int, float))} if isinstance(fired, list) else set()
+                    fired_now = False
                     for index, rung in enumerate(ladder):
                         if index in fired or not isinstance(rung, dict):
                             continue
@@ -1276,6 +1281,7 @@ class PaperTradingDesk:
                             continue
                         if favorable_r >= at_r:
                             fired.add(index)
+                            fired_now = True
                             scale_outs.append(
                                 (
                                     int(row["id"]),
@@ -1292,6 +1298,43 @@ class PaperTradingDesk:
                                 json.dumps(metadata, default=str, sort_keys=True),
                                 int(row["id"]),
                             ),
+                        )
+                    # If a scale-out deliberately banks profit at the original
+                    # target, retain the remaining runner behind the already
+                    # protected stop. Otherwise the subsequent fixed-target
+                    # sweep would flatten it on the same mark and defeat the
+                    # ladder. The extension is one original R by default and
+                    # can be configured through runner_target_r.
+                    target = _f(row["target"]) if row["target"] is not None else None
+                    protected = (
+                        candidate_stop >= entry if side == "LONG" else candidate_stop <= entry
+                    )
+                    target_reached = bool(
+                        target is not None
+                        and target > 0
+                        and (mark >= target if side == "LONG" else mark <= target)
+                    )
+                    if fired_now and protected and target_reached and trailing_target_r <= 0:
+                        runner_target_r = max(_f(policy.get("runner_target_r"), 1.0), 0.25)
+                        extended = (
+                            mark + original_risk * runner_target_r
+                            if side == "LONG"
+                            else mark - original_risk * runner_target_r
+                        )
+                        conn.execute(
+                            "UPDATE paper_positions SET target=? WHERE id=?",
+                            (extended, int(row["id"])),
+                        )
+                        self._event(
+                            conn,
+                            int(row["id"]),
+                            "RUNNER_TARGET_EXTENDED",
+                            {
+                                "old_target": target,
+                                "new_target": extended,
+                                "mark": mark,
+                                "favorable_r": favorable_r,
+                            },
                         )
 
                 max_hold_minutes = _f(policy.get("max_hold_minutes"), 0.0)

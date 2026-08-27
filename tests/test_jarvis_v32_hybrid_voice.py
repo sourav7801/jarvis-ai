@@ -178,6 +178,43 @@ class VoiceV32HybridTests(unittest.TestCase):
             self.service,
         )
 
+        self.assertIn(
+            "ExclusiveAddressUse",
+            self.service,
+        )
+
+
+    def test_native_recognizer_failure_keeps_truthful_control_api(self):
+
+        self.assertIn(
+            '"DEGRADED_BROWSER_FALLBACK"',
+            self.service,
+        )
+
+        self.assertIn(
+            '\\"recognition_available\\"',
+            self.service,
+        )
+
+        self.assertIn(
+            "Browser speech remains available when supported.",
+            self.service,
+        )
+
+        error_index = self.service.index(
+            '"VOICE START ERROR: "'
+        )
+
+        serve_index = self.service.index(
+            "ServeHttp();",
+            error_index,
+        )
+
+        self.assertGreater(
+            serve_index,
+            error_index,
+        )
+
 
     def test_launcher_compiles_against_system_speech(self):
 
@@ -188,6 +225,21 @@ class VoiceV32HybridTests(unittest.TestCase):
 
         self.assertIn(
             "JarvisVoiceService.cs",
+            self.launcher,
+        )
+
+        self.assertIn(
+            "Get-FileHash",
+            self.launcher,
+        )
+
+        self.assertIn(
+            "native-voice-runtime",
+            self.launcher,
+        )
+
+        self.assertNotIn(
+            'workstation\\native_voice\\JarvisVoiceService.exe',
             self.launcher,
         )
 

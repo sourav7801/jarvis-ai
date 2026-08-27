@@ -214,6 +214,68 @@ class QuantTerminalV2Tests(unittest.TestCase):
         self.assertFalse(result["live_execution"])
         self.assertEqual(result["state"], "LOGIN_REQUIRED")
 
+    @patch("workstation.quant_terminal_v2._port_open", return_value=True)
+    @patch("workstation.quant_terminal_v2._bridge_request")
+    def test_provider_reports_degraded_stream_instead_of_false_connected(self, bridge, _port):
+        bridge.return_value = {
+            "running": True,
+            "connected": True,
+            "error": "Connection to remote host was lost.",
+            "live_orders": False,
+        }
+        with patch("agents.fyers_auth_manager.is_configured", return_value=True):
+            result = quant_terminal_v2.provider_payload()
+        self.assertEqual(result["state"], "DEGRADED")
+        self.assertFalse(result["live_execution"])
+
+    def test_uniform_health_interprets_existing_connected_provider_contract(self):
+        ready, error = quant_terminal_v2.provider_health_state(
+            {
+                "state": "CONNECTED",
+                "bridge": {"connected": True, "error": None},
+            }
+        )
+        self.assertTrue(ready)
+        self.assertIsNone(error)
+        degraded, message = quant_terminal_v2.provider_health_state(
+            {
+                "state": "DEGRADED",
+                "bridge": {"connected": False, "error": "session rejected"},
+            }
+        )
+        self.assertFalse(degraded)
+        self.assertEqual(message, "session rejected")
+
+    @patch("agents.fyers_data_adapter.get_quote")
+    @patch("workstation.quant_terminal_v2._bridge_request", return_value=None)
+    @patch("workstation.quant_terminal_v2._port_open", return_value=True)
+    def test_fixed_indian_watch_symbol_uses_rest_quote_when_stream_missing(
+        self, _port, _bridge, quote
+    ):
+        quote.return_value = {
+            "success": True,
+            "ltp": 24123.5,
+            "change": 10.0,
+            "change_percent": 0.04,
+        }
+        with patch("workstation.quant_terminal_v2.symbol_metadata", return_value={
+            "market": "INDIA", "provider_symbol": "NSE:NIFTY50-INDEX"
+        }):
+            result = quant_terminal_v2.live_payload("NIFTY")
+        self.assertTrue(result["success"])
+        self.assertEqual(result["snapshot_kind"], "REST_QUOTE_FALLBACK")
+        self.assertTrue(result["stream_degraded"])
+        self.assertEqual(result["snapshot"]["ltp"], 24123.5)
+        self.assertFalse(result["live_orders"])
+
+    def test_watchlist_hydrates_immediately_and_never_swallows_errors(self):
+        app = (ROOT / "workstation" / "quant_terminal_v2_static" / "app.js").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("async function refreshAllWatch()", app)
+        self.assertIn("const watchHydration=refreshAllWatch()", app)
+        self.assertIn("updateWatchTile(item.symbol,null,{message:error.message})", app)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "calendar_year": 2026,
+  "verified_through": "2026-08-27",
+  "timezone": "Asia/Kolkata",
+  "venues": {
+    "NSE": {
+      "source_url": "https://www.nseindia.com/resources/exchange-communication-holidays",
+      "source_kind": "OFFICIAL_EXCHANGE",
+      "regular_windows": [["09:15", "15:30"]],
+      "full_holidays": [
+        "2026-01-15", "2026-01-26", "2026-03-03", "2026-03-26",
+        "2026-03-31", "2026-04-03", "2026-04-14", "2026-05-01",
+        "2026-05-28", "2026-06-26", "2026-09-14", "2026-10-02",
+        "2026-10-20", "2026-11-10", "2026-11-24", "2026-12-25"
+      ],
+      "special_sessions": {
+        "2026-11-08": {"status": "PENDING_OFFICIAL_TIMING", "windows": []}
+      }
+    },
+    "BSE": {
+      "source_url": "https://www.bseindia.com/markets/MarketInfo/DispNewNoticesCirculars.aspx?page=20251212-8",
+      "source_kind": "OFFICIAL_EXCHANGE_NOTICE_20251212-8",
+      "regular_windows": [["09:15", "15:30"]],
+      "full_holidays": [
+        "2026-01-15", "2026-01-26", "2026-03-03", "2026-03-26",
+        "2026-03-31", "2026-04-03", "2026-04-14", "2026-05-01",
+        "2026-05-28", "2026-06-26", "2026-09-14", "2026-10-02",
+        "2026-10-20", "2026-11-10", "2026-11-24", "2026-12-25"
+      ],
+      "special_sessions": {
+        "2026-11-08": {"status": "PENDING_OFFICIAL_TIMING", "windows": []}
+      }
+    },
+    "MCX": {
+      "source_url": "https://www.mcxindia.com/market-operations/trading-surveillance/trading-holidays",
+      "source_kind": "OFFICIAL_EXCHANGE",
+      "regular_windows": [["09:00", "23:30"]],
+      "full_holidays": ["2026-01-26", "2026-04-03", "2026-10-02", "2026-12-25"],
+      "special_sessions": {
+        "2026-01-01": {"status": "VERIFIED", "windows": [["09:00", "17:00"]]},
+        "2026-03-03": {"status": "VERIFIED", "windows": [["17:00", "23:30"]]},
+        "2026-03-26": {"status": "VERIFIED", "windows": [["17:00", "23:30"]]},
+        "2026-03-31": {"status": "VERIFIED", "windows": [["17:00", "23:30"]]},
+        "2026-04-14": {"status": "VERIFIED", "windows": [["17:00", "23:30"]]},
+        "2026-05-01": {"status": "VERIFIED", "windows": [["17:00", "23:30"]]},
+        "2026-05-28": {"status": "VERIFIED", "windows": [["17:00", "23:30"]]},
+        "2026-06-26": {"status": "VERIFIED", "windows": [["17:00", "23:30"]]},
+        "2026-09-14": {"status": "VERIFIED", "windows": [["17:00", "23:30"]]},
+        "2026-10-20": {"status": "VERIFIED", "windows": [["17:00", "23:30"]]},
+        "2026-11-08": {"status": "PENDING_OFFICIAL_TIMING", "windows": []},
+        "2026-11-10": {"status": "VERIFIED", "windows": [["17:00", "23:30"]]},
+        "2026-11-24": {"status": "VERIFIED", "windows": [["17:00", "23:30"]]}
+      }
+    }
+  }
+}

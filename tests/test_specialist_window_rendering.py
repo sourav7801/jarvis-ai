@@ -41,6 +41,13 @@ class SpecialistWindowRenderingTests(unittest.TestCase):
         self.assertIn("refreshPaperPortfolio", script)
         self.assertIn("Exit policy: breakeven", script)
         self.assertIn("trailing_at_r", script)
+        self.assertIn("last_scan_funnel", script)
+        self.assertIn("last_scan_elapsed_ms", script)
+        self.assertIn("last_provider_failure_counts", script)
+        self.assertIn("scan_history_trends", script)
+        self.assertIn("paperTrend", script)
+        self.assertIn("reentry_cooldown_minutes", script)
+        self.assertIn("session-open", script)
 
     def test_spatial_depth_mode_is_explicit_optional_and_accessible(self):
         markup = (ROOT / "workstation" / "jarvis_os_v3_assets" / "index.html").read_text(encoding="utf-8")

@@ -7,14 +7,18 @@ import threading
 import time
 import traceback
 from collections import deque
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any
+
+from omni.loopback_http import exclusive_server
+from omni.service_health_contract import ServiceHealthClock
 
 HOST = "127.0.0.1"
 PORT = 8792
 MAX_EVENTS = 5000
 LOG_PATH = Path(r"C:\Jarvis\data\logs\nautilus_core_v52.log")
+HEALTH = ServiceHealthClock("JARVIS_NAUTILUS_QUANT_CORE", "5.2")
 
 
 class NautilusCoreState:
@@ -263,15 +267,18 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path in {"/", "/health"}:
             status = nautilus_status()
+            if status.get("engine_ready"):
+                HEALTH.mark_success()
+            else:
+                HEALTH.mark_error(status.get("error") or "NAUTILUS_ENGINE_NOT_READY")
             self._send(
-                {
-                    "success": True,
-                    "service": "JARVIS_NAUTILUS_QUANT_CORE",
-                    "phase": status.get("phase"),
-                    "engine_ready": bool(status.get("engine_ready")),
-                    "paper_only": True,
-                    "live_execution": False,
-                }
+                HEALTH.payload(
+                    status="READY" if status.get("engine_ready") else "DEGRADED",
+                    healthy=True,
+                    dependencies={"nautilus_engine": str(status.get("phase") or "UNKNOWN")},
+                    phase=status.get("phase"),
+                    engine_ready=bool(status.get("engine_ready")),
+                )
             )
             return
         if path == "/status":
@@ -318,7 +325,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> None:
     _log("Starting JARVIS Nautilus Quant Core V5.2")
-    server = ThreadingHTTPServer((HOST, PORT), Handler)
+    server = exclusive_server(HOST, PORT, Handler)
     worker = threading.Thread(target=_probe_worker, name="nautilus-probe", daemon=True)
     worker.start()
 

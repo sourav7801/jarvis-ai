@@ -2680,12 +2680,50 @@ async function refreshPaperPortfolio() {
         const blockers = Object.entries(autonomy.last_rejection_counts || {})
             .sort((a, b) => Number(b[1]) - Number(a[1]));
         const marks = Object.entries(autonomy.last_mark_rejection_counts || {});
+        const providerFailures = Object.entries(autonomy.last_provider_failure_counts || {});
+        const funnel = autonomy.last_scan_funnel || {};
+        const trends = autonomy.scan_history_trends || {};
+        const trendRates = trends.rates || {};
+        const trendSeries = Array.isArray(trends.series) ? trends.series.slice(-16) : [];
+        const trendHolder = document.getElementById("paperTrend");
+        trendHolder.innerHTML = "";
+        const trendSummary = document.createElement("div");
+        trendSummary.className = "paperTrendSummary";
+        trendSummary.textContent = Number(trends.cycles || 0) > 0
+            ? `${Number(trends.cycles)} durable cycles · ${Number(trendRates.data_ok_percent || 0).toFixed(1)}% data-ok · `
+                + `${Number(trendRates.qualified_percent || 0).toFixed(1)}% qualified · `
+                + `${Number(trends.average_elapsed_ms || 0).toFixed(0)}ms average scan`
+            : "Durable scan trend begins after the next completed autonomy cycle.";
+        trendHolder.appendChild(trendSummary);
+        const spark = document.createElement("div");
+        spark.className = "paperSpark";
+        spark.setAttribute("role", "img");
+        spark.setAttribute("aria-label", "Recent data availability by scan cycle");
+        trendSeries.forEach(point => {
+            const bar = document.createElement("span");
+            const health = Math.max(2, Math.min(100, Number(point.data_ok_rate || 0)));
+            bar.className = `paperSparkBar${Number(point.provider_failures || 0) > 0 ? " degraded" : ""}`;
+            bar.style.setProperty("--scan-health", `${health}%`);
+            bar.title = `${point.scan_at || "scan"} · ${Number(point.data_ok_rate || 0).toFixed(1)}% data-ok · `
+                + `${Number(point.qualified || 0)} qualified · ${Number(point.opened || 0)} opened · `
+                + `${Number(point.elapsed_ms || 0).toFixed(0)}ms`;
+            spark.appendChild(bar);
+        });
+        trendHolder.appendChild(spark);
         const blockerText = blockers.length
             ? blockers.map(([name, count]) => `${name.replaceAll("_", " ")}: ${count}`).join(" · ")
             : "No entry rejection telemetry yet.";
         const markText = marks.length
             ? ` Mark safety: ${marks.map(([name, count]) => `${name}: ${count}`).join(" · ")}.`
             : "";
+        const providerText = providerFailures.length
+            ? ` Provider failures: ${providerFailures.map(([name, count]) => `${name}: ${count}`).join(" · ")}.`
+            : "";
+        const funnelText = Number(funnel.scanned || 0) > 0
+            ? ` Funnel ${Number(funnel.scanned || 0)} scanned → ${Number(funnel.data_ok || 0)} data-ok → `
+                + `${Number(funnel.session_open || 0)} session-open → ${Number(funnel.qualified || 0)} qualified → `
+                + `${Number(funnel.opened || 0)} opened in ${Number(autonomy.last_scan_elapsed_ms || 0).toFixed(0)}ms.`
+            : " No completed funnel yet.";
         const exposureSummary = [
             `asset ${Object.keys(portfolio.asset_class_exposure || {}).length}`,
             `strategy ${Object.keys(portfolio.strategy_exposure || {}).length}`,
@@ -2693,7 +2731,8 @@ async function refreshPaperPortfolio() {
         ].join(" · ");
         document.getElementById("paperBlockers").textContent =
             `Profile ${autonomy.profile || "—"} · ${Number(autonomy.scan_cycles || 0)} scans · ${Number(autonomy.positions_opened || 0)} opened · ${Number(autonomy.positions_closed || 0)} closed. `
-            + `Exposure groups: ${exposureSummary}. Entry locks: ${locks.join(", ") || "none"}. ${blockerText}.${markText}`;
+            + `Re-entry policy ${autonomy.reentry_policy_version || "—"}: ${Number(autonomy.reentry_cooldown_minutes || 0)}m cooldown. `
+            + `Exposure groups: ${exposureSummary}. Entry locks: ${locks.join(", ") || "none"}. ${funnelText} ${blockerText}.${providerText}${markText}`;
     } catch (error) {
         document.getElementById("paperRunState").textContent = "TELEMETRY DEGRADED";
         document.getElementById("paperBlockers").textContent = error.message;

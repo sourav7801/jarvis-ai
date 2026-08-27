@@ -1103,7 +1103,13 @@ body.spatial-mode .jarvisWindow.focused { transform: translateZ(24px) scale(1.00
 .paperTradeRow .negative { color: var(--red); }
 
 .paperTelemetry { margin-top: 8px; min-height: 68px; }
+.paperTrend { display: grid; grid-template-columns: minmax(240px, 1fr) minmax(180px, .55fr); gap: 10px; align-items: end; padding: 8px 8px 0; }
+.paperTrendSummary { color: #8ee7ff; font-size: 8px; letter-spacing: .08em; line-height: 1.6; }
+.paperSpark { height: 34px; display: flex; align-items: end; gap: 3px; padding: 3px 5px; border: 1px solid rgba(78, 205, 255, .18); background: rgba(3, 18, 28, .62); }
+.paperSparkBar { flex: 1 1 0; min-width: 3px; height: var(--scan-health, 2%); background: linear-gradient(180deg, #75f5c4, #34a9db); box-shadow: 0 0 8px rgba(79, 220, 255, .25); }
+.paperSparkBar.degraded { background: linear-gradient(180deg, #ffca69, #ff6e83); }
 .paperBlockers { padding: 8px; font-size: 8px; color: #a8c0cb; line-height: 1.5; }
+@media (max-width: 880px) { .paperTrend { grid-template-columns: 1fr; } }
 .paperAgentFeed { margin-top: 8px; max-height: 100px; overflow: auto; }
 
 @media (max-width: 900px) {

@@ -10,9 +10,11 @@ import secrets
 import threading
 import time
 import urllib.parse
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any
+
+from omni.loopback_http import ExclusiveThreadingHTTPServer
 
 import main as jarvis_main
 from config import (
@@ -1331,7 +1333,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
 
-class JarvisHTTPServer(ThreadingHTTPServer):
+class JarvisHTTPServer(ExclusiveThreadingHTTPServer):
     """Single-instance local server.
 
     ``HTTPServer`` enables ``SO_REUSEADDR``.  On Windows that can allow more
@@ -1341,9 +1343,7 @@ class JarvisHTTPServer(ThreadingHTTPServer):
     fail closed instead of creating an intermittently unauthorized dashboard.
     """
 
-    allow_reuse_address = False
-    allow_reuse_port = False
-    daemon_threads = True
+    pass
 
 
 def main() -> None:

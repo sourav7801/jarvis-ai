@@ -25,6 +25,15 @@ DEFAULT_UNIVERSE = (
     "XRP",
 )
 DEFAULT_TIMEFRAMES = ("5m", "15m", "1h")
+REENTRY_POLICY_VERSION = "PAPER_REENTRY_COOLDOWN_V1"
+REENTRY_COOLDOWN_MINUTES = {
+    "1m_only": 2.0,
+    "5m_only": 10.0,
+    "15m_only": 30.0,
+    "1h_only": 120.0,
+    "swing": 1440.0,
+    "intraday": 30.0,
+}
 
 
 class PaperAutonomyEngine:
@@ -47,6 +56,7 @@ class PaperAutonomyEngine:
         mark_interval_seconds: float = 0.75,
         max_workers: int = 4,
         profile: str | None = None,
+        scan_ledger: Any | None = None,
     ) -> None:
         from workstation.trading_timeframe_profiles import resolve_trading_profile
 
@@ -65,6 +75,7 @@ class PaperAutonomyEngine:
         self.scan_interval_seconds = max(1.0, float(scan_interval_seconds))
         self.mark_interval_seconds = max(0.25, float(mark_interval_seconds))
         self.max_workers = max(1, min(int(max_workers), 8))
+        self.scan_ledger = scan_ledger
         self._lock = threading.RLock()
         self._running = False
         self._stop = threading.Event()
@@ -76,6 +87,9 @@ class PaperAutonomyEngine:
         self._positions_closed = 0
         self._errors = 0
         self._last_scan_at: str | None = None
+        self._last_scan_elapsed_ms: float | None = None
+        self._last_scan_funnel: dict[str, int] = {}
+        self._last_provider_failure_counts: dict[str, int] = {}
         self._last_mark_at: str | None = None
         self._last_mark_rejection_counts: dict[str, int] = {}
         self._last_mark_certificates: list[dict[str, Any]] = []
@@ -83,6 +97,8 @@ class PaperAutonomyEngine:
         self._last_candidates: list[dict[str, Any]] = []
         self._last_rejection_counts: dict[str, int] = {}
         self._last_rows_summary: list[dict[str, Any]] = []
+        self._last_scan_ledger_id: int | None = None
+        self._last_scan_ledger_error: str | None = None
         self._scan_guard = threading.Lock()
         self._trigger_thread: threading.Thread | None = None
 
@@ -192,6 +208,15 @@ class PaperAutonomyEngine:
         return self.status()
 
     def status(self) -> dict[str, Any]:
+        recent_scan_history: list[dict[str, Any]] = []
+        scan_history_trends: dict[str, Any] = {}
+        ledger_read_error = self._last_scan_ledger_error
+        if self.scan_ledger is not None:
+            try:
+                recent_scan_history = self.scan_ledger.recent(5)
+                scan_history_trends = self.scan_ledger.trends(50)
+            except Exception as exc:
+                ledger_read_error = f"{type(exc).__name__}: {exc}"[:500]
         with self._lock:
             return {
                 "success": True,
@@ -203,6 +228,8 @@ class PaperAutonomyEngine:
                 "min_score": self.min_score,
                 "min_risk_reward": self.min_risk_reward,
                 "profile_risk_multiplier": self.profile_risk_multiplier,
+                "reentry_policy_version": REENTRY_POLICY_VERSION,
+                "reentry_cooldown_minutes": self._reentry_cooldown_minutes(),
                 "scan_interval_seconds": self.scan_interval_seconds,
                 "mark_interval_seconds": self.mark_interval_seconds,
                 "scan_cycles": self._scan_cycles,
@@ -211,6 +238,9 @@ class PaperAutonomyEngine:
                 "positions_closed": self._positions_closed,
                 "errors": self._errors,
                 "last_scan_at": self._last_scan_at,
+                "last_scan_elapsed_ms": self._last_scan_elapsed_ms,
+                "last_scan_funnel": dict(self._last_scan_funnel),
+                "last_provider_failure_counts": dict(self._last_provider_failure_counts),
                 "last_mark_at": self._last_mark_at,
                 "last_mark_rejection_counts": dict(self._last_mark_rejection_counts),
                 "last_mark_certificates": list(self._last_mark_certificates),
@@ -218,6 +248,10 @@ class PaperAutonomyEngine:
                 "last_candidates": list(self._last_candidates[-20:]),
                 "last_rejection_counts": dict(self._last_rejection_counts),
                 "last_rows_summary": list(self._last_rows_summary[-24:]),
+                "last_scan_ledger_id": self._last_scan_ledger_id,
+                "last_scan_ledger_error": ledger_read_error,
+                "recent_scan_history": recent_scan_history,
+                "scan_history_trends": scan_history_trends,
                 "paper_only": True,
                 "live_execution": False,
             }
@@ -254,6 +288,44 @@ class PaperAutonomyEngine:
             float(row.get("score") or 0.0),
             float(row.get("risk_reward") or 0.0),
         )
+
+    def _reentry_cooldown_minutes(self) -> float:
+        return float(REENTRY_COOLDOWN_MINUTES.get(self.profile, 30.0))
+
+    def _cooldown_remaining_seconds(
+        self,
+        *,
+        symbol: str,
+        strategy: str,
+        closed_positions: Iterable[dict[str, Any]],
+        now: datetime,
+    ) -> float:
+        cooldown_seconds = self._reentry_cooldown_minutes() * 60.0
+        if cooldown_seconds <= 0:
+            return 0.0
+        latest: datetime | None = None
+        for trade in closed_positions:
+            if str(trade.get("symbol") or "").upper() != symbol:
+                continue
+            if str(trade.get("strategy") or "") != strategy:
+                continue
+            metadata = trade.get("metadata") if isinstance(trade.get("metadata"), dict) else {}
+            trade_profile = str(metadata.get("profile") or "")
+            if trade_profile and trade_profile != self.profile:
+                continue
+            try:
+                closed_at = datetime.fromisoformat(str(trade.get("closed_at") or "").replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            if closed_at.tzinfo is None:
+                closed_at = closed_at.replace(tzinfo=timezone.utc)
+            closed_at = closed_at.astimezone(timezone.utc)
+            if latest is None or closed_at > latest:
+                latest = closed_at
+        if latest is None:
+            return 0.0
+        elapsed = max((now.astimezone(timezone.utc) - latest).total_seconds(), 0.0)
+        return max(cooldown_seconds - elapsed, 0.0)
 
     def scan_once(self) -> dict[str, Any]:
         if not self._scan_guard.acquire(blocking=False):
@@ -301,16 +373,28 @@ class PaperAutonomyEngine:
         candidates.sort(key=self._rank_key, reverse=True)
 
         rejection_counts = Counter()
+        normalized_blockers: dict[int, list[str]] = {}
+        provider_failures = Counter()
         for row in rows:
             blockers = list(row.get("blockers") or [])
             if not row.get("success") and not blockers:
                 blockers = ["DATA_UNAVAILABLE"]
             if not blockers and not row.get("qualified"):
                 blockers = ["NO_QUALIFIED_SETUP"]
-            rejection_counts.update(str(item) for item in blockers)
+            blockers = [str(item) for item in blockers]
+            normalized_blockers[id(row)] = blockers
+            rejection_counts.update(blockers)
+            if not row.get("success"):
+                provider = str(row.get("source") or row.get("provider") or "UNKNOWN_PROVIDER").upper()
+                provider_failures[provider] += 1
 
         snapshot = paper_desk.snapshot()
         already_open = {str(item.get("symbol") or "").upper() for item in snapshot.get("positions") or []}
+        try:
+            recently_closed = list(paper_desk.closed_positions(200))
+        except Exception:
+            recently_closed = []
+        scan_now = datetime.now(timezone.utc)
         opened = []
 
         for row in candidates:
@@ -318,6 +402,16 @@ class PaperAutonomyEngine:
             if not symbol or symbol in already_open:
                 continue
             strategy = "QUANT_ENSEMBLE_V2_GOVERNED_CONSENSUS_V4"
+            cooldown_remaining = self._cooldown_remaining_seconds(
+                symbol=symbol,
+                strategy=strategy,
+                closed_positions=recently_closed,
+                now=scan_now,
+            )
+            if cooldown_remaining > 0:
+                rejection_counts["REENTRY_COOLDOWN_ACTIVE"] += 1
+                normalized_blockers.setdefault(id(row), []).append("REENTRY_COOLDOWN_ACTIVE")
+                continue
             try:
                 from workstation.bounded_decision_review import decision_review_coordinator
 
@@ -412,6 +506,8 @@ class PaperAutonomyEngine:
                     "contradictions": row.get("contradictions") or [],
                     "reasons_not_to_trade": row.get("reasons_not_to_trade") or [],
                     "profile": self.profile,
+                    "reentry_policy_version": REENTRY_POLICY_VERSION,
+                    "reentry_cooldown_minutes": self._reentry_cooldown_minutes(),
                     "profile_risk_multiplier": self.profile_risk_multiplier,
                     "adaptive_policy": policy,
                     "initial_risk": abs(float(live_entry) - float(row["stop"])),
@@ -441,10 +537,60 @@ class PaperAutonomyEngine:
                 rejection_counts[str(result.get("reason") or "PAPER_DESK_ENTRY_REJECTED")] += 1
 
         elapsed_ms = (time.perf_counter() - started) * 1000.0
+        scan_at = datetime.now(timezone.utc).isoformat()
+        rows_summary = [
+            {
+                "symbol": row.get("symbol"),
+                "side": row.get("side"),
+                "candidate_side": row.get("candidate_side"),
+                "score": row.get("score"),
+                "qualified": row.get("qualified"),
+                "success": bool(row.get("success")),
+                "source": row.get("source") or row.get("provider"),
+                "data_quality": row.get("data_quality"),
+                "session_open": row.get("session_open"),
+                "blockers": normalized_blockers.get(id(row), []),
+                "message": row.get("message"),
+            }
+            for row in rows
+        ]
+        ledger_id = None
+        ledger_error = None
+        if self.scan_ledger is not None:
+            try:
+                ledger_id = self.scan_ledger.record(
+                    {
+                        "scan_at": scan_at,
+                        "profile": self.profile,
+                        "timeframes": self.timeframes,
+                        "elapsed_ms": elapsed_ms,
+                        "funnel": {
+                            "scanned": len(rows),
+                            "data_ok": sum(1 for row in rows if row.get("success")),
+                            "session_open": sum(1 for row in rows if row.get("session_open") is True),
+                            "qualified": len(candidates),
+                            "opened": len(opened),
+                        },
+                        "rejection_counts": dict(rejection_counts),
+                        "provider_failures": dict(provider_failures),
+                        "rows": rows_summary,
+                    }
+                )
+            except Exception as exc:
+                ledger_error = f"{type(exc).__name__}: {exc}"[:500]
         with self._lock:
             self._scan_cycles += 1
             self._positions_opened += len(opened)
-            self._last_scan_at = datetime.now(timezone.utc).isoformat()
+            self._last_scan_at = scan_at
+            self._last_scan_elapsed_ms = elapsed_ms
+            self._last_scan_funnel = {
+                "scanned": len(rows),
+                "data_ok": sum(1 for row in rows if row.get("success")),
+                "session_open": sum(1 for row in rows if row.get("session_open") is True),
+                "qualified": len(candidates),
+                "opened": len(opened),
+            }
+            self._last_provider_failure_counts = dict(provider_failures)
             self._last_candidates = [
                 {
                     "symbol": row.get("symbol"),
@@ -459,18 +605,9 @@ class PaperAutonomyEngine:
                 for row in candidates[:20]
             ]
             self._last_rejection_counts = dict(rejection_counts)
-            self._last_rows_summary = [
-                {
-                    "symbol": row.get("symbol"),
-                    "side": row.get("side"),
-                    "candidate_side": row.get("candidate_side"),
-                    "score": row.get("score"),
-                    "qualified": row.get("qualified"),
-                    "blockers": list(row.get("blockers") or []),
-                    "message": row.get("message"),
-                }
-                for row in rows
-            ]
+            self._last_rows_summary = rows_summary
+            self._last_scan_ledger_id = ledger_id
+            self._last_scan_ledger_error = ledger_error
 
         return {
             "success": True,
@@ -554,4 +691,7 @@ class PaperAutonomyEngine:
                 break
 
 
-paper_autonomy = PaperAutonomyEngine()
+from workstation.paper_scan_ledger import paper_scan_ledger
+
+
+paper_autonomy = PaperAutonomyEngine(scan_ledger=paper_scan_ledger)

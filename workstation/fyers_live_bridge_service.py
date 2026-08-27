@@ -4,10 +4,12 @@ import json
 import os
 import threading
 import urllib.parse
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
 from typing import Any
 
 from agents.fyers_live_stream import fyers_live_stream
+from omni.loopback_http import exclusive_server
+from omni.service_health_contract import ServiceHealthClock
 from workstation.paper_market_data import UnifiedPaperMarketData
 
 HOST = os.getenv("JARVIS_FYERS_BRIDGE_HOST", "127.0.0.1")
@@ -18,6 +20,7 @@ _COMMODITY_SYMBOLS = ("CRUDEOIL", "GOLD", "SILVER", "NATURALGAS")
 _ALIAS_MAP: dict[str, str] = {}
 _START_ERROR = ""
 _LOCK = threading.RLock()
+HEALTH = ServiceHealthClock("JARVIS_FYERS_READ_ONLY_BRIDGE", "1.0")
 
 
 def _commodity_provider_symbol(symbol: str) -> str:
@@ -172,7 +175,23 @@ class Handler(BaseHTTPRequestHandler):
             payload = snapshot_payload(symbol)
             return self.send_json(payload, 200 if payload.get("success") else 503)
         if parsed.path == "/api/health":
-            return self.send_json({"ok": True, "data_only": True, "live_orders": False})
+            status = status_payload()
+            connected = bool(status.get("connected"))
+            if connected:
+                HEALTH.mark_success()
+            else:
+                HEALTH.mark_error(status.get("error") or "FYERS_MARKET_DATA_DISCONNECTED")
+            return self.send_json(
+                HEALTH.payload(
+                    status="READY" if connected else "DEGRADED",
+                    healthy=True,
+                    dependencies={"fyers_market_data": "READY" if connected else "DEGRADED"},
+                    data_only=True,
+                    live_orders=False,
+                    connected=connected,
+                    snapshots=int(status.get("snapshots") or 0),
+                )
+            )
         self.send_error(404)
 
     def do_POST(self) -> None:
@@ -202,7 +221,7 @@ def main() -> int:
     print("Live broker orders: LOCKED")
     start_stream()
     try:
-        ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
+        exclusive_server(HOST, PORT, Handler).serve_forever()
     except KeyboardInterrupt:
         pass
     finally:

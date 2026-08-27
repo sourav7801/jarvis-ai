@@ -14,7 +14,6 @@ from http import (
 
 from http.server import (
     BaseHTTPRequestHandler,
-    ThreadingHTTPServer,
 )
 
 from pathlib import (
@@ -30,6 +29,8 @@ from urllib.parse import (
 from omni.jarvis_workspace_orchestrator import (
     interpret_workspace_command,
 )
+from omni.loopback_http import exclusive_server
+from omni.service_health_contract import ServiceHealthClock
 
 from workstation.jarvis_v3_chart_provider import (
     get_chart,
@@ -60,6 +61,7 @@ PORT = 8797
 TOKEN = secrets.token_urlsafe(
     32
 )
+HEALTH = ServiceHealthClock("JARVIS_MASTER_CONTROL_PLANE", "3.1")
 
 
 SENSITIVE = (
@@ -2014,15 +2016,19 @@ class Handler(
 
 
             if parsed.path == "/api/health":
-
+                from omni.core_integrity import verify_protected_core
+                core = verify_protected_core()
+                if core.ok:
+                    HEALTH.mark_success()
+                else:
+                    HEALTH.mark_error("PROTECTED_CORE_VALIDATION_FAILED")
                 return self.send_json(
-                    {
-                        "success":
-                            True,
-
-                        "version":
-                            "3.1",
-                    }
+                    HEALTH.payload(
+                        status="READY" if core.ok else "DEGRADED",
+                        healthy=bool(core.ok),
+                        dependencies={"protected_core": "READY" if core.ok else "DEGRADED"},
+                        protected_core=bool(core.ok),
+                    )
                 )
 
 
@@ -2333,15 +2339,7 @@ def create_server(
     port=PORT,
 ):
 
-    return ThreadingHTTPServer(
-        (
-            host,
-            int(
-                port
-            ),
-        ),
-        Handler,
-    )
+    return exclusive_server(host, int(port), Handler)
 
 
 def run_server(

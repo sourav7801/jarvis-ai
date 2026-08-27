@@ -71,7 +71,7 @@ function buildWatch(){
   host.innerHTML="";
   MARKETS.forEach(item=>{
     const button=document.createElement("button");
-    button.className="market-tile"+(item.symbol===selectedSymbol?" active":"");
+    button.className=`market-tile asset-${String(item.kind||"market").toLowerCase().replaceAll("_","-")}`+(item.symbol===selectedSymbol?" active":"");
     button.dataset.symbol=item.symbol;
     const feed=item.kind==="CRYPTO"?"PUBLIC CRYPTO":String(item.kind).includes("GLOBAL")?"PUBLIC DELAYED":"BROKER DATA";button.innerHTML=`<strong>${item.label}</strong><span class="price" data-watch-price>—</span><small>${feed}</small><em data-watch-change>waiting</em>`;
     button.addEventListener("click",()=>selectMarket(item.symbol));
@@ -79,13 +79,14 @@ function buildWatch(){
   });
 }
 
-function updateWatchTile(symbol,snapshot){
+function updateWatchTile(symbol,snapshot,meta={}){
   const tile=document.querySelector(`.market-tile[data-symbol="${symbol}"]`);if(!tile)return;
   const price=tile.querySelector("[data-watch-price]");const change=tile.querySelector("[data-watch-change]");
-  if(!snapshot||snapshot.ltp==null){price.textContent="—";change.textContent="no live snapshot";return}
+  tile.classList.toggle("degraded",Boolean(meta.degraded));tile.classList.remove("data-error");
+  if(!snapshot||snapshot.ltp==null){price.textContent="—";change.textContent=meta.message||"no verified snapshot";tile.classList.add("data-error");return}
   price.textContent=fmt(snapshot.ltp);
   const pct=Number(snapshot.change_percent);const diff=Number(snapshot.change);const sign=diff>0?"+":"";
-  change.textContent=(Number.isFinite(diff)?`${sign}${diff.toFixed(2)}`:"")+(Number.isFinite(pct)?` (${pct>0?"+":""}${pct.toFixed(2)}%)`:"");
+  change.textContent=(Number.isFinite(diff)?`${sign}${diff.toFixed(2)}`:"")+(Number.isFinite(pct)?` (${pct>0?"+":""}${pct.toFixed(2)}%)`:"")+(meta.degraded?" · REST":"");
   change.style.color=diff>0?"#78f2aa":diff<0?"#ff6f83":"#7e9aa7";
 }
 
@@ -228,13 +229,19 @@ async function refreshProvider(){
     const payload=await fetchJson("/api/provider",{},6000);
     const button=$("providerButton");const state=payload.state||"UNKNOWN";button.textContent=`FYERS · ${state.replaceAll("_"," ")}`;button.className="status-pill "+(state==="CONNECTED"?"connected":state==="LOGIN_REQUIRED"?"error":"warn");
     $("providerState").textContent=state.replaceAll("_"," ");
-    const error=payload.bridge?.error;$("providerMessage").textContent=state==="CONNECTED"?"Read-only FYERS live stream connected.":error||"FYERS session is not live. Use the local login button if today's token has expired.";
+    const error=payload.bridge?.error;$("providerMessage").textContent=state==="CONNECTED"?"Read-only FYERS live stream connected.":state==="DEGRADED"?`FYERS REST fallback active while the live stream reconnects${error?`: ${error}`:"."}`:error||"FYERS session is not live. Use the local login button if today's token has expired.";
   }catch(error){$("providerState").textContent="UNAVAILABLE";$("providerMessage").textContent=error.message}
 }
 
 async function refreshOneWatch(){
   const item=MARKETS[watchCursor%MARKETS.length];watchCursor++;
-  try{const payload=await fetchJson(`/api/live?${new URLSearchParams({symbol:item.symbol})}`,{},6000);if(payload.success&&payload.snapshot)updateWatchTile(item.symbol,payload.snapshot)}catch{}
+  try{const payload=await fetchJson(`/api/live?${new URLSearchParams({symbol:item.symbol})}`,{},6000);if(payload.success&&payload.snapshot)updateWatchTile(item.symbol,payload.snapshot,{degraded:Boolean(payload.stream_degraded||payload.stale)});else updateWatchTile(item.symbol,null,{message:payload.message||"data unavailable"})}catch(error){updateWatchTile(item.symbol,null,{message:error.message})}
+}
+
+async function refreshAllWatch(){
+  await Promise.allSettled(MARKETS.map(async item=>{
+    try{const payload=await fetchJson(`/api/live?${new URLSearchParams({symbol:item.symbol})}`,{},10000);if(payload.success&&payload.snapshot)updateWatchTile(item.symbol,payload.snapshot,{degraded:Boolean(payload.stream_degraded||payload.stale)});else updateWatchTile(item.symbol,null,{message:payload.message||"data unavailable"})}catch(error){updateWatchTile(item.symbol,null,{message:error.message})}
+  }));
 }
 
 async function scanSelected(){
@@ -287,6 +294,6 @@ function startTimers(){
 
 async function bootstrap(){
   const params=new URLSearchParams(window.location.search);const raw=String(params.get("symbol")||"").toUpperCase().replaceAll(" ","");let found=MARKETS.find(item=>item.symbol===raw||item.label.toUpperCase().replaceAll(" ","")===raw);if(!found&&raw){found={symbol:raw,label:raw,kind:"INDIA_EQUITY"};MARKETS.push(found)}if(found)selectedSymbol=found.symbol;const tf=params.get("timeframe");if(tf&&["1m","3m","5m","15m","30m","1h","2h","4h","1d"].includes(tf))timeframe=tf;analysisProfile=params.get("profile")||(timeframe==="1d"?"swing":"intraday");if(params.get("analyze")==="1")layout=1;
-  buildWatch();bindControls();syncControls();await mountCharts();refreshProvider();startTimers();if(params.get("analyze")==="1")await scanSelected();
+  buildWatch();bindControls();syncControls();const watchHydration=refreshAllWatch();await mountCharts();refreshProvider();startTimers();await watchHydration;if(params.get("analyze")==="1")await scanSelected();
 }
 bootstrap();

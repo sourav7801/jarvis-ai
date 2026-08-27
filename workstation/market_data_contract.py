@@ -15,6 +15,11 @@ from typing import Any, Mapping
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
+from workstation.official_exchange_calendar import (
+    VenueCalendar,
+    safe_official_calendars,
+)
+
 
 UTC = timezone.utc
 INDIA_TZ = ZoneInfo("Asia/Kolkata")
@@ -227,8 +232,17 @@ class SessionStatus:
 class VenueSessionService:
     """One venue-aware session gate shared by scanners and Paper Desk."""
 
-    def __init__(self, *, holidays: Mapping[str, set[date]] | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        holidays: Mapping[str, set[date]] | None = None,
+        calendars: Mapping[str, VenueCalendar] | None = None,
+    ) -> None:
         self._holidays = {str(key).upper(): set(values) for key, values in (holidays or {}).items()}
+        self._calendars = {
+            str(key).upper(): value
+            for key, value in (safe_official_calendars() if calendars is None else calendars).items()
+        }
 
     @staticmethod
     def venue_for(metadata: Mapping[str, Any]) -> str:
@@ -265,21 +279,44 @@ class VenueSessionService:
         if normalized not in {"NSE", "BSE", "MCX"}:
             return SessionStatus(normalized or "UNKNOWN", "UNVERIFIED", instant.isoformat(), False, False, "UNKNOWN_VENUE", "FAIL_CLOSED")
         local = instant.astimezone(INDIA_TZ)
-        if local.weekday() >= 5:
-            return SessionStatus(normalized, str(INDIA_TZ), instant.isoformat(), False, False, "WEEKEND", "VENUE_CONTRACT")
         if local.date() in self._configured_holidays(normalized):
             return SessionStatus(normalized, str(INDIA_TZ), instant.isoformat(), False, False, "CONFIGURED_HOLIDAY", "CONFIGURED_CALENDAR")
-        opening, closing = ((time(9, 0), time(23, 30)) if normalized == "MCX" else (time(9, 15), time(15, 30)))
+
+        calendar = self._calendars.get(normalized)
+        if calendar is None:
+            return SessionStatus(
+                normalized,
+                str(INDIA_TZ),
+                instant.isoformat(),
+                False,
+                False,
+                "OFFICIAL_CALENDAR_UNAVAILABLE",
+                "FAIL_CLOSED",
+            )
+
+        session_reason, windows = calendar.session_for(local)
+        source = f"{calendar.source_kind}:{calendar.source_url}"
+        if not windows:
+            return SessionStatus(
+                normalized,
+                str(INDIA_TZ),
+                instant.isoformat(),
+                False,
+                False,
+                session_reason,
+                source,
+            )
+
         current = local.time().replace(tzinfo=None)
-        is_open = opening <= current <= closing
+        is_open = any(opening <= current <= closing for opening, closing in windows)
         return SessionStatus(
             normalized,
             str(INDIA_TZ),
             instant.isoformat(),
             is_open,
             is_open,
-            "REGULAR_SESSION" if is_open else "OUTSIDE_REGULAR_SESSION",
-            "VENUE_CONTRACT",
+            session_reason if is_open else f"OUTSIDE_{session_reason}",
+            source,
         )
 
 

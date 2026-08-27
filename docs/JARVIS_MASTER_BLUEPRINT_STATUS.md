@@ -1,6 +1,6 @@
 # JARVIS Master Blueprint Status
 
-Last audited: 2026-08-26 21:15:47 (Asia/Kolkata)
+Last audited: 2026-08-28 01:30:15 (Asia/Kolkata)
 
 Governing specification: `docs/JARVIS_MASTER_AUTONOMOUS_BLUEPRINT_FOR_CODEX.md`  
 Verified SHA-256: `AED7D25B73DD4601EECD74A78EEF7B9492E77DB7123D28BB43E404D10CC7A725`
@@ -13,14 +13,15 @@ JARVIS is **not blueprint-complete**. The current checkout contains useful contr
 
 The machine-level baseline is also not release-ready:
 
-- Branch: `jarvis-dev/20260820-011315-JARVIS-Quant-Trading-Intelligence-V5-Nautilus-Core`
-- HEAD: `5bd7b641da379fa6cfca5b6747050c52ac981956`
-- Working tree: dirty with a large pre-existing mixture of modified and untracked work
+- Branch: `jarvis-dev/20260827-022645-JARVIS-V6-terminal-x3-cinematic`
+- HEAD: `69fbc1f45538981cc0632efb4d43cc1fcfd880a6`
+- Working tree: dirty with the current verified repair patch plus an existing local Claude settings file; no release checkpoint has been created
 - Declared primary: `.venv\Scripts\python.exe` (Python 3.12.13; application, NumPy and pandas imports verified)
 - Declared FYERS data runtime: `.venv-fyers\Scripts\python.exe` (Python 3.12.13; FYERS, NumPy, pandas and adapter imports verified)
 - Declared Nautilus runtime: `.venv-nautilus\Scripts\python.exe` (Python 3.12.13; Nautilus 1.231.0, backtest config, `msgspec`, NumPy and pandas worker boundary verified)
-- Current services: Quant 8787, FYERS read-only bridge 8790, Nautilus 8792, Master 8797 and native voice 8798 are running locally
-- Full regression: 1129/1129 tests pass using the declared `.venv\Scripts\python.exe`
+- Current services after the clean restart: exactly one listener each for Quant 8787, FYERS read-only bridge 8790, Nautilus 8792, Master 8797 and native voice control 8798
+- FYERS runtime state: connected read-only with seven verified NSE/BSE/MCX stream snapshots after the network-enabled restart; broker-order APIs remain disabled
+- Full regression: 1170/1170 tests pass using the declared `.venv\Scripts\python.exe`
 - Live broker execution: locked; all new trading work remains paper/sandbox only
 
 The machine-readable source of truth is `data/roadmap/jarvis_master_gap_map.json`.
@@ -31,17 +32,21 @@ The machine-readable source of truth is `data/roadmap/jarvis_master_gap_map.json
 
 Root cause: the older regression compiled repeatedly to the fixed shared path `.jarvis-dev\JarvisVoiceService.test.exe`. A prior test process or file handle could retain that executable, so the next compiler invocation could not overwrite it on Windows.
 
-Current working-tree fix: the compile regression now creates a unique `.jarvis-dev\voice-compile-<random>\JarvisVoiceService.test.exe` inside a `TemporaryDirectory`. It never overwrites the legacy shared executable and cleans its own build directory. The real Windows System.Speech compile still runs; the test is not skipped or weakened. The focused 14-test voice suite passes.
+Current working-tree fix: the compile regression creates a unique `.jarvis-dev\voice-compile-<random>\JarvisVoiceService.test.exe` inside a `TemporaryDirectory`. The production launcher now uses a source-hash-addressed executable under `.jarvis-dev\native-voice-runtime` as well, so a terminating Windows process can never lock the next build target. Two consecutive launcher runs verify compile/start followed by existing-process detection. The real Windows System.Speech compile still runs; the test is not skipped or weakened.
 
 The legacy source-string regressions now verify the stronger behavior: voice calls `executeCommand(...)` directly and preserves `input_mode=voice` plus speech confidence for the server-side uncertainty guard. All focused voice tests and the full suite pass.
 
+The live Windows recognizer advertised an installed entry that failed construction with `No recognizer of the required ID found`, which previously terminated the entire port-8798 service. Native voice now keeps its exclusive loopback control API online, reports `DEGRADED_BROWSER_FALLBACK` and exposes `recognition_available=false` instead of claiming recognition is ready. The launcher and reliability supervisor treat this as a healthy but degraded browser-speech fallback, avoiding restart loops. A compatible Windows speech recognizer still must be installed or repaired before native wake/stop recognition can report READY.
+
 ### Declared runtime contract repair
 
-The three blueprint-declared Windows environments no longer trust `python.exe` existence. `omni/runtime_paths.py`, `JARVIS.bat` and `scripts/verify_runtime_contract.py` select and verify real module boundaries. The repaired Python 3.12 Nautilus environment initially exposed stale Python 3.13 NumPy and then `msgspec` binaries when the real research workers ran; the environment was synchronized from the verified pinned Nautilus runtime, and the contract was expanded to import `nautilus_trader.backtest.config`, NumPy and pandas. All 38 real research-kernel/universal/portfolio/walk-forward contract tests and the full 1129-test suite now pass. The live stack is singular on ports 8787/8790/8792/8797/8798; Quant reports paper-only, FYERS reports data-only/live-orders-false and Nautilus reports READY/paper-only/live-execution-false.
+The three blueprint-declared Windows environments no longer trust `python.exe` existence. `omni/runtime_paths.py`, `JARVIS.bat` and `scripts/verify_runtime_contract.py` select and verify real module boundaries. The repaired Python 3.12 Nautilus environment initially exposed stale Python 3.13 NumPy and then `msgspec` binaries when the real research workers ran; the environment was synchronized from the verified pinned Nautilus runtime, and the contract was expanded to import `nautilus_trader.backtest.config`, NumPy and pandas. All 38 real research-kernel/universal/portfolio/walk-forward contract tests and the full 1170-test suite now pass. `omni/loopback_http.py` also supplies a Windows-exclusive threaded loopback server; Quant, FYERS, Nautilus, Master and voice services can no longer silently share one port with stale older processes. A network-enabled clean restart verified one listener on each of 8787/8790/8792/8797/8798.
+
+`JARVIS_SERVICE_HEALTH_V1` now normalizes Master, Quant, FYERS, Nautilus and native voice health responses with service/version identity, READY/DEGRADED status, start/response timestamps, uptime, last success/error timing, dependency states and explicit paper-only/live-execution safety. This provides the contract required by the next owned-process recovery milestone.
 
 ### Canonical market data and venue sessions
 
-`workstation/market_data_contract.py` now defines one provider-neutral `MarketDatum` contract with provider, provider symbol, exchange and received timestamps, timeframe, quality, stale, verified and freshness-basis fields. It also enumerates the complete blueprint market-event family and supplies a fail-closed venue service for NSE, BSE, MCX, continuous crypto and ungoverned global research feeds. `workstation/paper_market_data.py` emits this contract for successful quote/history paths and routes Paper session decisions through the shared service. Remaining work is to migrate Deribit, option-chain, order-book, news and legacy adapters, and connect an authoritative exchange holiday source.
+`workstation/market_data_contract.py` now defines one provider-neutral `MarketDatum` contract with provider, provider symbol, exchange and received timestamps, timeframe, quality, stale, verified and freshness-basis fields. It also enumerates the complete blueprint market-event family and supplies a fail-closed venue service for NSE, BSE, MCX, continuous crypto and ungoverned global research feeds. `workstation/paper_market_data.py` emits this contract for successful quote/history paths and routes Paper session decisions through the shared service. A versioned 2026 exchange-calendar snapshot now cites official NSE, BSE and MCX sources, represents full and partial-session holidays, refuses pending Muhurat timings and fails closed outside its verified year. Remaining work is to automate reviewed calendar refreshes and migrate Deribit, option-chain, order-book, news and remaining legacy adapters.
 
 The event family now has validated `MarketEventEnvelope` payload contracts and a bounded, failure-isolated `MarketEventBus`. Paper quote and completed-bar paths are real publishers and expose acceptance diagnostics. Invalid OHLC, option-chain and provider-health shapes fail before publication. Order-book, options/OI/volatility, news/provider-health and Nautilus publisher adapters remain incomplete.
 
@@ -65,7 +70,11 @@ The V3 command API previously dropped the specialist `raw` payload and the brows
 
 ### Running paper workflow and exits
 
-The local stack is running with Quant, FYERS read-only data, Nautilus, Master and native voice healthy. The morning discovery scan completed all 71 instruments across NIFTY50, BANKNIFTY, SENSEX30, India indices, MCX and crypto with zero scanner errors and produced 11 eligible daily watch candidates. Autonomy enrolled a bounded 21-symbol universe, but opened no new position in five observed cycles because none cleared the stricter intraday alignment, score, range, risk-level and session gates; it did not force a trade. One previously persisted paper position remains. Paper exits now treat adverse stop gaps conservatively, fill resting targets at the target reference, support risk-reducing breakeven/trailing plus explicit time stops, and refuse stale or unverified marks. New intraday entries move to breakeven at 0.75R, begin favorable-only trailing at 1.0R with a 0.5R distance and expire after 390 minutes; the UI exposes this policy per position. Partial, scale-out, reversal, regime and session-close policies remain.
+The most recent live workflow evidence completed all 71 discovery instruments across NIFTY50, BANKNIFTY, SENSEX30, India indices, MCX and crypto with zero scanner errors and produced 11 eligible daily watch candidates. Autonomy enrolled a bounded 21-symbol universe, but opened no new position in five observed cycles because none cleared the stricter intraday alignment, score, range, risk-level and session gates; it did not force a trade. One previously persisted paper position remained. Paper exits treat adverse stop gaps conservatively, fill resting targets at the target reference, support risk-reducing breakeven/trailing plus explicit time stops, and refuse stale or unverified marks. Partial scale-outs now quantize the exit amount itself, reject reductions below the authoritative quantity step and extend the protected runner target after the first target is filled instead of immediately flattening the remainder. Signal-reversal, regime and session-close policies remain.
+
+### FYERS watchlist degradation and service ownership
+
+The Quant watchlist blank state had two concrete causes: a disconnected FYERS socket could leave cached snapshots looking connected, and the fixed Indian instruments did not use the already-available read-only REST quote fallback. `quant_terminal_v2` now distinguishes CONNECTED from DEGRADED, rejects old stream snapshots as live, uses FYERS REST quotes for fixed and dynamic Indian instruments, labels fallback/stale provenance explicitly and hydrates every watch tile immediately instead of silently swallowing one request at a time. This changes data visibility only; live orders remain disabled. The same repair adds exclusive Windows loopback binding to every JARVIS service so a new process fails visibly instead of coexisting with stale listeners. A network-enabled clean restart proved one listener per active port and restored seven verified FYERS NSE/BSE/MCX stream snapshots with no bridge error.
 
 Paper instrument accounting now fails closed for derivatives without an authoritative contract specification. MCX lot size, contract multiplier and tick size come from FYERS' public symbol master; crypto price and quantity grids come from Binance public exchange metadata. Synthetic P&L, exposure and stop risk use the verified contract multiplier and INR valuation multiplier. Fees and slippage remain zero only with an explicit `UNCONFIGURED` label; they are applied only when a named `ExecutionCostConfig` is supplied, so JARVIS does not invent venue charges.
 
@@ -104,13 +113,17 @@ The deterministic direct-routing contract is now **PRESENT**. Exact 1m/5m/15m pr
 
 The current strict gates can legitimately yield zero entries. A start command does not mean “force a trade.” A paper position should open only when verified data, market session, completed-bar evidence, strategy score, risk/reward, freshness, duplicate exposure and portfolio risk all qualify.
 
-The scanner still needs a richer all-universe blocker funnel, but the loss-review command no longer falls through to an unrelated chart action: both V3.1 and legacy Master routers open Paper Desk and use the same persistent portfolio evidence. The autonomy engine also starts on boot in some configurations, so pressing Start again may produce no new work. This remains an observability and workflow integration gap, not evidence that the safe response is to bypass entry gates.
+The loss-review command no longer falls through to an unrelated chart action: both V3.1 and legacy Master routers open Paper Desk and use the same persistent portfolio evidence. The autonomy engine also starts on boot in some configurations, so pressing Start again may produce no new work. Clearer already-running feedback remains a workflow gap; it does not justify bypassing entry gates.
+
+Autonomy now exposes the latest scan latency, scanned/data-ok/session-open/qualified/opened funnel, provider failure counts, rejection histogram and normalized per-symbol blockers. The Paper workspace renders those fields alongside entry locks and mark-safety rejections, so an empty portfolio can be explained without weakening the entry gates. `paper_scan_history.sqlite3` adds bounded durable cycle/row evidence with profile, timeframes, providers and paper-only invariants. Bounded historical rates, latency, provider failures and blocker aggregation now feed a per-cycle data-health trend visualization in Paper Desk.
+
+Automatic paper re-entry now uses versioned profile-specific cooldowns after a position closes: 2 minutes for 1m, 10 for 5m, 30 for 15m/intraday, 120 for 1h and one day for swing. The gate is scoped to symbol, strategy and profile, emits `REENTRY_COOLDOWN_ACTIVE`, remains visible in Paper telemetry, and does not restore the former one-trade-per-day defect.
 
 ## Status by roadmap milestone
 
 | Milestone | Status | Evidence-backed summary |
 |---|---|---|
-| A — Stability/router | PRESENT (checkpoint blocked) | Voice unique-build fix, direct routing, exact timeframe policy, precedence, declared runtime contracts, focused safety gates and 1129 full regressions pass. The mixed tree is not checkpoint-ready. |
+| A — Stability/router | PRESENT (checkpoint blocked) | Voice content-addressed build fix and truthful degraded runtime, direct routing, exact timeframe policy, precedence, declared runtime contracts, exclusive loopback ownership, uniform service health contracts, focused safety gates and 1170 full regressions pass. The working tree is not checkpoint-ready. |
 | B — Feature/structure | PARTIAL | A unified feature engine, ranked zones, liquidity heuristics and 30-plugin IndicatorRegistry are installed and tested. Persistent feature storage and broader cross-asset calibration remain. |
 | C — Quant Ensemble V2 | PARTIAL | Every active vote is versioned and registry-backed with evidence/contradiction graphs and reasons-not-to-trade. Options, breadth, correlation and microstructure evidence remain. |
 | D — Options Desk V2 | PARTIAL | India/Deribit research adapters, provider-neutral analytics, an atomic defined-risk spread book, lifecycle marks/expiry settlement and a governed chain-to-paper decision bridge exist. Provider polling, SENSEX verification, IV history/rank and workflow scheduling remain. |
@@ -118,7 +131,7 @@ The scanner still needs a richer all-universe blocker funnel, but the loss-revie
 | F — Nautilus integration | PRESENT | Pinned 1.231.0 service is live on 8792 and reports READY with paper-only/live-execution-false invariants. |
 | G — Strategy Research Lab | PARTIAL | Mutation/crossover research candidates, backtest, edge validation, chronological OOS, walk-forward, sensitivity, cost stress, Monte Carlo and regime robustness foundations exist; no unified DSL-to-governed-promotion pipeline. No component guarantees win rate. |
 | H — Mistake/self-improvement | PARTIAL | The current Paper Desk reviewer performs durable today/yesterday evidence review and only tightens bounded cohort policy; a research-only champion/challenger comparator exists. It cannot self-promote or rewrite production strategy. Sufficient statistically meaningful closed-trade evidence remains. |
-| I — Professional UI | PARTIAL | Web Intelligence receives route-owned results; Paper Execution has a live portfolio/journal/telemetry workspace including visible exit policies; Company OS has a supervised venture/research/department workspace. The enhanced spatial-depth toggle is implemented with accessibility fallback. Mission/apps/evidence/system renderers and several professional desks remain. |
+| I — Professional UI | PARTIAL | Claude's V6 Terminal X/X2/X3 commits add a substantial cinematic visual layer to Master JARVIS, and Quant now has a spectral multicolour venue/state treatment plus immediate watch hydration. Web Intelligence receives route-owned results; Paper Execution has a live portfolio/journal/telemetry workspace; Company OS has a supervised venture/research/department workspace. The V6 JavaScript/CSS is currently additive and unusually large, so it still needs component refactoring and browser interaction coverage. Mission/apps/evidence/system renderers and several professional desks remain. |
 | J — Shadow-live governance | MISSING | Requires completed paper milestones, sufficient evidence and explicit future approval. |
 
 ## Highest-priority dependency order

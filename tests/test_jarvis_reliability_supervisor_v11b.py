@@ -58,6 +58,25 @@ class ReliabilitySupervisorV11BTests(unittest.TestCase):
         self.assertTrue(result.ok)
         self.assertEqual(result.status, "ONLINE")
 
+    def test_native_voice_browser_fallback_is_truthful_degraded_health(self):
+        with tempfile.TemporaryDirectory() as directory:
+            supervisor = ReliabilitySupervisor(directory)
+
+            with patch.object(
+                supervisor,
+                "_http_json",
+                return_value={
+                    "success": True,
+                    "recognition_available": False,
+                    "recognition_state": "DEGRADED_BROWSER_FALLBACK",
+                },
+            ):
+                result = supervisor.probe_native_voice()
+
+        self.assertTrue(result.ok)
+        self.assertEqual(result.status, "DEGRADED")
+        self.assertIn("browser speech", result.detail.lower())
+
     def test_fully_stopped_stack_is_healthy(self):
         with tempfile.TemporaryDirectory() as directory:
             supervisor = ReliabilitySupervisor(directory)

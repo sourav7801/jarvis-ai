@@ -12,9 +12,12 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any
+
+from omni.loopback_http import exclusive_server
+from omni.service_health_contract import ServiceHealthClock
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 STATIC = PROJECT_ROOT / "workstation" / "quant_terminal_v2_static"
@@ -64,6 +67,7 @@ CONSENSUS_MIN_RISK_REWARD = 1.8
 _LIVE_BRIDGE_PROCESS: subprocess.Popen | None = None
 _QUOTE_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
 _QUOTE_CACHE_LOCK = threading.RLock()
+HEALTH = ServiceHealthClock("JARVIS_QUANT_TERMINAL", "5.0")
 
 
 def _safe_message(value: Any) -> str:
@@ -497,7 +501,9 @@ def provider_payload() -> dict[str, Any]:
     settings = FyersSettings.from_env()
     configured = bool(is_configured())
     bridge = _bridge_request("/api/status") if _port_open(LIVE_BRIDGE_HOST, LIVE_BRIDGE_PORT) else None
-    if bridge and bridge.get("connected"):
+    if bridge and bridge.get("connected") and bridge.get("error"):
+        state = "DEGRADED"
+    elif bridge and bridge.get("connected"):
         state = "CONNECTED"
     elif bridge and bridge.get("running"):
         state = "CONNECTING"
@@ -526,6 +532,15 @@ def provider_payload() -> dict[str, Any]:
         "paper_only": True,
         "live_execution": False,
     }
+
+
+def provider_health_state(provider: dict[str, Any]) -> tuple[bool, str | None]:
+    bridge = provider.get("bridge") if isinstance(provider.get("bridge"), dict) else {}
+    ready = str(provider.get("state") or "").upper() == "CONNECTED" and bool(
+        bridge.get("connected")
+    )
+    error = bridge.get("error") or provider.get("message") or provider.get("error")
+    return ready, str(error)[:500] if error else None
 
 
 def live_payload(symbol: str) -> dict[str, Any]:
@@ -575,53 +590,102 @@ def live_payload(symbol: str) -> dict[str, Any]:
         "/api/snapshot?" + urllib.parse.urlencode({"symbol": bridge_symbol}),
         timeout=1.2,
     )
-    if payload:
+    bridge_snapshot = dict(payload.get("snapshot") or {}) if payload else {}
+    bridge_status = dict(payload.get("status") or {}) if payload else {}
+    bridge_received = str(bridge_snapshot.get("received_at") or "").strip()
+    bridge_age_seconds: float | None = None
+    if bridge_received:
+        try:
+            parsed_received = datetime.fromisoformat(bridge_received.replace("Z", "+00:00"))
+            if parsed_received.tzinfo is None:
+                parsed_received = parsed_received.replace(tzinfo=timezone.utc)
+            bridge_age_seconds = max(
+                0.0,
+                (datetime.now(timezone.utc) - parsed_received.astimezone(timezone.utc)).total_seconds(),
+            )
+        except ValueError:
+            bridge_age_seconds = None
+    bridge_healthy = bool(
+        payload
+        and payload.get("success")
+        and bridge_snapshot.get("ltp") is not None
+        and bridge_status.get("connected")
+        and not bridge_status.get("error")
+        and bridge_age_seconds is not None
+        and bridge_age_seconds <= 30.0
+    )
+    if bridge_healthy:
         payload["symbol"] = canonical
         payload["instrument"] = metadata
+        payload["snapshot_kind"] = "LIVE_STREAM"
+        payload["stream_degraded"] = False
+        payload["snapshot_age_seconds"] = round(bridge_age_seconds or 0.0, 3)
         payload["live_orders"] = False
         return payload
 
-    if canonical not in INDIA_SYMBOLS:
-        # Dynamic Indian equities are not part of the bridge's fixed startup
-        # subscription. Use a short cached, read-only quote for the selected
-        # chart without exposing any broker order surface.
-        now_mono = time.monotonic()
-        with _QUOTE_CACHE_LOCK:
-            cached = _QUOTE_CACHE.get(canonical)
-            if cached and now_mono - cached[0] < 2.0:
-                return dict(cached[1])
-        try:
-            from agents.fyers_data_adapter import get_quote
+    # The stream is an optimization, not the only read path. This fallback is
+    # used for fixed indices/commodities as well as dynamically selected Indian
+    # equities, so a reconnecting socket can never leave the whole watchlist
+    # blank after a successful FYERS login.
+    now_mono = time.monotonic()
+    with _QUOTE_CACHE_LOCK:
+        cached = _QUOTE_CACHE.get(canonical)
+        if cached and now_mono - cached[0] < 2.0:
+            return dict(cached[1])
+    try:
+        from agents.fyers_data_adapter import get_quote
 
-            quote = get_quote(bridge_symbol)
-            if quote.get("success"):
-                result = {
-                    "success": True,
-                    "source": "FYERS",
-                    "symbol": canonical,
-                    "provider_symbol": bridge_symbol,
-                    "instrument": metadata,
-                    "snapshot": {
-                        key: quote.get(key)
-                        for key in (
-                            "ltp", "change", "change_percent", "open", "high", "low",
-                            "previous_close", "volume", "bid", "ask", "exchange_timestamp"
-                        )
-                    },
-                    "live_orders": False,
-                }
-                result["snapshot"]["received_at"] = datetime.now(timezone.utc).isoformat()
-                with _QUOTE_CACHE_LOCK:
-                    _QUOTE_CACHE[canonical] = (now_mono, result)
-                return result
-        except Exception:
-            pass
+        quote = get_quote(bridge_symbol)
+        if quote.get("success"):
+            result = {
+                "success": True,
+                "source": "FYERS",
+                "symbol": canonical,
+                "provider_symbol": bridge_symbol,
+                "instrument": metadata,
+                "snapshot_kind": "REST_QUOTE_FALLBACK",
+                "stream_degraded": True,
+                "stream_error": bridge_status.get("error") or "LIVE_STREAM_UNAVAILABLE",
+                "snapshot": {
+                    key: quote.get(key)
+                    for key in (
+                        "ltp", "change", "change_percent", "open", "high", "low",
+                        "previous_close", "volume", "bid", "ask", "exchange_timestamp"
+                    )
+                },
+                "live_orders": False,
+            }
+            result["snapshot"]["received_at"] = datetime.now(timezone.utc).isoformat()
+            with _QUOTE_CACHE_LOCK:
+                _QUOTE_CACHE[canonical] = (now_mono, result)
+            return result
+    except Exception as exc:
+        fallback_error = _safe_message(exc)
+    else:
+        fallback_error = "FYERS quote response contained no verified price."
+
+    # A cached stream price is still useful for display after market close, but
+    # it is explicitly labelled stale and cannot masquerade as a live mark.
+    if payload and payload.get("success") and bridge_snapshot.get("ltp") is not None:
+        payload["symbol"] = canonical
+        payload["instrument"] = metadata
+        payload["snapshot_kind"] = "STALE_STREAM_CACHE"
+        payload["stream_degraded"] = True
+        payload["stale"] = True
+        payload["snapshot_age_seconds"] = bridge_age_seconds
+        payload["message"] = fallback_error
+        payload["live_orders"] = False
+        return payload
     return {
         "success": False,
         "source": "FYERS",
         "symbol": canonical,
         "snapshot": None,
-        "message": "FYERS live snapshot unavailable. Refresh the FYERS data session if needed.",
+        "message": (
+            "FYERS live stream and REST quote are unavailable. "
+            f"{fallback_error}"
+        ),
+        "stream_degraded": True,
         "live_orders": False,
     }
 
@@ -1258,13 +1322,19 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/style.css":
             return self.send_file(STATIC / "style.css", "text/css; charset=utf-8")
         if path == "/api/health":
+            provider = provider_payload()
+            provider_ready, provider_error = provider_health_state(provider)
+            if provider_ready:
+                HEALTH.mark_success()
+            else:
+                HEALTH.mark_error(provider_error or "FYERS_BRIDGE_DEGRADED")
             return self.send_json(
-                {
-                    "ok": True,
-                    "version": "QUANT_TERMINAL_V5",
-                    "paper_only": True,
-                    "live_execution": False,
-                }
+                HEALTH.payload(
+                    status="READY" if provider_ready else "DEGRADED",
+                    healthy=True,
+                    dependencies={"fyers_bridge": "READY" if provider_ready else "DEGRADED"},
+                    engine_ready=True,
+                )
             )
         if path == "/api/provider":
             return self.send_json(provider_payload())
@@ -1504,7 +1574,7 @@ def main() -> int:
     print(f"Automatic paper consensus: {'RUNNING' if auto_status.get('running') else 'STOPPED'}")
     print("Live broker execution: LOCKED")
     try:
-        ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
+        exclusive_server(HOST, PORT, Handler).serve_forever()
     except KeyboardInterrupt:
         pass
     return 0

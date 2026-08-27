@@ -40,3 +40,44 @@ button.active{background:#103041;border-color:var(--cyan);color:#fff;box-shadow:
 footer{height:26px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 12px;color:#607b86;font-size:9px;background:#050a0f}footer a{color:#6ecfec;text-decoration:none}
 @media(max-width:1200px){.terminal-shell{grid-template-columns:180px minmax(0,1fr) 260px}.chart-grid.layout-8{grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(4,1fr)}}
 @media(max-width:900px){body{overflow:auto}.terminal-shell{display:block}.watch-panel,.intel-panel{margin-bottom:10px}.workspace{height:760px}.topbar{height:auto;min-height:64px;gap:10px;flex-wrap:wrap;padding:10px}.chart-grid.layout-6,.chart-grid.layout-8{grid-template-columns:repeat(2,1fr)}}
+/* JARVIS spectral market layer: colour encodes venue and state while keeping
+   the dense trading surface readable. */
+:root{
+  --spectral-cyan:#55ddff;
+  --spectral-violet:#a879ff;
+  --spectral-magenta:#ff61d2;
+  --spectral-amber:#ffc857;
+  --spectral-green:#67f5ac;
+  --spectral-red:#ff6f8d;
+}
+body{
+  background:
+    radial-gradient(circle at 8% 8%,rgba(85,221,255,.12),transparent 28%),
+    radial-gradient(circle at 92% 12%,rgba(168,121,255,.11),transparent 26%),
+    radial-gradient(circle at 55% 100%,rgba(255,97,210,.07),transparent 34%),
+    #03080d;
+}
+.topbar{
+  background:linear-gradient(100deg,rgba(4,18,29,.98),rgba(16,8,31,.97) 55%,rgba(3,21,24,.98));
+  box-shadow:0 1px 0 rgba(85,221,255,.28),0 14px 40px rgba(0,0,0,.34);
+}
+.brand strong,.section-title,.panel-title{background:linear-gradient(90deg,var(--spectral-cyan),#fff,var(--spectral-violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+.market-tile{position:relative;overflow:hidden;transition:border-color .18s ease,transform .18s ease,box-shadow .18s ease;background:linear-gradient(135deg,rgba(8,22,31,.96),rgba(7,13,23,.96))}
+.market-tile::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--spectral-cyan);opacity:.8}
+.market-tile.asset-crypto::before{background:var(--spectral-amber)}
+.market-tile[data-symbol="CRUDEOIL"]::before,.market-tile[data-symbol="GOLD"]::before,.market-tile[data-symbol="SILVER"]::before,.market-tile[data-symbol="NATURALGAS"]::before{background:var(--spectral-violet)}
+.market-tile:hover{transform:translateX(2px);border-color:rgba(85,221,255,.6);box-shadow:0 8px 24px rgba(32,136,190,.14)}
+.market-tile.active{border-color:var(--spectral-cyan);box-shadow:0 0 0 1px rgba(85,221,255,.15),0 0 24px rgba(85,221,255,.12)}
+.market-tile.degraded{border-color:rgba(255,200,87,.48)}
+.market-tile.degraded [data-watch-change]{color:var(--spectral-amber)!important}
+.market-tile.data-error{border-color:rgba(255,111,141,.35)}
+.market-tile.data-error [data-watch-change]{color:var(--spectral-red)!important}
+.chart-cell:nth-child(4n+1){border-color:rgba(85,221,255,.34)}
+.chart-cell:nth-child(4n+2){border-color:rgba(168,121,255,.34)}
+.chart-cell:nth-child(4n+3){border-color:rgba(255,97,210,.28)}
+.chart-cell:nth-child(4n+4){border-color:rgba(103,245,172,.3)}
+.status-pill.connected{background:linear-gradient(135deg,rgba(30,109,82,.7),rgba(16,69,92,.72));border-color:var(--spectral-green)}
+.status-pill.warn{background:linear-gradient(135deg,rgba(104,70,18,.72),rgba(78,38,93,.68));border-color:var(--spectral-amber)}
+.signal-badge.buy,.chart-signal.buy{box-shadow:0 0 20px rgba(103,245,172,.2)}
+.signal-badge.sell,.chart-signal.sell{box-shadow:0 0 20px rgba(255,111,141,.2)}
+@media (prefers-reduced-motion:reduce){.market-tile{transition:none}.market-tile:hover{transform:none}}

@@ -28,6 +28,9 @@ namespace JarvisNativeVoice
         private static readonly List<VoiceEvent> Events =
             new List<VoiceEvent>();
 
+        private static readonly DateTime ServiceStartedAtUtc =
+            DateTime.UtcNow;
+
         private static readonly string[] WakePhrases =
         {
             "jarvis",
@@ -55,6 +58,15 @@ namespace JarvisNativeVoice
             true;
 
         private static SpeechRecognitionEngine recognizer;
+
+        private static bool recognitionAvailable =
+            false;
+
+        private static string recognizerCulture =
+            "";
+
+        private static string recognitionError =
+            "Native Windows speech recognition has not started.";
 
         private static TcpListener listener;
 
@@ -322,6 +334,15 @@ namespace JarvisNativeVoice
                 RecognizeMode.Multiple
             );
 
+            recognitionAvailable =
+                true;
+
+            recognizerCulture =
+                selected.Culture.Name;
+
+            recognitionError =
+                "";
+
             Console.WriteLine(
                 "NATIVE CONTROL: READY | "
                 + selected.Culture.Name
@@ -373,14 +394,87 @@ namespace JarvisNativeVoice
             return (
                 "{"
                 + "\"success\":true,"
+                + "\"ok\":true,"
+                + "\"health_schema\":\"JARVIS_SERVICE_HEALTH_V1\","
                 + "\"service\":\"jarvis-native-voice\","
                 + "\"version\":\"3.2\","
+                + "\"status\":\""
+                + (
+                    recognitionAvailable
+                    ? "READY"
+                    : "DEGRADED"
+                )
+                + "\",\"started_at\":\""
+                + ServiceStartedAtUtc.ToString(
+                    "o",
+                    CultureInfo.InvariantCulture
+                )
+                + "\",\"uptime_seconds\":"
+                + Math.Max(
+                    0.0,
+                    (
+                        DateTime.UtcNow
+                        - ServiceStartedAtUtc
+                    ).TotalSeconds
+                ).ToString(
+                    "0.000",
+                    CultureInfo.InvariantCulture
+                )
+                + ",\"response_generated_at\":\""
+                + DateTime.UtcNow.ToString(
+                    "o",
+                    CultureInfo.InvariantCulture
+                )
+                + "\",\"last_success_at\":\""
+                + ServiceStartedAtUtc.ToString(
+                    "o",
+                    CultureInfo.InvariantCulture
+                )
+                + "\",\"last_error\":"
+                + (
+                    recognitionAvailable
+                    ? "null"
+                    : "\"" + JsonEscape(recognitionError) + "\""
+                )
+                + ",\"last_error_at\":null,"
+                + "\"dependencies\":{\"windows_speech_recognizer\":\""
+                + (
+                    recognitionAvailable
+                    ? "READY"
+                    : "DEGRADED"
+                )
+                + "\"},"
+                + "\"paper_only\":true,"
+                + "\"live_execution\":false,"
                 + "\"speaking\":"
                 + (
                     currentSpeaking
                     ? "true"
                     : "false"
                 )
+                + ",\"recognition_available\":"
+                + (
+                    recognitionAvailable
+                    ? "true"
+                    : "false"
+                )
+                + ",\"recognition_state\":\""
+                + (
+                    recognitionAvailable
+                    ? "READY"
+                    : "DEGRADED_BROWSER_FALLBACK"
+                )
+                + "\",\"recognizer_culture\":\""
+                + JsonEscape(
+                    recognizerCulture
+                )
+                + "\",\"message\":\""
+                + JsonEscape(
+                    recognitionAvailable
+                    ? "Native Windows recognizer is ready."
+                    : recognitionError
+                )
+                + "\""
                 + "}"
             );
         }
@@ -846,6 +940,9 @@ namespace JarvisNativeVoice
                     Port
                 );
 
+            listener.Server.ExclusiveAddressUse =
+                true;
+
             listener.Start();
 
             Console.WriteLine(
@@ -919,7 +1016,37 @@ namespace JarvisNativeVoice
                     + exc.Message
                 );
 
-                return 3;
+                recognitionAvailable =
+                    false;
+
+                recognizerCulture =
+                    "";
+
+                recognitionError =
+                    "Native Windows recognizer unavailable: "
+                    + exc.Message
+                    + " Browser speech remains available when supported.";
+
+                try
+                {
+                    if (
+                        recognizer
+                        != null
+                    )
+                    {
+                        recognizer.Dispose();
+                    }
+                }
+                catch
+                {
+                }
+
+                recognizer =
+                    null;
+
+                Console.WriteLine(
+                    "NATIVE CONTROL: DEGRADED | browser speech fallback"
+                );
             }
 
             try

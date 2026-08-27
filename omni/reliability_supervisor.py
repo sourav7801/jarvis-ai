@@ -149,11 +149,16 @@ class ReliabilitySupervisor:
         ok = bool(payload and payload.get("success"))
 
         if ok:
+            recognition_available = bool(payload.get("recognition_available", True))
             return ProbeResult(
                 "native_voice",
                 True,
-                "ONLINE",
-                "Native voice control service responded on 127.0.0.1:8798.",
+                "ONLINE" if recognition_available else "DEGRADED",
+                (
+                    "Native voice control and recognition responded on 127.0.0.1:8798."
+                    if recognition_available
+                    else "Native voice control API is online; Windows recognition is unavailable and browser speech is the declared fallback."
+                ),
             )
 
         # V1.1B: native voice being stopped is healthy when the parent
