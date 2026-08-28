@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from omni.workspace_command_center import snapshot as command_center_snapshot
+
 import importlib
 import json
 import re
@@ -1923,6 +1925,12 @@ class Handler(
 
 
         try:
+
+            # JARVIS_V6_COMMAND_CENTER_API
+            if parsed.path == "/api/command-center":
+                return self.send_json(
+                    command_center_snapshot()
+                )
 
             if parsed.path == "/api/status":
 

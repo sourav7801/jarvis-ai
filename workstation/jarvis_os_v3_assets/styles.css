@@ -4761,3 +4761,26 @@ body.v6x3-cinematic-active:not([data-v6x-mode="home"]) .v6x-rail {
         transition: none !important;
     }
 }
+
+/* JARVIS_V6_COMMAND_CENTER_UI_CSS */
+.jcc-overlay{position:fixed;inset:0;z-index:1000000;display:none;place-items:center;padding:3vh 3vw;background:radial-gradient(circle at 50% 0%,rgba(91,205,255,.10),transparent 34%),rgba(2,6,12,.88);backdrop-filter:blur(24px)}
+.jcc-overlay.is-open{display:grid}
+.jcc-shell{width:min(1320px,96vw);max-height:92vh;overflow:hidden;border:1px solid rgba(139,222,255,.17);border-radius:28px;background:linear-gradient(150deg,rgba(11,23,34,.98),rgba(3,8,15,.99));box-shadow:0 45px 150px rgba(0,0,0,.62),inset 0 1px rgba(255,255,255,.04)}
+.jcc-header{display:flex;justify-content:space-between;gap:24px;padding:26px 30px 20px;border-bottom:1px solid rgba(139,222,255,.09)}
+.jcc-header small{font-size:9px;letter-spacing:.22em;opacity:.48}.jcc-header h2{margin:5px 0 4px;font-size:clamp(26px,3vw,42px);font-weight:520}.jcc-header p{margin:0;opacity:.56}
+.jcc-close{width:42px;height:42px;border:1px solid rgba(255,255,255,.11);border-radius:50%;background:rgba(255,255,255,.035);color:inherit;font-size:26px;cursor:pointer}
+.jcc-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:rgba(255,255,255,.045);border-bottom:1px solid rgba(139,222,255,.07)}
+.jcc-summary>div{padding:12px 18px;background:rgba(5,13,21,.96)}.jcc-summary small{display:block;font-size:8px;letter-spacing:.14em;opacity:.42}.jcc-summary strong{display:block;margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.jcc-foundations{display:flex;flex-wrap:wrap;gap:7px;padding:11px 18px;border-bottom:1px solid rgba(139,222,255,.07)}
+.jcc-foundations span{display:inline-flex;align-items:center;gap:7px;min-height:26px;padding:0 9px;border:1px solid rgba(255,255,255,.07);border-radius:999px;font-size:8px;letter-spacing:.09em;opacity:.72}.jcc-foundations strong{font-size:8px}.jcc-foundations .missing{opacity:.38}
+.jcc-table-wrap{max-height:59vh;overflow:auto}.jcc-table{width:100%;border-collapse:collapse;text-align:left}
+.jcc-table th{position:sticky;top:0;z-index:2;padding:12px 15px;background:rgba(7,16,25,.99);font-size:9px;letter-spacing:.13em;opacity:.53}
+.jcc-table td{padding:14px 15px;border-top:1px solid rgba(255,255,255,.048);vertical-align:middle;font-size:11px}.jcc-table tr:hover td{background:rgba(94,210,255,.025)}
+.jcc-workspace-title{display:block;min-width:145px;margin-bottom:4px;font-size:13px}.jcc-table td:first-child small{display:block;max-width:390px;opacity:.47;line-height:1.45}
+.jcc-status,.jcc-safety{display:inline-flex;align-items:center;min-height:25px;padding:0 8px;border:1px solid rgba(255,255,255,.09);border-radius:999px;font-size:8px;letter-spacing:.08em;white-space:nowrap}.jcc-status.offline,.jcc-status.unavailable{opacity:.38}
+.jcc-open{min-width:72px;height:33px;border:1px solid rgba(139,222,255,.18);border-radius:11px;background:rgba(82,202,255,.055);color:inherit;font-size:9px;letter-spacing:.12em;cursor:pointer}.jcc-open:hover{background:rgba(82,202,255,.11)}
+.jcc-loading{padding:34px!important;text-align:center;opacity:.52}
+.jcc-footer{display:flex;flex-wrap:wrap;gap:8px 18px;padding:11px 18px;border-top:1px solid rgba(139,222,255,.07);font-size:8px;letter-spacing:.09em;opacity:.44}.jcc-shortcut{margin-left:auto}
+.jcc-launcher{position:fixed;right:18px;bottom:18px;z-index:99999;display:inline-flex;align-items:center;gap:9px;min-height:46px;padding:0 14px;border:1px solid rgba(139,222,255,.17);border-radius:15px;background:rgba(5,14,23,.88);color:inherit;backdrop-filter:blur(16px);box-shadow:0 12px 34px rgba(0,0,0,.28);cursor:pointer}
+.jcc-launcher-icon{font-size:19px}.jcc-launcher small,.jcc-launcher strong{display:block;text-align:left}.jcc-launcher small{font-size:7px;letter-spacing:.16em;opacity:.45}.jcc-launcher strong{margin-top:2px;font-size:9px;letter-spacing:.12em}
+@media(max-width:850px){.jcc-overlay{padding:1.5vh 1.5vw}.jcc-shell{width:97vw}.jcc-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.jcc-table{min-width:900px}.jcc-shortcut{margin-left:0}}

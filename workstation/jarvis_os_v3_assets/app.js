@@ -7247,3 +7247,298 @@ window.addEventListener("pointermove", event => {
         start();
     }
 })();
+
+/* JARVIS_V6_COMMAND_CENTER_UI */
+(() => {
+    "use strict";
+
+    const $ = (selector, root = document) => root.querySelector(selector);
+
+    function element(tag, className = "", text = "") {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== "") node.textContent = String(text);
+        return node;
+    }
+
+    async function getCenter() {
+        try {
+            if (typeof api === "function") {
+                return await api("/api/command-center");
+            }
+            const response = await fetch("/api/command-center", {
+                cache: "no-store",
+                headers: { "Accept": "application/json" }
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return await response.json();
+        } catch (error) {
+            return { ok: false, rows: [], error: String(error) };
+        }
+    }
+
+    function sendCommand(text) {
+        const input = document.getElementById("commandInput");
+        const execute = document.getElementById("executeButton");
+        if (!input || !execute || !text) return false;
+        input.value = text;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.focus();
+        execute.click();
+        return true;
+    }
+
+    function switchMode(mode) {
+        if (!mode) return false;
+        if (typeof window.jarvisV6SetMode === "function") {
+            window.jarvisV6SetMode(mode);
+            return true;
+        }
+        return false;
+    }
+
+    function buildStaticShell(overlay) {
+        const shell = element("div", "jcc-shell");
+
+        const header = element("header", "jcc-header");
+        const heading = element("div");
+        heading.append(
+            element("small", "", "JARVIS V6.1"),
+            element("h2", "", "Command Center"),
+            element("p", "", "Every major JARVIS workspace in one operating surface.")
+        );
+        const close = element("button", "jcc-close", "×");
+        close.type = "button";
+        close.setAttribute("aria-label", "Close");
+        header.append(heading, close);
+
+        const summary = element("div", "jcc-summary");
+        const summaryItems = [
+            ["SYSTEM", "CONNECTING", "data-jcc-system"],
+            ["WORKSPACES", "—", "data-jcc-count"],
+            ["HEALTH SOURCE", "—", "data-jcc-health"],
+            ["LIVE EXECUTION", "LOCKED", ""],
+        ];
+        summaryItems.forEach(([label, value, attr]) => {
+            const item = element("div");
+            item.append(element("small", "", label));
+            const strong = element("strong", "", value);
+            if (attr) strong.setAttribute(attr, "");
+            item.append(strong);
+            summary.append(item);
+        });
+
+        const foundations = element("div", "jcc-foundations");
+        foundations.setAttribute("data-jcc-foundations", "");
+
+        const tableWrap = element("div", "jcc-table-wrap");
+        const table = element("table", "jcc-table");
+        const thead = document.createElement("thead");
+        const headRow = document.createElement("tr");
+        ["Workspace", "Group", "State", "Current activity", "Safety", ""].forEach((label) => {
+            headRow.append(element("th", "", label));
+        });
+        thead.append(headRow);
+        const tbody = document.createElement("tbody");
+        tbody.setAttribute("data-jcc-body", "");
+        table.append(thead, tbody);
+        tableWrap.append(table);
+
+        const footer = element("footer", "jcc-footer");
+        footer.append(
+            element("span", "", "Protected Core required"),
+            element("span", "", "Paper-only trading"),
+            element("span", "", "External actions approval-gated"),
+            element("span", "jcc-shortcut", "Ctrl + Space")
+        );
+
+        shell.append(header, summary, foundations, tableWrap, footer);
+        overlay.append(shell);
+
+        close.addEventListener("click", () => overlay.classList.remove("is-open"));
+    }
+
+    function ensureCenter() {
+        let overlay = document.getElementById("jarvis-command-center");
+        if (overlay) return overlay;
+
+        overlay = element("section", "jcc-overlay");
+        overlay.id = "jarvis-command-center";
+        buildStaticShell(overlay);
+        document.body.appendChild(overlay);
+
+        overlay.addEventListener("click", (event) => {
+            if (event.target === overlay) overlay.classList.remove("is-open");
+        });
+        return overlay;
+    }
+
+    function renderFoundations(payload, overlay) {
+        const target = $("[data-jcc-foundations]", overlay);
+        const foundations = payload.codex_foundations || {};
+        const labels = {
+            service_health_contract: "SERVICE HEALTH",
+            loopback_http: "LOOPBACK OWNERSHIP",
+            official_exchange_calendar: "EXCHANGE CALENDAR",
+            paper_scan_ledger: "PAPER SCAN LEDGER",
+        };
+
+        const nodes = [];
+        Object.entries(labels).forEach(([key, label]) => {
+            const ready = Boolean(foundations[key]);
+            const badge = element("span", ready ? "ready" : "missing");
+            badge.append(
+                document.createTextNode(label + " "),
+                element("strong", "", ready ? "READY" : "MISSING")
+            );
+            nodes.push(badge);
+        });
+        target.replaceChildren(...nodes);
+    }
+
+    async function openWorkspace(row, overlay) {
+        const key = String(row.key || "");
+        const mode = String(row.mode || "");
+        const command = String(row.command || "");
+        const url = String(row.url || "");
+
+        if (mode && switchMode(mode)) {
+            overlay.classList.remove("is-open");
+            return;
+        }
+
+        if (key === "quant" && url) {
+            window.open(url, "_blank", "noopener");
+            overlay.classList.remove("is-open");
+            return;
+        }
+
+        if (command) {
+            overlay.classList.remove("is-open");
+            sendCommand(command);
+            return;
+        }
+
+        if (url) {
+            window.open(url, "_blank", "noopener");
+            overlay.classList.remove("is-open");
+        }
+    }
+
+    function loadingRow(message) {
+        const row = document.createElement("tr");
+        const cell = element("td", "jcc-loading", message);
+        cell.colSpan = 6;
+        row.append(cell);
+        return row;
+    }
+
+    function workspaceRow(row, overlay) {
+        const tr = document.createElement("tr");
+        const status = String(row.status || "UNKNOWN");
+        const statusClass = status.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+        const workspaceCell = document.createElement("td");
+        workspaceCell.append(
+            element("strong", "jcc-workspace-title", row.title || row.key),
+            element("small", "", row.description || "")
+        );
+
+        const groupCell = element("td", "", row.group || "");
+
+        const stateCell = document.createElement("td");
+        stateCell.append(element("span", `jcc-status ${statusClass}`, status));
+
+        const activityCell = element("td", "", row.activity || "");
+
+        const safetyCell = document.createElement("td");
+        safetyCell.append(element("span", "jcc-safety", row.safety || "GOVERNED"));
+
+        const actionCell = document.createElement("td");
+        const openButton = element("button", "jcc-open", "OPEN");
+        openButton.type = "button";
+        openButton.addEventListener("click", () => openWorkspace(row, overlay));
+        actionCell.append(openButton);
+
+        tr.append(
+            workspaceCell,
+            groupCell,
+            stateCell,
+            activityCell,
+            safetyCell,
+            actionCell
+        );
+        return tr;
+    }
+
+    async function refreshCenter() {
+        const overlay = ensureCenter();
+        const body = $("[data-jcc-body]", overlay);
+        body.replaceChildren(loadingRow("Reading JARVIS service health…"));
+
+        const payload = await getCenter();
+        $("[data-jcc-system]", overlay).textContent = payload.ok ? "READY" : "DEGRADED";
+        $("[data-jcc-count]", overlay).textContent = String(payload.workspace_count || 0);
+        $("[data-jcc-health]", overlay).textContent = String(payload.health_source || "fallback");
+        renderFoundations(payload, overlay);
+
+        const rows = Array.isArray(payload.rows) ? payload.rows : [];
+        if (!rows.length) {
+            body.replaceChildren(loadingRow("Command Center registry unavailable."));
+            return;
+        }
+
+        body.replaceChildren(
+            ...rows.map((row) => workspaceRow(row, overlay))
+        );
+    }
+
+    async function openCenter() {
+        const overlay = ensureCenter();
+        overlay.classList.add("is-open");
+        await refreshCenter();
+    }
+
+    function install() {
+        if (document.getElementById("jarvis-command-center-button")) return;
+
+        const button = element("button", "jcc-launcher");
+        button.id = "jarvis-command-center-button";
+        button.type = "button";
+
+        const icon = element("span", "jcc-launcher-icon", "⌘");
+        const labels = element("span");
+        labels.append(
+            element("small", "", "JARVIS"),
+            element("strong", "", "COMMAND CENTER")
+        );
+        button.append(icon, labels);
+
+        button.addEventListener("click", openCenter);
+        document.body.appendChild(button);
+
+        window.jarvisOpenCommandCenter = openCenter;
+
+        document.addEventListener("keydown", (event) => {
+            if (event.ctrlKey && event.code === "Space") {
+                event.preventDefault();
+                const overlay = ensureCenter();
+                if (overlay.classList.contains("is-open")) {
+                    overlay.classList.remove("is-open");
+                } else {
+                    openCenter();
+                }
+            }
+            if (event.key === "Escape") {
+                const overlay = document.getElementById("jarvis-command-center");
+                if (overlay) overlay.classList.remove("is-open");
+            }
+        });
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", () => setTimeout(install, 150));
+    } else {
+        setTimeout(install, 150);
+    }
+})();
