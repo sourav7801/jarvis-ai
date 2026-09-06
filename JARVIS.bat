@@ -3,7 +3,7 @@ setlocal
 
 cd /d C:\Jarvis
 
-title JARVIS OS V6.2
+title JARVIS OS V6.3 FULL ADVANCED
 
 set "JARVIS_PY=C:\Jarvis\.venv\Scripts\python.exe"
 if exist "%JARVIS_PY%" "%JARVIS_PY%" -c "import omni, numpy, pandas, workstation.jarvis_os_v3" >nul 2>&1
@@ -28,16 +28,16 @@ if errorlevel 1 set "JARVIS_NAUTILUS_PY=C:\Jarvis\.venv-nautilus-new\Scripts\pyt
 if exist "%JARVIS_NAUTILUS_PY%" "%JARVIS_NAUTILUS_PY%" -c "import nautilus_trader, nautilus_trader.backtest.config, numpy, pandas; assert nautilus_trader.__version__ == '1.231.0'" >nul 2>&1
 if errorlevel 1 set "JARVIS_NAUTILUS_PY=%JARVIS_PY%"
 
-REM JARVIS_RUNTIME_SUPERVISOR_V62
-REM V6.2 preflight refuses to adopt an obsolete Quant listener that merely
-REM claims the old health identity but lacks the restored intelligence/chart routes.
+REM JARVIS_RUNTIME_SUPERVISOR_V63
+REM V6.3 keeps the hardened V6.2 ownership preflight so an obsolete Quant listener
+REM cannot masquerade as the restored full advanced terminal.
 REM It reclaims only trusted C:\Jarvis-owned listeners and then delegates normal
 REM Master/Quant/Nautilus lifecycle management to the bounded supervisor.
 "%JARVIS_PY%" -m scripts.jarvis_runtime_supervisor_v62
 
 if errorlevel 1 (
     echo.
-    echo JARVIS OS V6.2 exited with an error.
+    echo JARVIS OS V6.3 exited with an error.
     pause
 )
 
