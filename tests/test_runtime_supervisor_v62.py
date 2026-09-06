@@ -57,15 +57,25 @@ class RuntimeSupervisorV62Tests(unittest.TestCase):
             )
         )
 
-    def test_launcher_uses_v62_supervisor(self):
-        source = (ROOT / "JARVIS.bat").read_text(encoding="utf-8")
-        self.assertIn("-m scripts.jarvis_runtime_supervisor_v62", source)
-        self.assertNotIn("scripts\\jarvis_runtime_supervisor_v62.py", source)
+    def test_launcher_preserves_v62_preflight_directly_or_through_v7(self):
+        launcher = (ROOT / "JARVIS.bat").read_text(encoding="utf-8")
+        direct = "-m scripts.jarvis_runtime_supervisor_v62" in launcher
+        via_v7 = "-m scripts.jarvis_runtime_supervisor_v7" in launcher
+        self.assertTrue(direct or via_v7)
+        self.assertNotIn("scripts\\jarvis_runtime_supervisor_v62.py", launcher)
+        if via_v7:
+            wrapper = (ROOT / "scripts" / "jarvis_runtime_supervisor_v7.py").read_text(encoding="utf-8")
+            self.assertIn("reclaim_obsolete_quant_listener", wrapper)
+            self.assertIn("scripts.jarvis_runtime_supervisor_v62", wrapper)
 
     def test_wrapper_has_no_live_order_surface(self):
-        source = (ROOT / "scripts" / "jarvis_runtime_supervisor_v62.py").read_text(encoding="utf-8")
-        for forbidden in ("place_order(", "modify_order(", "cancel_order(", "submit_order("):
-            self.assertNotIn(forbidden, source)
+        sources = [
+            (ROOT / "scripts" / "jarvis_runtime_supervisor_v62.py").read_text(encoding="utf-8"),
+            (ROOT / "scripts" / "jarvis_runtime_supervisor_v7.py").read_text(encoding="utf-8"),
+        ]
+        for source in sources:
+            for forbidden in ("place_order(", "modify_order(", "cancel_order(", "submit_order("):
+                self.assertNotIn(forbidden, source)
 
 
 if __name__ == "__main__":
