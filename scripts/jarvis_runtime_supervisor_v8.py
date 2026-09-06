@@ -18,7 +18,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.jarvis_runtime_supervisor import JarvisRuntimeSupervisor  # noqa: E402
+from scripts.jarvis_runtime_supervisor import (  # noqa: E402
+    JarvisRuntimeSupervisor,
+    ManagedService,
+)
 from scripts.jarvis_runtime_supervisor_v7 import v7_services  # noqa: E402
 from scripts.jarvis_runtime_supervisor_v62 import (  # noqa: E402
     _http,
@@ -107,6 +110,28 @@ def reclaim_obsolete_master_listener() -> dict[str, Any]:
     return {"action": "OBSOLETE_MASTER_RECLAIMED", "surface": surface, "stopped": stopped}
 
 
+def v8_services(root: Path = ROOT) -> tuple[ManagedService, ...]:
+    """Use the V7 service set but require V8 identity for Master adoption."""
+
+    services: list[ManagedService] = []
+    for service in v7_services(root):
+        if service.name != "master":
+            services.append(service)
+            continue
+        services.append(
+            ManagedService(
+                name=service.name,
+                argv=service.argv,
+                health_url=service.health_url,
+                expected_service=service.expected_service,
+                port=service.port,
+                health_markers=("JARVIS", "OMNI OPERATING COMMAND CENTER", "V8 UNIFIED INTELLIGENCE"),
+                environment=service.environment,
+            )
+        )
+    return tuple(services)
+
+
 def main() -> int:
     print("JARVIS V8 runtime preflight...")
     quant = reclaim_obsolete_quant_listener()
@@ -120,7 +145,7 @@ def main() -> int:
     }
     return JarvisRuntimeSupervisor(
         root=ROOT,
-        services=v7_services(ROOT),
+        services=v8_services(ROOT),
         browser=browser,
     ).run_forever()
 
