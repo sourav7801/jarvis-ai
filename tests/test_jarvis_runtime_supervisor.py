@@ -172,17 +172,30 @@ class JarvisRuntimeSupervisorTests(unittest.TestCase):
 
     def test_canonical_batch_launcher_uses_runtime_supervisor(self):
         source = Path("JARVIS.bat").read_text(encoding="utf-8")
-        self.assertIn("scripts\\jarvis_runtime_supervisor.py", source)
+        direct_launcher = "scripts\\jarvis_runtime_supervisor.py" in source
+        hardened_launcher = "scripts.jarvis_runtime_supervisor_v62" in source
+        self.assertTrue(
+            direct_launcher or hardened_launcher,
+            msg="JARVIS.bat must launch the canonical supervisor directly or through the hardened V6.2 wrapper.",
+        )
+        if hardened_launcher:
+            wrapper = Path("scripts/jarvis_runtime_supervisor_v62.py").read_text(encoding="utf-8")
+            self.assertIn("scripts.jarvis_runtime_supervisor", wrapper)
+            self.assertIn("JarvisRuntimeSupervisor", wrapper)
         self.assertNotIn(
             'start "JARVIS Quant Trading Intelligence" /min "%JARVIS_PY%"',
             source,
         )
 
     def test_supervisor_source_cannot_place_live_orders(self):
-        source = Path("scripts/jarvis_runtime_supervisor.py").read_text(encoding="utf-8")
-        self.assertNotIn("place_order", source)
-        self.assertNotIn("submit_order", source)
-        self.assertNotIn("fyers", source.lower())
+        sources = [
+            Path("scripts/jarvis_runtime_supervisor.py").read_text(encoding="utf-8"),
+            Path("scripts/jarvis_runtime_supervisor_v62.py").read_text(encoding="utf-8"),
+        ]
+        for source in sources:
+            self.assertNotIn("place_order", source)
+            self.assertNotIn("submit_order", source)
+        self.assertNotIn("fyers", sources[0].lower())
 
 
 if __name__ == "__main__":
