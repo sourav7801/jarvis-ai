@@ -27,7 +27,7 @@ class V7ProjectCompletionTests(unittest.TestCase):
     def test_completion_audit_preserves_safety_boundary(self):
         payload = completion_snapshot()
         self.assertTrue(payload["success"])
-        self.assertEqual(payload["version"], "7.0")
+        self.assertIn(payload["version"], {"7.0", "8.0"})
         self.assertTrue(payload["paper_only"])
         self.assertFalse(payload["live_execution"])
         self.assertFalse(payload["automatic_broker_order"])
@@ -163,10 +163,17 @@ class V7ProjectCompletionTests(unittest.TestCase):
         for forbidden in ("place_order(", "modify_order(", "cancel_order(", "submit_order("):
             self.assertNotIn(forbidden, source)
 
-    def test_launcher_uses_v7_supervisor(self):
+    def test_launcher_preserves_v7_completion_service_through_v8(self):
         source = (ROOT / "JARVIS.bat").read_text(encoding="utf-8")
-        self.assertIn("-m scripts.jarvis_runtime_supervisor_v7", source)
-        self.assertIn("scripts.jarvis_runtime_supervisor_v62", source)
+        via_v7 = "-m scripts.jarvis_runtime_supervisor_v7" in source
+        via_v8 = "-m scripts.jarvis_runtime_supervisor_v8" in source
+        self.assertTrue(via_v7 or via_v8)
+        if via_v8:
+            wrapper = (ROOT / "scripts" / "jarvis_runtime_supervisor_v8.py").read_text(encoding="utf-8")
+            self.assertIn("v7_services", wrapper)
+            self.assertIn("scripts.jarvis_runtime_supervisor_v7", wrapper)
+        v7 = (ROOT / "scripts" / "jarvis_runtime_supervisor_v7.py").read_text(encoding="utf-8")
+        self.assertIn("scripts.jarvis_runtime_supervisor_v62", v7)
 
     def test_completion_console_has_no_broker_order_surface(self):
         source = (ROOT / "workstation" / "completion_console.py").read_text(encoding="utf-8")
