@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
+import threading
 import unittest
+import urllib.request
 from pathlib import Path
 from unittest.mock import patch
 
@@ -8,6 +11,8 @@ from omni.agent_registry import default_agent_specs
 from omni.executive_control_plane import EXECUTIVE_CONTROL_PLANE
 from omni.unified_intent_router import route_intent, workspace_actions
 from scripts import jarvis_runtime_supervisor_v8 as runtime_v8
+from workstation import jarvis_os_v3 as v3
+from workstation.jarvis_os_v8 import create_server
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,6 +36,17 @@ class V8UnifiedIntentTests(unittest.TestCase):
         self.assertTrue(decision.deterministic)
         self.assertEqual(decision.kind, "WORKSPACE_CONTROL")
 
+    def test_research_workspace_navigation_is_deterministic(self):
+        decision = route_intent("open research workspace")
+        self.assertTrue(decision.deterministic)
+        self.assertEqual(decision.kind, "WORKSPACE_CONTROL")
+        self.assertTrue(
+            any(
+                action.get("type") == "open_window" and action.get("window") == "research"
+                for action in decision.workspace_actions
+            )
+        )
+
     def test_dedicated_completion_and_memory_workspaces_are_loopback(self):
         completion = route_intent("open completion center")
         memory = route_intent("open memory fabric")
@@ -51,6 +67,40 @@ class V8UnifiedIntentTests(unittest.TestCase):
         actions = workspace_actions("open apps workspace")
         keys = [repr(sorted(item.items())) for item in actions]
         self.assertEqual(len(keys), len(set(keys)))
+
+
+class V8MasterCommandHttpTests(unittest.TestCase):
+    def test_open_apps_workspace_returns_success_without_broad_dispatch(self):
+        server = create_server("127.0.0.1", 0)
+        port = int(server.server_address[1])
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            body = json.dumps({"text": "open apps workspace", "input_mode": "typed"}).encode("utf-8")
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{port}/api/command",
+                data=body,
+                method="POST",
+                headers={
+                    "Content-Type": "application/json",
+                    "X-Jarvis-Token": v3.TOKEN,
+                },
+            )
+            with patch("workstation.jarvis_os_v3.dispatch_command") as broad_dispatch:
+                with urllib.request.urlopen(request, timeout=5) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                broad_dispatch.assert_not_called()
+            self.assertEqual(payload["route"], "WORKSPACE_CONTROL")
+            self.assertIn("Computer & Apps", payload["response"])
+            self.assertIn(
+                {"type": "open_window", "window": "apps"},
+                payload["workspace_actions"],
+            )
+            self.assertNotIn("couldn't understand", payload["response"].lower())
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=3)
 
 
 class V8ExecutiveControlTests(unittest.TestCase):
