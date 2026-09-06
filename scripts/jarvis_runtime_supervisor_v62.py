@@ -23,10 +23,16 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+# When this file is launched directly (``python scripts/foo.py``), Python puts
+# C:\Jarvis\scripts on sys.path, not C:\Jarvis.  Bootstrap the repository root
+# before importing the sibling supervisor as the ``scripts`` namespace.
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from scripts.jarvis_runtime_supervisor import JarvisRuntimeSupervisor
 
 
-ROOT = Path(__file__).resolve().parents[1]
 QUANT_HOST = "127.0.0.1"
 QUANT_PORT = 8787
 QUANT_BASE = f"http://{QUANT_HOST}:{QUANT_PORT}"
