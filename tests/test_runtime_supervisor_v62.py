@@ -57,23 +57,37 @@ class RuntimeSupervisorV62Tests(unittest.TestCase):
             )
         )
 
-    def test_launcher_preserves_v62_preflight_directly_or_through_v7(self):
+    def test_launcher_preserves_v62_preflight_through_supported_wrapper_chain(self):
         launcher = (ROOT / "JARVIS.bat").read_text(encoding="utf-8")
         direct = "-m scripts.jarvis_runtime_supervisor_v62" in launcher
         via_v7 = "-m scripts.jarvis_runtime_supervisor_v7" in launcher
-        self.assertTrue(direct or via_v7)
+        via_v8 = "-m scripts.jarvis_runtime_supervisor_v8" in launcher
+        self.assertTrue(direct or via_v7 or via_v8)
         self.assertNotIn("scripts\\jarvis_runtime_supervisor_v62.py", launcher)
+
         if via_v7:
             wrapper = (ROOT / "scripts" / "jarvis_runtime_supervisor_v7.py").read_text(encoding="utf-8")
             self.assertIn("reclaim_obsolete_quant_listener", wrapper)
             self.assertIn("scripts.jarvis_runtime_supervisor_v62", wrapper)
 
-    def test_wrapper_has_no_live_order_surface(self):
-        sources = [
-            (ROOT / "scripts" / "jarvis_runtime_supervisor_v62.py").read_text(encoding="utf-8"),
-            (ROOT / "scripts" / "jarvis_runtime_supervisor_v7.py").read_text(encoding="utf-8"),
+        if via_v8:
+            v8_wrapper = (ROOT / "scripts" / "jarvis_runtime_supervisor_v8.py").read_text(encoding="utf-8")
+            v7_wrapper = (ROOT / "scripts" / "jarvis_runtime_supervisor_v7.py").read_text(encoding="utf-8")
+            self.assertIn("reclaim_obsolete_quant_listener", v8_wrapper)
+            self.assertIn("v7_services", v8_wrapper)
+            self.assertIn("scripts.jarvis_runtime_supervisor_v7", v8_wrapper)
+            self.assertIn("scripts.jarvis_runtime_supervisor_v62", v7_wrapper)
+
+    def test_wrapper_chain_has_no_live_order_surface(self):
+        paths = [
+            ROOT / "scripts" / "jarvis_runtime_supervisor_v62.py",
+            ROOT / "scripts" / "jarvis_runtime_supervisor_v7.py",
+            ROOT / "scripts" / "jarvis_runtime_supervisor_v8.py",
         ]
-        for source in sources:
+        for path in paths:
+            if not path.exists():
+                continue
+            source = path.read_text(encoding="utf-8")
             for forbidden in ("place_order(", "modify_order(", "cancel_order(", "submit_order("):
                 self.assertNotIn(forbidden, source)
 
