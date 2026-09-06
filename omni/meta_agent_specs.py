@@ -8,6 +8,20 @@ def meta_agent_specs():
     return (
 
         AgentSpec(
+            name="executive",
+            module="omni.executive_control_plane",
+            entrypoint="executive",
+            label="JARVIS Executive Control Agent",
+            capabilities=frozenset({
+                "intent.route",
+                "context.synthesize",
+                "goal.plan",
+                "workspace.control",
+                "agent.coordinate",
+            }),
+        ),
+
+        AgentSpec(
             name="learning",
             module="agents.meta_learning",
             entrypoint="run",
