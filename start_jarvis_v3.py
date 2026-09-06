@@ -112,7 +112,7 @@ def main():
         last_stage = now
 
     print("=" * 76)
-    print("JARVIS OS V3.2 - ADAPTIVE WORKSPACE")
+    print("JARVIS OS V8 - UNIFIED INTELLIGENCE OS")
     print("=" * 76)
 
     if port_open(MASTER_PORT):
@@ -174,18 +174,19 @@ def main():
 
     print("Protected Core: PASS")
     print("Master JARVIS: READY")
+    print("Unified executive control plane: READY")
     print("Adaptive workspace: READY")
     print("Native chart terminal: READY")
     print("Live broker execution: LOCKED")
 
 
-    from workstation.jarvis_os_v3 import (
+    from workstation.jarvis_os_v8 import (
         HOST,
         PORT,
         create_server,
     )
 
-    stage("workspace server import")
+    stage("V8 workspace server import")
 
 
     if port_open(
