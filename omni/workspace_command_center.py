@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import importlib
+import importlib.util
+import json
 import socket
+import urllib.error
+import urllib.request
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -21,6 +25,7 @@ class Workspace:
     port: int | None = None
     safety: str = "GOVERNED"
     module: str = ""
+    health_path: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -32,11 +37,12 @@ WORKSPACES = (
               "open master jarvis", "home", "http://127.0.0.1:8797", 8797, "GOVERNED", "main"),
     Workspace("company", "Company OS", "VENTURE",
               "Venture workspace, research, evidence, departments, decisions and launch planning.",
-              "open company os", safety="APPROVAL GATED", module="omni.company_os"),
+              "open company os", url="http://127.0.0.1:8797/company.html",
+              safety="APPROVAL GATED", module="omni.company_os"),
     Workspace("quant", "Quant Trading", "MARKETS",
               "Market intelligence, scanners, options, charts and Nautilus research.",
               "open quant trading terminal", "market", "http://127.0.0.1:8787", 8787,
-              "PAPER / RESEARCH", "workstation.quant_terminal_v2"),
+              "PAPER / RESEARCH", "workstation.quant_terminal_v2", "/api/health"),
     Workspace("paper", "Paper Trading", "MARKETS",
               "Synthetic portfolio, P&L, positions, risk, scan ledger and paper learning.",
               "open papertrading pnl", safety="PAPER ONLY", module="workstation.paper_trading_desk"),
@@ -64,7 +70,8 @@ WORKSPACES = (
     Workspace("fyers", "FYERS Data Bridge", "MARKETS",
               "Live market-data bridge. Broker-order execution remains locked.",
               "show fyers status", url="http://127.0.0.1:8790", port=8790,
-              safety="DATA ONLY", module="workstation.fyers_live_bridge_service"),
+              safety="DATA ONLY", module="workstation.fyers_live_bridge_service",
+              health_path="/api/health"),
 )
 
 
@@ -85,37 +92,58 @@ def _module_available(name: str) -> bool:
         return False
 
 
-def _call_health_contract() -> tuple[str, Any]:
+def _fetch_health_payload(
+    port: int,
+    path: str,
+    timeout: float = 0.35,
+) -> dict[str, Any] | None:
+    if not path:
+        return None
+    request = urllib.request.Request(
+        f"http://127.0.0.1:{int(port)}{path}",
+        headers={"Accept": "application/json", "User-Agent": "JARVIS-Command-Center/1.0"},
+    )
     try:
-        module = importlib.import_module("omni.service_health_contract")
-    except Exception as exc:
-        return "unavailable", {"error": f"{type(exc).__name__}: {exc}"}
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            value = json.loads(response.read(500_000).decode("utf-8"))
+    except (OSError, ValueError, TypeError, urllib.error.URLError):
+        return None
+    return value if isinstance(value, dict) else None
 
-    for name in (
-        "snapshot", "health_snapshot", "service_health_snapshot",
-        "status", "get_status", "get_service_health",
-        "build_service_health", "public_state",
-    ):
-        fn = getattr(module, name, None)
-        if callable(fn):
-            try:
-                value = fn()
-                if isinstance(value, (dict, list, tuple)):
-                    return f"service_health_contract.{name}", value
-            except TypeError:
-                continue
-            except Exception as exc:
-                return f"service_health_contract.{name}", {
-                    "error": f"{type(exc).__name__}: {exc}"
-                }
 
-    return "service_health_contract.present", {
-        "module": "omni.service_health_contract",
-        "note": "Contract loaded; Command Center is using its presence plus direct runtime probes.",
+def _call_health_contract(rows: list[dict[str, Any]]) -> tuple[str, Any]:
+    services = {
+        str(row.get("key")): str(row.get("status") or "UNKNOWN")
+        for row in rows
+        if row.get("port")
+    }
+    states = set(services.values())
+    if "OFFLINE" in states:
+        overall = "OFFLINE"
+    elif "DEGRADED" in states or "UNAVAILABLE" in states:
+        overall = "DEGRADED"
+    else:
+        overall = "READY"
+    return "LOOPBACK_SERVICE_HEALTH_ENDPOINTS", {
+        "schema": "JARVIS_COMMAND_CENTER_HEALTH_V1",
+        "overall": overall,
+        "services": services,
+        "note": "Runtime services are derived from their loopback health contracts; port-only rows are explicit.",
     }
 
 
 def _company_activity() -> tuple[str, str]:
+    try:
+        state = json.loads(
+            (ROOT / "data" / "state" / "company_os.json").read_text(encoding="utf-8")
+        )
+        latest = dict(state.get("latest_plan") or {})
+        company_name = str(latest.get("company_name") or "").strip()
+        if company_name:
+            return "READY", company_name
+    except (FileNotFoundError, OSError, ValueError, TypeError):
+        pass
+
     roots = (
         ROOT / "data" / "state" / "company_projects",
         ROOT / "data" / "company_projects",
@@ -137,19 +165,15 @@ def _company_activity() -> tuple[str, str]:
 
 def _paper_activity() -> tuple[str, str]:
     try:
-        module = importlib.import_module("workstation.app")
-        runtime = getattr(module, "PAPER_RUNTIME", None)
-        public_state = getattr(runtime, "public_state", None)
-        if callable(public_state):
-            state = public_state()
-            account = dict(state.get("account") or {})
-            positions = list(state.get("positions") or [])
-            total = account.get("total_pnl")
-            if total is None:
-                total = float(account.get("realized_pnl") or 0) + float(
-                    account.get("unrealized_pnl") or 0
-                )
-            return "READY", f"{len(positions)} open · P&L ₹{float(total):+,.2f}"
+        module = importlib.import_module("workstation.paper_trading_desk")
+        desk = getattr(module, "paper_desk", None)
+        snapshot = getattr(desk, "snapshot", None)
+        if callable(snapshot):
+            state = snapshot()
+            return (
+                "READY",
+                f"{int(state.get('open_count') or 0)} open · P&L ₹{float(state.get('total_pnl') or 0):+,.2f}",
+            )
     except Exception:
         pass
     return "READY", "Paper runtime available"
@@ -158,8 +182,26 @@ def _paper_activity() -> tuple[str, str]:
 def _workspace_row(spec: Workspace) -> dict[str, Any]:
     row = spec.to_dict()
     if spec.port:
-        row["status"] = "READY" if _port_open(spec.port) else "OFFLINE"
-        row["activity"] = f"127.0.0.1:{spec.port}"
+        health = _fetch_health_payload(spec.port, spec.health_path)
+        port_open = _port_open(spec.port)
+        if health is not None:
+            row["status"] = str(health.get("status") or "DEGRADED").upper()
+            row["activity"] = str(
+                health.get("last_error")
+                or health.get("service")
+                or f"127.0.0.1:{spec.port}"
+            )
+            row["health"] = health
+        else:
+            row["status"] = "READY" if port_open and not spec.health_path else (
+                "DEGRADED" if port_open else "OFFLINE"
+            )
+            row["activity"] = (
+                f"127.0.0.1:{spec.port} · health endpoint unavailable"
+                if port_open and spec.health_path
+                else f"127.0.0.1:{spec.port}"
+            )
+            row["health"] = None
     elif spec.key == "company":
         row["status"], row["activity"] = _company_activity()
     elif spec.key == "paper":
@@ -172,8 +214,8 @@ def _workspace_row(spec: Workspace) -> dict[str, Any]:
 
 
 def snapshot() -> dict[str, Any]:
-    health_source, health_contract = _call_health_contract()
     rows = [_workspace_row(spec) for spec in WORKSPACES]
+    health_source, health_contract = _call_health_contract(rows)
     return {
         "ok": True,
         "version": "6.1",

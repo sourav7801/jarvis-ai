@@ -4,10 +4,64 @@ import unittest
 from datetime import date
 from unittest.mock import patch
 
-from workstation.crypto_options_intelligence import option_command_payload, parse_option_request
+from workstation.crypto_options_intelligence import (
+    option_chain_snapshot,
+    option_command_payload,
+    parse_option_request,
+)
 
 
 class CryptoOptionsIntelligenceTests(unittest.TestCase):
+    @patch("workstation.crypto_options_intelligence._book_summaries")
+    @patch("workstation.crypto_options_intelligence._instruments")
+    def test_bulk_chain_uses_nearest_expiry_and_preserves_missing_greeks(
+        self, instruments, summaries
+    ):
+        instruments.return_value = [
+            {
+                "instrument_name": "BTC-04SEP26-80000-C",
+                "expiration_timestamp": 1788480000000,
+                "strike": 80000,
+                "option_type": "call",
+            },
+            {
+                "instrument_name": "BTC-04SEP26-80000-P",
+                "expiration_timestamp": 1788480000000,
+                "strike": 80000,
+                "option_type": "put",
+            },
+        ]
+        summaries.return_value = [
+            {
+                "instrument_name": "BTC-04SEP26-80000-C",
+                "bid_price": 0.01,
+                "ask_price": 0.011,
+                "mark_price": 0.0105,
+                "mark_iv": 52.5,
+                "open_interest": 120,
+                "volume": 20,
+                "underlying_price": 80500,
+            },
+            {
+                "instrument_name": "BTC-04SEP26-80000-P",
+                "bid_price": 0.008,
+                "ask_price": 0.009,
+                "mark_price": 0.0085,
+                "mark_iv": 54,
+                "open_interest": 140,
+                "volume": 25,
+                "underlying_price": 80500,
+            },
+        ]
+
+        payload = option_chain_snapshot("BTC")
+
+        self.assertTrue(payload["success"])
+        self.assertEqual(payload["provider"], "DERIBIT_PUBLIC")
+        self.assertEqual(payload["chain_analytics"]["contract_count"], 2)
+        self.assertEqual(payload["chain"][0]["iv"], 52.5)
+        self.assertIsNone(payload["chain"][0]["delta"])
+        self.assertIn("bulk chain", payload["message"].lower())
     def test_exact_runtime_phrase_is_parsed(self):
         request = parse_option_request(
             "can i buy bitcoin 69000 option tomorrow expiry",

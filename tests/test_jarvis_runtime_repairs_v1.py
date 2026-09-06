@@ -68,7 +68,8 @@ class QuantFrontendRepairTests(unittest.TestCase):
             ROOT / "workstation" / "quant_terminal_v2_static" / "app.js"
         ).read_text(encoding="utf-8")
 
-        self.assertIn("signalBadge,status,chart:null", source)
+        self.assertIn("signalBadge,patternState,status,chart:null", source)
+        self.assertIn("chart-pattern-state", source)
         self.assertIn("async function fetchJson", source)
         self.assertIn("Market-data request timed out", source)
         self.assertIn("slot.pendingCrypto", source)

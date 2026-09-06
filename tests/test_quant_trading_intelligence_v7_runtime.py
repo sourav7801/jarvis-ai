@@ -68,7 +68,7 @@ class QuantTradingIntelligenceV7RuntimeTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         for bad in ("Â·", "â—", "â›¶", "â—‰", "â€”", "â–¡", "Ã—", "â†’", "â€¦"):
             self.assertNotIn(bad, source)
-        self.assertIn("● VOICE READY", source)
+        self.assertIn("● VOICE DICTATION · OWNER LOCK CHECKING", source)
         self.assertIn("TRADING INTELLIGENCE", source)
 
     def test_voice_state_labels_are_not_question_marks(self):

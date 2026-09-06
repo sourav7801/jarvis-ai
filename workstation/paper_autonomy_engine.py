@@ -27,6 +27,7 @@ DEFAULT_UNIVERSE = (
 DEFAULT_TIMEFRAMES = ("5m", "15m", "1h")
 REENTRY_POLICY_VERSION = "PAPER_REENTRY_COOLDOWN_V1"
 REENTRY_COOLDOWN_MINUTES = {
+    "adaptive_intraday": 15.0,
     "1m_only": 2.0,
     "5m_only": 10.0,
     "15m_only": 30.0,
@@ -34,6 +35,64 @@ REENTRY_COOLDOWN_MINUTES = {
     "swing": 1440.0,
     "intraday": 30.0,
 }
+
+
+def _journal_entry_evidence(row: dict[str, Any]) -> dict[str, Any]:
+    """Create a bounded, JSON-safe entry snapshot for durable paper review."""
+
+    evidence = [item for item in list(row.get("evidence") or []) if isinstance(item, dict)]
+    setup = row.get("setup") if isinstance(row.get("setup"), dict) else {}
+    preferred_timeframe = str(setup.get("timeframe") or "")
+    primary = next(
+        (item for item in evidence if str(item.get("timeframe") or "") == preferred_timeframe),
+        next((item for item in evidence if item.get("available", True)), {}),
+    )
+    features = primary.get("features") if isinstance(primary.get("features"), dict) else {}
+    pattern_confirmation = (
+        row.get("pattern_confirmation")
+        if isinstance(row.get("pattern_confirmation"), dict)
+        else {}
+    )
+    feature_patterns = features.get("patterns") if isinstance(features.get("patterns"), dict) else {}
+    chart_patterns = list(
+        pattern_confirmation.get("patterns")
+        or feature_patterns.get("patterns")
+        or []
+    )[:24]
+    bars = [
+        dict(item)
+        for item in list(primary.get("journal_bars") or [])[-80:]
+        if isinstance(item, dict)
+    ]
+    return {
+        "entry_reason": str(row.get("message") or "Governed Quant consensus passed all paper-entry gates."),
+        "chart_patterns": chart_patterns,
+        "pattern_confirmation": pattern_confirmation,
+        "entry_chart_snapshot": {
+            "timeframe": primary.get("timeframe") or preferred_timeframe,
+            "source": primary.get("source"),
+            "data_quality": primary.get("data_quality"),
+            "last_candle_time": primary.get("last_candle_time"),
+            "forming_bar_excluded": primary.get("forming_bar_excluded"),
+            "bars": bars,
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+        },
+        "feature_snapshot": {
+            "structure": dict(features.get("structure") or {}),
+            "support_resistance": dict(features.get("support_resistance") or {}),
+            "supply_demand": list(features.get("supply_demand") or [])[:12],
+            "liquidity": dict(features.get("liquidity") or {}),
+            "patterns": feature_patterns,
+            "indicators": dict(features.get("indicators") or {}),
+        },
+        "indicator_snapshot": {
+            "ema20": primary.get("ema20"),
+            "ema50": primary.get("ema50"),
+            "rsi14": primary.get("rsi14"),
+            "atr14": primary.get("atr14"),
+            "volume_ratio": primary.get("volume_ratio"),
+        },
+    }
 
 
 class PaperAutonomyEngine:
@@ -57,6 +116,10 @@ class PaperAutonomyEngine:
         max_workers: int = 4,
         profile: str | None = None,
         scan_ledger: Any | None = None,
+        portfolio_bucket: str = "GENERAL",
+        allocation_fraction: float = 1.0,
+        allowed_sides: Iterable[str] = ("LONG", "SHORT"),
+        manage_marks: bool = True,
     ) -> None:
         from workstation.trading_timeframe_profiles import resolve_trading_profile
 
@@ -76,6 +139,14 @@ class PaperAutonomyEngine:
         self.mark_interval_seconds = max(0.25, float(mark_interval_seconds))
         self.max_workers = max(1, min(int(max_workers), 8))
         self.scan_ledger = scan_ledger
+        self.portfolio_bucket = str(portfolio_bucket or "GENERAL").strip().upper() or "GENERAL"
+        self.allocation_fraction = max(0.01, min(float(allocation_fraction), 1.0))
+        normalized_sides = tuple(
+            side for side in (str(item).strip().upper() for item in allowed_sides)
+            if side in {"LONG", "SHORT"}
+        )
+        self.allowed_sides = normalized_sides or ("LONG", "SHORT")
+        self.manage_marks = bool(manage_marks)
         self._lock = threading.RLock()
         self._running = False
         self._stop = threading.Event()
@@ -120,6 +191,29 @@ class PaperAutonomyEngine:
             self.scan_interval_seconds = max(1.0, spec.scan_interval_seconds)
         return self.status()
 
+    def configure_mandate(
+        self,
+        bucket: str,
+        allocation_fraction: float,
+        allowed_sides: Iterable[str] | None = None,
+    ) -> dict[str, Any]:
+        normalized_bucket = str(bucket or "GENERAL").strip().upper() or "GENERAL"
+        bounded_fraction = float(allocation_fraction)
+        if not 0.0 < bounded_fraction <= 1.0:
+            raise ValueError("allocation_fraction must be greater than zero and at most one")
+        with self._lock:
+            self.portfolio_bucket = normalized_bucket
+            self.allocation_fraction = bounded_fraction
+            if allowed_sides is not None:
+                normalized_sides = tuple(
+                    side for side in (str(item).strip().upper() for item in allowed_sides)
+                    if side in {"LONG", "SHORT"}
+                )
+                if not normalized_sides:
+                    raise ValueError("allowed_sides must include LONG or SHORT")
+                self.allowed_sides = normalized_sides
+        return self.status()
+
     def start(self, *, profile: str | None = None, scan_now: bool = False) -> dict[str, Any]:
         if profile:
             self.configure_profile(profile)
@@ -143,13 +237,18 @@ class PaperAutonomyEngine:
                 name="JarvisAutoPaperScan",
                 daemon=True,
             )
-            self._mark_thread = threading.Thread(
-                target=self._mark_loop,
-                name="JarvisAutoPaperRisk",
-                daemon=True,
+            self._mark_thread = (
+                threading.Thread(
+                    target=self._mark_loop,
+                    name="JarvisAutoPaperRisk",
+                    daemon=True,
+                )
+                if self.manage_marks
+                else None
             )
             self._scan_thread.start()
-            self._mark_thread.start()
+            if self._mark_thread is not None:
+                self._mark_thread.start()
         try:
             from workstation.bounded_decision_review import decision_review_coordinator
 
@@ -228,6 +327,10 @@ class PaperAutonomyEngine:
                 "min_score": self.min_score,
                 "min_risk_reward": self.min_risk_reward,
                 "profile_risk_multiplier": self.profile_risk_multiplier,
+                "portfolio_bucket": self.portfolio_bucket,
+                "allocation_fraction": self.allocation_fraction,
+                "allowed_sides": list(self.allowed_sides),
+                "manage_marks": self.manage_marks,
                 "reentry_policy_version": REENTRY_POLICY_VERSION,
                 "reentry_cooldown_minutes": self._reentry_cooldown_minutes(),
                 "scan_interval_seconds": self.scan_interval_seconds,
@@ -363,7 +466,7 @@ class PaperAutonomyEngine:
             for row in rows
             if row.get("success")
             and row.get("qualified") is True
-            and str(row.get("side") or "").upper() in {"LONG", "SHORT"}
+            and str(row.get("side") or "").upper() in self.allowed_sides
             and float(row.get("score") or 0.0) >= self.min_score
             and float(row.get("risk_reward") or 0.0) >= self.min_risk_reward
             and row.get("entry") is not None
@@ -389,7 +492,11 @@ class PaperAutonomyEngine:
                 provider_failures[provider] += 1
 
         snapshot = paper_desk.snapshot()
-        already_open = {str(item.get("symbol") or "").upper() for item in snapshot.get("positions") or []}
+        already_open = {
+            str(item.get("symbol") or "").upper()
+            for item in snapshot.get("positions") or []
+            if str(item.get("portfolio_bucket") or "GENERAL").upper() == self.portfolio_bucket
+        }
         try:
             recently_closed = list(paper_desk.closed_positions(200))
         except Exception:
@@ -464,6 +571,7 @@ class PaperAutonomyEngine:
                 ),
                 datetime.now(timezone.utc).strftime("%Y%m%dT%H%M"),
             )
+            journal_evidence = _journal_entry_evidence(row)
             result = paper_desk.open_position(
                 symbol=symbol,
                 side=str(row.get("side")),
@@ -492,9 +600,12 @@ class PaperAutonomyEngine:
                     + ":"
                     + self.profile
                     + ":"
+                    + self.portfolio_bucket
+                    + ":"
                     + signal_bar
                 ),
                 metadata={
+                    **journal_evidence,
                     "regime": row.get("regime"),
                     "alignment": row.get("alignment"),
                     "risk_reward": row.get("risk_reward"),
@@ -506,21 +617,32 @@ class PaperAutonomyEngine:
                     "contradictions": row.get("contradictions") or [],
                     "reasons_not_to_trade": row.get("reasons_not_to_trade") or [],
                     "profile": self.profile,
+                    "portfolio_bucket": self.portfolio_bucket,
+                    "bucket_allocation_fraction": self.allocation_fraction,
                     "reentry_policy_version": REENTRY_POLICY_VERSION,
                     "reentry_cooldown_minutes": self._reentry_cooldown_minutes(),
                     "profile_risk_multiplier": self.profile_risk_multiplier,
                     "adaptive_policy": policy,
                     "initial_risk": abs(float(live_entry) - float(row["stop"])),
+                    "entry_levels": {
+                        "decision_entry": row.get("entry"),
+                        "validated_live_entry": live_entry,
+                        "stop": row.get("stop"),
+                        "target": row.get("target"),
+                        "risk_reward": row.get("risk_reward"),
+                    },
                     "exit_policy": {
-                        "breakeven_at_r": 1.0 if self.profile == "swing" else 0.75,
-                        "trailing_at_r": 1.5 if self.profile == "swing" else 1.0,
-                        "trailing_distance_r": 0.75 if self.profile == "swing" else 0.50,
-                        "trailing_target_r": 1.5 if self.profile == "swing" else 1.0,
+                        "breakeven_at_r": 1.0 if self.profile in {"swing", "investment"} else 0.75,
+                        "trailing_at_r": 1.5 if self.profile in {"swing", "investment"} else 1.0,
+                        "trailing_distance_r": 0.75 if self.profile in {"swing", "investment"} else 0.50,
+                        "trailing_target_r": 1.5 if self.profile in {"swing", "investment"} else 1.0,
                         "scale_out": [
                             {"at_r": 1.0, "fraction": 0.34},
                             {"at_r": 2.0, "fraction": 0.50},
                         ],
-                        "max_hold_minutes": 10080 if self.profile == "swing" else 390,
+                        "max_hold_minutes": (
+                            525600 if self.profile == "investment" else 10080 if self.profile == "swing" else 390
+                        ),
                     },
                 },
                 risk_multiplier=(
@@ -529,6 +651,8 @@ class PaperAutonomyEngine:
                 ),
                 valuation_multiplier=valuation_multiplier,
                 instrument_spec=instrument_spec,
+                portfolio_bucket=self.portfolio_bucket,
+                bucket_allocation_fraction=self.allocation_fraction,
             )
             if result.get("success") and result.get("reason") == "PAPER_POSITION_OPENED":
                 opened.append(result)

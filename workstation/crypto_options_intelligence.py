@@ -104,6 +104,16 @@ def _instruments(currency: str) -> list[dict[str, Any]]:
     return list(result or [])
 
 
+def _book_summaries(currency: str) -> list[dict[str, Any]]:
+    """Return Deribit's public bulk option snapshot for one currency."""
+
+    result = _json(
+        DERIBIT_HTTP + "/public/get_book_summary_by_currency",
+        {"currency": currency, "kind": "option"},
+    )
+    return [dict(row) for row in result or [] if isinstance(row, dict)]
+
+
 def _ticker(instrument_name: str) -> dict[str, Any]:
     result = _json(
         DERIBIT_HTTP + "/public/ticker",
@@ -133,6 +143,143 @@ def _matches(request: OptionRequest, instruments: list[dict[str, Any]]) -> list[
 
 def _available_expiries(instruments: list[dict[str, Any]]) -> list[str]:
     return sorted({_expiry_date(item).isoformat() for item in instruments})
+
+
+def option_chain_snapshot(
+    currency: str,
+    *,
+    expiry: str | None = None,
+    max_strikes: int = 25,
+) -> dict[str, Any]:
+    """Load a bounded, verified Deribit option chain without credentials.
+
+    Bulk summaries expose quotes, OI, volume and mark IV, but not contract
+    Greeks.  Those values deliberately stay ``None``; the existing exact
+    contract ticker path remains the source for delta/gamma/theta/vega.
+    """
+
+    canonical = SUPPORTED.get(str(currency or "").strip().upper())
+    if canonical is None:
+        raise ValueError(f"Unsupported Deribit option currency: {currency}")
+
+    instruments = _instruments(canonical)
+    expiries = _available_expiries(instruments)
+    if not expiries:
+        return {
+            "success": False,
+            "provider": "DERIBIT_PUBLIC",
+            "symbol": canonical,
+            "available_expiries": [],
+            "chain": [],
+            "message": "Deribit returned no active listed option expiries.",
+            "paper_only": True,
+            "live_execution": False,
+        }
+
+    selected_expiry = str(expiry or expiries[0])
+    if selected_expiry not in expiries:
+        return {
+            "success": False,
+            "provider": "DERIBIT_PUBLIC",
+            "symbol": canonical,
+            "expiry": selected_expiry,
+            "available_expiries": expiries,
+            "chain": [],
+            "message": f"Deribit does not list {canonical} options for {selected_expiry}.",
+            "paper_only": True,
+            "live_execution": False,
+        }
+
+    selected = [
+        row for row in instruments
+        if _expiry_date(row).isoformat() == selected_expiry
+    ]
+    summaries = {
+        str(row.get("instrument_name") or ""): row
+        for row in _book_summaries(canonical)
+    }
+    spot = next(
+        (
+            float(value)
+            for row in summaries.values()
+            for value in (row.get("underlying_price"),)
+            if value is not None and float(value) > 0
+        ),
+        None,
+    )
+
+    strikes = sorted({float(row.get("strike") or 0.0) for row in selected if float(row.get("strike") or 0.0) > 0})
+    bounded_strikes = max(1, min(int(max_strikes), 60))
+    if spot is not None and len(strikes) > bounded_strikes:
+        strikes = sorted(strikes, key=lambda value: abs(value - spot))[:bounded_strikes]
+        strikes.sort()
+    allowed_strikes = set(strikes)
+
+    raw_rows: list[dict[str, Any]] = []
+    for instrument in selected:
+        strike = float(instrument.get("strike") or 0.0)
+        if strike not in allowed_strikes:
+            continue
+        name = str(instrument.get("instrument_name") or "")
+        summary = summaries.get(name, {})
+        kind = str(instrument.get("option_type") or "").lower()
+        raw_rows.append(
+            {
+                "instrument_name": name,
+                "expiry": selected_expiry,
+                "strike": strike,
+                "option_type": "CE" if kind == "call" else "PE" if kind == "put" else kind,
+                "ltp": summary.get("last"),
+                "bid": summary.get("bid_price"),
+                "ask": summary.get("ask_price"),
+                "open_interest": summary.get("open_interest"),
+                "volume": summary.get("volume"),
+                "iv": summary.get("mark_iv"),
+                "delta": None,
+                "gamma": None,
+                "theta": None,
+                "vega": None,
+                "mark_price": summary.get("mark_price"),
+                "quote_currency": summary.get("quote_currency"),
+            }
+        )
+
+    from workstation.options_chain_analytics import analyze_chain, normalize_contracts
+
+    normalized = normalize_contracts(
+        raw_rows,
+        underlying=canonical,
+        provider="DERIBIT_PUBLIC",
+        expiry=selected_expiry,
+        provider_symbol=canonical,
+    )
+    analytics = analyze_chain(normalized, spot=spot, verified=True, stale=False)
+    # Deribit inverse option premiums are quoted in the base coin.  Adding a
+    # coin-denominated straddle to a USD spot would be dimensionally wrong.
+    analytics["expected_move"] = None
+    analytics["expected_move_reason"] = "OPTION_PREMIUM_AND_SPOT_CURRENCIES_DIFFER"
+    return {
+        "success": bool(normalized),
+        "provider": "DERIBIT_PUBLIC",
+        "source": "DERIBIT_PUBLIC_BULK_OPTION_SUMMARY",
+        "symbol": canonical,
+        "provider_symbol": canonical,
+        "expiry": selected_expiry,
+        "available_expiries": expiries,
+        "spot": spot,
+        "chain": [item.to_dict() for item in normalized],
+        "chain_analytics": analytics,
+        "total_contracts_available": len(selected),
+        "displayed_contracts": len(normalized),
+        "greeks_status": "EXACT_CONTRACT_TICKER_REQUIRED",
+        "message": (
+            f"Verified Deribit bulk chain loaded for {canonical} {selected_expiry}. "
+            "Quotes, OI, volume and mark IV are live public fields; Greeks require an exact contract ticker."
+        ),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "paper_only": True,
+        "live_execution": False,
+    }
 
 
 def _paper_quantity(ticker: dict[str, Any], instrument: dict[str, Any], equity: float = 100000.0, risk_fraction: float = 0.005) -> float:

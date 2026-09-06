@@ -46,6 +46,92 @@ class TradingSystemHardeningTests(unittest.TestCase):
         self.assertEqual(status["profile_risk_multiplier"], 0.25)
         self.assertFalse(status["live_execution"])
 
+    def test_adaptive_intraday_profile_is_two_timeframe_reduced_risk(self):
+        profile = requested_trading_profile("Jarvis start flexible intraday trading")
+        self.assertEqual(profile.name, "adaptive_intraday")
+        self.assertEqual(profile.timeframes, ("5m", "15m"))
+        self.assertEqual(profile.minimum_score, 67.0)
+        self.assertEqual(profile.risk_multiplier, 0.25)
+        self.assertTrue(profile.require_pattern_or_strategy_confirmation)
+
+    @patch("workstation.quant_terminal_v2._paper_session_open", return_value=True)
+    @patch("workstation.quant_terminal_v2._timeframe_evidence")
+    def test_adaptive_intraday_qualifies_on_two_timeframe_agreement_and_pattern(
+        self, evidence, _session
+    ):
+        def row(timeframe: str) -> dict:
+            return {
+                "timeframe": timeframe,
+                "available": True,
+                "fresh": True,
+                "trend": "BULLISH",
+                "decision": {
+                    "success": True,
+                    "timeframe": timeframe,
+                    "side": "LONG",
+                    "score": 68,
+                    "entry": 100,
+                    "stop": 99,
+                    "target": 102,
+                    "risk_reward": 2,
+                    "regime": "TRENDING",
+                    "votes": [],
+                    "evidence_graph": [],
+                    "contradictions": [],
+                },
+                "patterns": {
+                    "success": True,
+                    "state": "CONFIRMED_BREAKOUT" if timeframe == "5m" else "NO_EDGE",
+                    "direction": "BULLISH",
+                    "score": 80,
+                },
+            }
+
+        evidence.side_effect = lambda _symbol, timeframe: row(timeframe)
+        result = scan_payload("BTC", profile="adaptive_intraday")
+
+        self.assertTrue(result["qualified"])
+        self.assertEqual(result["side"], "LONG")
+        self.assertEqual(result["alignment"], 100)
+        self.assertFalse(result["live_execution"])
+
+    @patch("workstation.quant_terminal_v2._paper_session_open", return_value=True)
+    @patch("workstation.quant_terminal_v2._timeframe_evidence")
+    def test_adaptive_intraday_rejects_score_without_pattern_or_compatible_strategy(
+        self, evidence, _session
+    ):
+        evidence.side_effect = lambda _symbol, timeframe: {
+            "timeframe": timeframe,
+            "available": True,
+            "fresh": True,
+            "trend": "BULLISH",
+            "decision": {
+                "success": True,
+                "timeframe": timeframe,
+                "side": "LONG",
+                "score": 75,
+                "entry": 100,
+                "stop": 99,
+                "target": 102,
+                "risk_reward": 2,
+                "regime": "TRENDING",
+                "votes": [],
+                "evidence_graph": [],
+                "contradictions": [],
+            },
+            "patterns": {
+                "success": True,
+                "state": "NO_EDGE",
+                "direction": "NEUTRAL",
+                "score": 50,
+            },
+        }
+
+        result = scan_payload("BTC", profile="adaptive_intraday")
+
+        self.assertFalse(result["qualified"])
+        self.assertIn("PATTERN_OR_STRATEGY_CONFIRMATION_REQUIRED", result["blockers"])
+
     def test_forming_candle_is_excluded(self):
         rows = [
             {"time": 0, "close_time": 59, "close": 1},
@@ -143,19 +229,24 @@ class TradingSystemHardeningTests(unittest.TestCase):
 
     @patch("workstation.bounded_decision_review.decision_review_coordinator.start")
     @patch("workstation.multi_market_scanner.multi_market_scanner.start")
-    @patch("workstation.paper_autonomy_engine.paper_autonomy.start")
+    @patch("workstation.paper_portfolio_controller.paper_portfolio_controller.start")
     def test_morning_button_starts_multi_market_and_immediate_paper_scan(
         self, autonomy_start, scanner_start, reviewer_start
     ):
-        autonomy_start.return_value = {"running": True}
+        autonomy_start.return_value = {
+            "running": True,
+            "mandates": {"INTRADAY": {"running": True}},
+        }
         scanner_start.return_value = {"running": True}
         reviewer_start.return_value = {"running": True}
         payload = start_morning_paper_workflow(profile="5m_only")
-        autonomy_start.assert_called_once_with(profile="5m_only", scan_now=True)
+        autonomy_start.assert_called_once_with(intraday_profile="5m_only")
         selected = scanner_start.call_args.kwargs["universes"]
         self.assertIn("BANKNIFTY", selected)
         self.assertIn("SENSEX30", selected)
         self.assertIn("CRYPTO_MAJOR", selected)
+        self.assertTrue(scanner_start.call_args.kwargs["continuous"])
+        self.assertEqual(scanner_start.call_args.kwargs["interval_seconds"], 300.0)
         self.assertEqual(payload["profile"]["timeframes"], ("5m",))
 
     def test_multi_market_scanner_preserves_universe_and_execution_gate(self):
@@ -189,6 +280,28 @@ class TradingSystemHardeningTests(unittest.TestCase):
         self.assertEqual(status["candidate_count"], 2)
         self.assertEqual(status["executable_watch_count"], 1)
         self.assertEqual(status["by_universe"]["GLOBAL_MAJOR"]["auto_paper_eligible"], 0)
+
+    def test_continuous_discovery_monitor_runs_and_stops_without_live_execution(self):
+        scanner = MultiMarketScanner(max_workers=1)
+        with patch.object(scanner, "_snapshots", return_value=[]):
+            started = scanner.start(
+                universes=("CRYPTO_MAJOR",),
+                force=True,
+                auto_enroll=True,
+                profile="adaptive_intraday",
+                continuous=True,
+                interval_seconds=60,
+            )
+            self.assertTrue(started["monitoring"])
+            deadline = time.time() + 2
+            while scanner.status()["monitor_cycles"] < 1 and time.time() < deadline:
+                time.sleep(0.01)
+            stopped = scanner.stop_monitoring()
+
+        self.assertGreaterEqual(stopped["monitor_cycles"], 1)
+        self.assertFalse(stopped["monitoring"])
+        self.assertTrue(stopped["paper_only"])
+        self.assertFalse(stopped["live_execution"])
 
     @patch("workstation.multi_market_scanner.analyze_chart_patterns")
     @patch("omni.trading_intelligence.quant_firm_engine.decide")

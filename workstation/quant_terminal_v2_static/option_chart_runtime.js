@@ -190,7 +190,15 @@
       });
       const result = await response.json();
       $("commandReply").textContent = result.speech || result.message || "Command processed.";
-      if (result.action === "set_layout" && Number(result.layout)) {
+      if (result.action === "open_master_chat") {
+        const handoff = String(result.text || text).slice(0, 1000);
+        window.open(
+          `http://127.0.0.1:8797/?workspace=chat&command=${encodeURIComponent(handoff)}`,
+          "_blank",
+          "noopener",
+        );
+      }
+      else if (result.action === "set_layout" && Number(result.layout)) {
         layout = [1, 2, 4, 6, 8].includes(Number(result.layout)) ? Number(result.layout) : layout;
         selectedSlot = 0;
         syncControls();

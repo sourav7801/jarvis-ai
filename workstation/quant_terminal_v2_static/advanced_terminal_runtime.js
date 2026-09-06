@@ -1,6 +1,6 @@
 (()=>{
   let timer=null;
-  let activeProfile="intraday";
+  let activeProfile="adaptive_intraday";
   let activeUniverse="ALL";
   const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const num=(value,digits=1)=>{const n=Number(value);return Number.isFinite(n)?n.toLocaleString("en-IN",{maximumFractionDigits:digits}):"—"};
@@ -34,11 +34,11 @@
     if(document.getElementById("jarvisMorningCard"))return;
     style();const host=document.querySelector(".intel-panel");if(!host)return;
     const morning=document.createElement("section");morning.className="intel-card";morning.id="jarvisMorningCard";morning.innerHTML=`
-      <div class="eyebrow">ONE-CLICK MORNING PAPER WORKFLOW</div>
-      <div class="advanced-row"><b>SCAN → VERIFY → SIZE → SIMULATE</b><span id="morningState" class="advanced-status">READY</span></div>
-      <div class="mode-row" id="paperModeRow"><button data-profile="intraday" class="active">MTF 5m/15m/1h</button><button data-profile="paper_exploration">PAPER LEARN · 0.25× RISK</button><button data-profile="1m_only">1m ONLY</button><button data-profile="5m_only">5m ONLY</button><button data-profile="15m_only">15m ONLY</button><button data-profile="swing">SWING</button></div>
-      <button id="jarvisMorningStart">START JARVIS PAPER</button>
-      <small>Scans Indian indices and constituents, MCX and crypto. Entries use completed bars and fresh-price validation. Real orders remain locked.</small>
+      <div class="eyebrow">ONE-CLICK ALL-DAY PAPER PORTFOLIO</div>
+      <div class="advanced-row"><b>SCAN → VERIFY → SIZE → SIMULATE → REVIEW</b><span id="morningState" class="advanced-status">READY</span></div>
+      <div class="mode-row" id="paperModeRow"><button data-profile="adaptive_intraday" class="active">ADAPTIVE 5m/15m · 0.25×</button><button data-profile="intraday">STRICT MTF 5m/15m/1h</button><button data-profile="paper_exploration">PAPER LEARN · 0.25× RISK</button><button data-profile="1m_only">1m ONLY</button><button data-profile="5m_only">5m ONLY</button><button data-profile="15m_only">15m ONLY</button><button data-profile="swing">SWING</button></div>
+      <button id="jarvisMorningStart">START ALL-DAY PAPER TRADING</button>
+      <small>50% intraday · 30% swing · 20% long-only investment. Scans Indian indices and constituents, MCX and crypto. Entries use completed bars and fresh-price validation. Real orders remain locked.</small>
       <div id="paperGateSummary" class="gate-summary"><div><b>NO SCAN YET</b><small>PAPER EXECUTION</small></div><div><b>NO REVIEW YET</b><small>BOUNDED LEARNING</small></div></div><div id="paperBlockers" class="blockers"></div>
     `;
     const scanner=document.createElement("section");scanner.className="intel-card";scanner.id="nifty50ScannerCard";scanner.innerHTML=`
@@ -62,7 +62,7 @@
   async function startMorning(){
     const button=document.getElementById("jarvisMorningStart"),state=document.getElementById("morningState"),reply=document.getElementById("commandReply");
     if(button){button.disabled=true;button.textContent="STARTING…"}if(state)state.textContent="STARTING";
-    try{const payload=await json("/api/morning/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({profile:activeProfile})});if(reply)reply.textContent=payload.speech||"Morning paper workflow started.";if(state)state.textContent=`RUNNING · ${activeProfile.replace("_"," ").toUpperCase()}`;if(button){button.textContent="JARVIS PAPER RUNNING";button.classList.add("running")}}
+    try{const payload=await json("/api/morning/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({profile:activeProfile})});if(reply)reply.textContent=payload.speech||"All-day paper portfolio started.";if(state)state.textContent="RUNNING · 50 / 30 / 20";if(button){button.textContent="ALL-DAY PAPER RUNNING";button.classList.add("running")}}
     catch(error){if(state)state.textContent="ERROR";if(reply)reply.textContent=error.message;if(button)button.textContent="RETRY START"}
     finally{if(button)button.disabled=false;refreshScanner()}
   }
@@ -81,11 +81,11 @@
     const allRows=Array.isArray(payload.candidates)?payload.candidates:[];const rows=activeUniverse==="ALL"?allRows:allRows.filter(row=>(row.universes||[]).includes(activeUniverse));
     if(!rows.length){host.innerHTML=`<p>${payload.running?"Reading verified daily candles…":"No candidate currently clears the breakout radar."}</p>`;return}
     host.innerHTML=rows.slice(0,18).map(row=>`<button class="scanner-result" data-symbol="${esc(row.symbol)}"><strong>${esc(row.symbol)} · ${esc(row.state||"")}</strong><span>${num(row.score)} SCORE</span><small>${esc((row.universes||[]).join(" / "))} · ${esc(row.direction||"NEUTRAL")} · ${row.auto_paper_eligible?"PAPER ELIGIBLE":"RESEARCH ONLY"} · close ${num(row.close,2)} · vol× ${num(row.volume_ratio,2)}</small></button>`).join("");
-    host.querySelectorAll("[data-symbol]").forEach(button=>button.addEventListener("click",()=>{const symbol=button.dataset.symbol;if(typeof window.openSignalChart==="function")window.openSignalChart({symbol,label:symbol,kind:"MARKET",timeframe:activeProfile==="swing"?"1d":["intraday","paper_exploration"].includes(activeProfile)?"5m":activeProfile.replace("_only",""),profile:activeProfile,layout:1})}));
+    host.querySelectorAll("[data-symbol]").forEach(button=>button.addEventListener("click",()=>{const symbol=button.dataset.symbol;if(typeof window.openSignalChart==="function")window.openSignalChart({symbol,label:symbol,kind:"MARKET",timeframe:activeProfile==="swing"?"1d":["adaptive_intraday","intraday","paper_exploration"].includes(activeProfile)?"5m":activeProfile.replace("_only",""),profile:activeProfile,layout:1})}));
   }
 
   async function refreshScanner(){try{renderScanner(await json("/api/scanner/multi"))}catch{}}
-  async function refreshPaper(){try{const [auto,review]=await Promise.all([json("/api/paper/autonomy"),json("/api/paper/review")]);const summary=document.getElementById("paperGateSummary"),blockers=document.getElementById("paperBlockers"),state=document.getElementById("morningState");if(state&&auto.running)state.textContent=`RUNNING · ${String(auto.profile||"").replace("_"," ").toUpperCase()}`;if(summary)summary.innerHTML=`<div><b>${auto.positions_opened||0} OPENED · ${auto.scan_cycles||0} CYCLES</b><small>${esc((auto.timeframes||[]).join(" / "))} PAPER ENGINE</small></div><div><b>${review.reviewed_trades||0} REVIEWED · ${review.active_policies||0} POLICIES</b><small>RISK CAN ONLY STAY OR TIGHTEN</small></div>`;const entries=Object.entries(auto.last_rejection_counts||{}).sort((a,b)=>b[1]-a[1]).slice(0,5);if(blockers)blockers.textContent=entries.length?`Latest blockers: ${entries.map(([key,count])=>`${key.replaceAll("_"," ")} ${count}`).join(" · ")}`:"No rejection diagnostics yet."}catch{}}
+  async function refreshPaper(){try{const [auto,portfolio,review]=await Promise.all([json("/api/paper/autonomy"),json("/api/paper/portfolio-controller"),json("/api/paper/review")]);const summary=document.getElementById("paperGateSummary"),blockers=document.getElementById("paperBlockers"),state=document.getElementById("morningState");if(state&&portfolio.running)state.textContent="RUNNING · 50 / 30 / 20";if(summary)summary.innerHTML=`<div><b>${auto.positions_opened||0} OPENED · ${auto.scan_cycles||0} CYCLES</b><small>INTRADAY 50% · SWING 30% · INVESTMENT 20%</small></div><div><b>${review.reviewed_trades||0} REVIEWED · ${review.active_policies||0} POLICIES</b><small>RISK CAN ONLY STAY OR TIGHTEN</small></div>`;const entries=Object.entries(auto.last_rejection_counts||{}).sort((a,b)=>b[1]-a[1]).slice(0,5);if(blockers)blockers.textContent=entries.length?`Latest blockers: ${entries.map(([key,count])=>`${key.replaceAll("_"," ")} ${count}`).join(" · ")}`:"No rejection diagnostics yet. No trade is forced without a qualified setup."}catch{}}
   async function refreshOptions(){try{const payload=await json("/api/options/readiness");const india=document.getElementById("indiaOptionsState"),crypto=document.getElementById("cryptoOptionsState");if(india)india.textContent=`INDIA OPTIONS · ${payload.india_index_options?.configured&&payload.india_index_options?.token_saved?"READY":"LOGIN REQUIRED"}`;if(crypto)crypto.textContent="CRYPTO OPTIONS · PUBLIC READY"}catch{}}
 
   mount();refreshScanner();refreshPaper();refreshOptions();timer=setInterval(()=>{refreshScanner();refreshPaper()},2500);window.addEventListener("beforeunload",()=>{if(timer)clearInterval(timer)});

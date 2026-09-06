@@ -807,6 +807,21 @@ def _timeframe_evidence(symbol: str, timeframe: str) -> dict[str, Any]:
                 "live_execution": False,
             }
     patterns = dict(features.get("patterns") or {})
+    journal_bars = []
+    for candle in candles[-80:]:
+        try:
+            journal_bars.append(
+                {
+                    "time": candle.get("time", candle.get("timestamp")),
+                    "open": float(candle["open"]),
+                    "high": float(candle["high"]),
+                    "low": float(candle["low"]),
+                    "close": float(candle["close"]),
+                    "volume": float(candle.get("volume") or 0.0),
+                }
+            )
+        except (KeyError, TypeError, ValueError):
+            continue
     return {
         "timeframe": timeframe,
         "available": True,
@@ -831,6 +846,9 @@ def _timeframe_evidence(symbol: str, timeframe: str) -> dict[str, Any]:
         "decision": decision,
         "patterns": patterns,
         "features": features,
+        # Bounded immutable completed-bar evidence for future journal replay.
+        # It is stored only when a synthetic paper position is opened.
+        "journal_bars": journal_bars,
         "feature_storage": feature_storage,
     }
 
@@ -905,6 +923,7 @@ def _consensus_message(
         "HIGHER_TIMEFRAME_TREND_CONFLICT": "15m or 1h trend evidence opposes the candidate",
         "ALL_TIMEFRAMES_RANGE": "all verified timeframes are range-bound",
         "PATTERN_NOT_CONFIRMED": "the selected single timeframe has no confirmed breakout or breakdown aligned with the strategy",
+        "PATTERN_OR_STRATEGY_CONFIRMATION_REQUIRED": "neither timeframe has an aligned confirmed pattern or regime-compatible strategy vote",
         "INVALID_RISK_LEVELS": "verified entry, stop and target levels are unavailable",
         "RISK_REWARD_BELOW_GATE": "risk/reward is below 1.8 to 1",
         "MARKET_SESSION_CLOSED": "the configured market session is closed",
@@ -983,8 +1002,12 @@ def scan_payload(symbol: str, profile: str = "intraday") -> dict[str, Any]:
         else 0.0
     )
 
-    pattern_row = next((row for row in available if row.get("timeframe") == consensus_timeframes[0]), None)
-    pattern = dict((pattern_row or {}).get("patterns") or {})
+    pattern_rows = [
+        (row, dict(row.get("patterns") or {}))
+        for row in available
+        if isinstance(row.get("patterns"), dict)
+    ]
+    pattern = pattern_rows[0][1] if pattern_rows else {}
     pattern_state = str(pattern.get("state") or "NO_EDGE").upper()
     pattern_direction = str(pattern.get("direction") or "NEUTRAL").upper()
     if profile_spec.single_timeframe and pattern.get("success") and confirming:
@@ -1048,12 +1071,30 @@ def scan_payload(symbol: str, profile: str = "intraday") -> dict[str, Any]:
         and all(str(row.get("regime") or "").upper() == "RANGE" for row in usable)
     ):
         blockers.append("ALL_TIMEFRAMES_RANGE")
+    expected_pattern_direction = (
+        "BULLISH" if candidate_side == "LONG" else "BEARISH" if candidate_side == "SHORT" else "NEUTRAL"
+    )
     if profile_spec.require_confirmed_pattern:
-        expected_pattern_direction = (
-            "BULLISH" if candidate_side == "LONG" else "BEARISH" if candidate_side == "SHORT" else "NEUTRAL"
-        )
         if pattern_state not in {"CONFIRMED_BREAKOUT", "CONFIRMED_BREAKDOWN"} or pattern_direction != expected_pattern_direction:
             blockers.append("PATTERN_NOT_CONFIRMED")
+    confirmed_pattern = next(
+        (
+            candidate_pattern
+            for _, candidate_pattern in pattern_rows
+            if candidate_pattern.get("success")
+            and str(candidate_pattern.get("state") or "").upper()
+            in {"CONFIRMED_BREAKOUT", "CONFIRMED_BREAKDOWN"}
+            and str(candidate_pattern.get("direction") or "").upper() == expected_pattern_direction
+        ),
+        None,
+    )
+    compatible_strategy = any(node.get("regime_compatible") is True for node in supporting_nodes)
+    if profile_spec.require_pattern_or_strategy_confirmation and not (
+        confirmed_pattern or compatible_strategy
+    ):
+        blockers.append("PATTERN_OR_STRATEGY_CONFIRMATION_REQUIRED")
+    if confirmed_pattern is not None:
+        pattern = confirmed_pattern
     if anchor is None:
         blockers.append("INVALID_RISK_LEVELS")
     elif risk_reward < profile_spec.minimum_risk_reward:
@@ -1261,10 +1302,16 @@ def agent_payload(text: str) -> dict[str, Any]:
     if signal_result is not None:
         return signal_result
 
-    result = legacy.local_agent(command) or {
-        "action": "conversation_only",
-        "speech": "That request is not wired to a deterministic trading action yet.",
-    }
+    result = legacy.local_agent(command)
+    if not result or (
+        result.get("action") == "conversation_only"
+        and "not wired" in str(result.get("speech") or "").lower()
+    ):
+        result = {
+            "action": "open_master_chat",
+            "text": command,
+            "speech": "Opening this request in Master JARVIS Chat.",
+        }
     result = dict(result)
     result["paper_only"] = True
     result["live_execution"] = False
@@ -1300,6 +1347,12 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/":
             return self.send_file(STATIC / "index.html", "text/html; charset=utf-8")
+        if path == "/intelligence.html":
+            return self.send_file(STATIC / "intelligence.html", "text/html; charset=utf-8")
+        if path == "/intelligence.js":
+            return self.send_file(STATIC / "intelligence.js", "application/javascript; charset=utf-8")
+        if path == "/intelligence.css":
+            return self.send_file(STATIC / "intelligence.css", "text/css; charset=utf-8")
         if path == "/app.js":
             return self.send_file(STATIC / "app.js", "application/javascript; charset=utf-8")
         if path == "/lightweight-charts.standalone.production.js":
@@ -1400,6 +1453,10 @@ class Handler(BaseHTTPRequestHandler):
             from workstation.paper_autonomy_engine import paper_autonomy
 
             return self.send_json(paper_autonomy.status())
+        if path == "/api/paper/portfolio-controller":
+            from workstation.paper_portfolio_controller import paper_portfolio_controller
+
+            return self.send_json(paper_portfolio_controller.status())
         if path == "/api/equity/nifty50-scan":
             from workstation.nifty50_breakout_scanner import nifty50_scanner
 
@@ -1421,6 +1478,22 @@ class Handler(BaseHTTPRequestHandler):
             from workstation.options_readiness import options_readiness_payload
 
             return self.send_json(options_readiness_payload())
+        if path == "/api/intelligence/module":
+            from workstation.quant_intelligence_modules import intelligence_module_payload
+
+            module = str((params.get("module") or [""])[0])
+            symbol = str((params.get("symbol") or ["NIFTY"])[0])
+            universe = str((params.get("universe") or [""])[0]) or None
+            profile = str((params.get("profile") or ["intraday"])[0])
+            expiry = str((params.get("expiry") or [""])[0]) or None
+            payload = intelligence_module_payload(
+                module,
+                symbol,
+                universe=universe,
+                profile=profile,
+                expiry=expiry,
+            )
+            return self.send_json(payload, 200 if payload.get("success") else 503)
         if path == "/api/scan":
             try:
                 symbol = str((params.get("symbol") or ["NIFTY"])[0])
@@ -1488,6 +1561,36 @@ class Handler(BaseHTTPRequestHandler):
             from workstation.paper_autonomy_engine import paper_autonomy
 
             return self.send_json(paper_autonomy.stop())
+        if path == "/api/paper/portfolio-controller/start":
+            from workstation.paper_portfolio_controller import paper_portfolio_controller
+
+            requested = body.get("allocations")
+            if isinstance(requested, dict):
+                try:
+                    paper_portfolio_controller.configure(requested)
+                except ValueError as exc:
+                    return self.send_json(
+                        {
+                            "success": False,
+                            "message": str(exc),
+                            "paper_only": True,
+                            "live_execution": False,
+                        },
+                        400,
+                    )
+            return self.send_json(
+                paper_portfolio_controller.start(
+                    intraday_profile=str(body.get("profile") or "adaptive_intraday")
+                )
+            )
+        if path == "/api/paper/portfolio-controller/stop":
+            from workstation.paper_portfolio_controller import paper_portfolio_controller
+            from workstation.multi_market_scanner import multi_market_scanner
+
+            payload = paper_portfolio_controller.stop()
+            return self.send_json(
+                {**payload, "multi_market_scanner": multi_market_scanner.stop_monitoring()}
+            )
         if path == "/api/equity/nifty50-scan/start":
             from workstation.nifty50_breakout_scanner import nifty50_scanner
 

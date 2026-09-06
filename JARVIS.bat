@@ -21,22 +21,17 @@ if not exist "%JARVIS_PY%" (
 )
 
 REM JARVIS_NAUTILUS_QUANT_CORE_V5
+REM start_jarvis_nautilus_core.py is owned and restarted by the runtime supervisor.
 set "JARVIS_NAUTILUS_PY=C:\Jarvis\.venv-nautilus\Scripts\python.exe"
 if exist "%JARVIS_NAUTILUS_PY%" "%JARVIS_NAUTILUS_PY%" -c "import nautilus_trader, nautilus_trader.backtest.config, numpy, pandas; assert nautilus_trader.__version__ == '1.231.0'" >nul 2>&1
 if errorlevel 1 set "JARVIS_NAUTILUS_PY=C:\Jarvis\.venv-nautilus-new\Scripts\python.exe"
 if exist "%JARVIS_NAUTILUS_PY%" "%JARVIS_NAUTILUS_PY%" -c "import nautilus_trader, nautilus_trader.backtest.config, numpy, pandas; assert nautilus_trader.__version__ == '1.231.0'" >nul 2>&1
 if errorlevel 1 set "JARVIS_NAUTILUS_PY=%JARVIS_PY%"
-if exist "%JARVIS_NAUTILUS_PY%" (
-    start "JARVIS Nautilus Quant Core" /min "%JARVIS_NAUTILUS_PY%" "C:\Jarvis\start_jarvis_nautilus_core.py"
-) else (
-    start "JARVIS Nautilus Quant Core" /min "%JARVIS_PY%" "C:\Jarvis\start_jarvis_nautilus_core.py"
-)
-
+REM JARVIS_RUNTIME_SUPERVISOR_V1
 REM JARVIS_QUANT_TRADING_INTELLIGENCE_V1
-start "JARVIS Quant Trading Intelligence" /min "%JARVIS_PY%" "C:\Jarvis\start_jarvis_quant_terminal.py"
-
-"%JARVIS_PY%" ^
-"C:\Jarvis\start_jarvis_v3.py"
+REM start_jarvis_quant_terminal.py is owned and restarted by the runtime supervisor.
+REM Owns Master, Quant and Nautilus; records crashes and restarts boundedly.
+"%JARVIS_PY%" "C:\Jarvis\scripts\jarvis_runtime_supervisor.py"
 
 if errorlevel 1 (
     echo.

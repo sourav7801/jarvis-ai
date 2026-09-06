@@ -157,3 +157,33 @@ docs/FYERS_SETUP.md
 
 .jarvis-dev/
 
+
+# ===== Secrets / credentials =====
+.env
+.env.*
+!.env.example
+*token*.json
+*fyers_token*.json
+*credentials*.json
+*secret*.json
+*.pem
+*.key
+
+# ===== Python =====
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# ===== Runtime / databases =====
+*.sqlite
+*.sqlite3
+*.db
+
+# ===== OS / IDE =====
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

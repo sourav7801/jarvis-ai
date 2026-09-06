@@ -187,6 +187,24 @@ class PaperAutonomyEngineTests(unittest.TestCase):
             "target": 104.0,
             "votes": [],
             "decisions": [],
+            "message": "Three timeframes confirmed a governed long setup.",
+            "pattern_confirmation": {
+                "state": "CONFIRMED_BREAKOUT",
+                "patterns": [{"name": "RANGE_EXPANSION", "direction": "BULLISH"}],
+            },
+            "evidence": [{
+                "timeframe": "5m",
+                "source": "BINANCE_PUBLIC",
+                "data_quality": "PUBLIC_LIVE",
+                "journal_bars": [
+                    {"time": 1, "open": 99, "high": 101, "low": 98, "close": 100, "volume": 10}
+                ],
+                "features": {
+                    "structure": {"bias": "BULLISH"},
+                    "liquidity": {"fair_value_gaps": [{"side": "BULLISH"}]},
+                    "indicators": {"results": {"ema_20": {"value": 99.5}}},
+                },
+            }],
         }
         with patch("workstation.paper_autonomy_engine.paper_desk", desk), patch.object(
             self.engine, "_scan_symbol", return_value=qualified
@@ -195,6 +213,11 @@ class PaperAutonomyEngineTests(unittest.TestCase):
         self.assertEqual(result["candidate_count"], 2)
         self.assertEqual(len(result["opened"]), 1)
         desk.open_position.assert_called_once()
+        metadata = desk.open_position.call_args.kwargs["metadata"]
+        self.assertEqual(metadata["entry_reason"], qualified["message"])
+        self.assertEqual(metadata["chart_patterns"][0]["name"], "RANGE_EXPANSION")
+        self.assertEqual(metadata["entry_chart_snapshot"]["bars"][0]["close"], 100)
+        self.assertEqual(metadata["feature_snapshot"]["structure"]["bias"], "BULLISH")
 
     def test_desk_level_risk_lock_is_visible_in_autonomy_rejection_telemetry(self):
         desk = MagicMock()

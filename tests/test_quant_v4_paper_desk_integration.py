@@ -52,6 +52,35 @@ class QuantV4PaperDeskIntegrationTests(unittest.TestCase):
         self.assertEqual(result["action"], "open_paper_desk")
         self.assertFalse(result["live_execution"])
 
+    @patch("workstation.jarvis_trading_workstation_v7.app.local_agent", return_value=None)
+    def test_non_trading_quant_text_hands_off_to_master_chat(self, _legacy):
+        result = quant_terminal_v2.agent_payload("hi")
+        self.assertEqual(result["action"], "open_master_chat")
+        self.assertEqual(result["text"], "hi")
+        self.assertTrue(result["paper_only"])
+        self.assertFalse(result["live_execution"])
+
+        app = (ROOT / "workstation" / "quant_terminal_v2_static" / "app.js").read_text(
+            encoding="utf-8"
+        )
+        option_runtime = (
+            ROOT / "workstation" / "quant_terminal_v2_static" / "option_chart_runtime.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn('result.action==="open_master_chat"', app)
+        self.assertIn("workspace=chat&command=", app)
+        self.assertIn('result.action === "open_master_chat"', option_runtime)
+        self.assertIn("workspace=chat&command=", option_runtime)
+
+    @patch(
+        "workstation.jarvis_trading_workstation_v7.app.local_agent",
+        return_value={
+            "action": "conversation_only",
+            "speech": "That request is not wired to a deterministic trading action yet.",
+        },
+    )
+    def test_old_unwired_legacy_reply_also_hands_off_to_master(self, _legacy):
+        self.assertEqual(quant_terminal_v2.agent_payload("hello")["action"], "open_master_chat")
+
     @patch("workstation.quant_terminal_bridge._open_terminal_browser", return_value=True)
     @patch(
         "workstation.quant_terminal_bridge._post_terminal_agent",
@@ -79,6 +108,44 @@ class QuantV4PaperDeskIntegrationTests(unittest.TestCase):
     def test_ui_loads_paper_runtime(self):
         html = (ROOT / "workstation" / "quant_terminal_v2_static" / "index.html").read_text(encoding="utf-8")
         self.assertIn("/paper_desk_runtime.js", html)
+
+    def test_auto_on_uses_all_day_workflow_with_immediate_scans(self):
+        javascript = (
+            ROOT / "workstation" / "quant_terminal_v2_static" / "paper_desk_runtime.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn('id="paperAutoStart"', javascript)
+        self.assertIn('fetchJson("/api/morning/start"', javascript)
+        self.assertNotIn(
+            'sendPaper("start autonomous paper trading")',
+            javascript,
+        )
+
+    @patch("workstation.paper_trading_desk.portfolio_payload", return_value={"positions": []})
+    @patch("workstation.morning_trading_coordinator.start_morning_paper_workflow")
+    def test_auto_start_command_uses_the_same_all_day_workflow(self, morning_start, _portfolio):
+        from workstation.paper_trading_desk import paper_command_payload
+
+        morning_start.return_value = {
+            "success": True,
+            "speech": "All-day paper workflow started.",
+            "autonomy": {"running": True, "scan_triggered": True},
+            "paper_portfolio_controller": {
+                "running": True,
+                "mandates": {
+                    "INTRADAY": {"running": True},
+                    "SWING": {"running": True},
+                    "INVESTMENT": {"running": True},
+                },
+            },
+            "paper_only": True,
+            "live_execution": False,
+        }
+        payload = paper_command_payload("start autonomous paper trading")
+
+        morning_start.assert_called_once_with()
+        self.assertTrue(payload["autonomy"]["scan_triggered"])
+        self.assertTrue(payload["paper_portfolio_controller"]["running"])
+        self.assertFalse(payload["live_execution"])
 
     def test_legacy_monitor_mirrors_to_persistent_ledger(self):
         source = (ROOT / "omni" / "paper_trade_monitor.py").read_text(encoding="utf-8")

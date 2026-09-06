@@ -53,8 +53,8 @@
     const firstCard=host.querySelector(".intel-card");
     if(firstCard&&firstCard.nextSibling)host.insertBefore(card,firstCard.nextSibling);else host.appendChild(card);
 
-    document.getElementById("paperAutoStart")?.addEventListener("click",()=>sendPaper("start autonomous paper trading"));
-    document.getElementById("paperAutoStop")?.addEventListener("click",()=>sendPaper("stop autonomous paper trading"));
+    document.getElementById("paperAutoStart")?.addEventListener("click",startAllDayPaper);
+    document.getElementById("paperAutoStop")?.addEventListener("click",stopAllDayPaper);
     document.getElementById("paperDeskRefresh")?.addEventListener("click",refreshAll);
   }
 
@@ -77,21 +77,56 @@
     list.innerHTML=positions.map(item=>`<div class="paper-position"><strong><span>${esc(item.symbol)} · ${esc(item.side)}</span><span>${signed(item.unrealized_pnl)}</span></strong><p>qty ${Number(item.quantity||0).toFixed(2)} · entry ${money(item.entry)} · mark ${money(item.mark)}<br>SL ${money(item.stop)} · target ${money(item.target)} · risk ${money(item.risk_at_stop)}</p></div>`).join("");
   }
 
-  function renderAuto(payload){
+  function renderAuto(payload,controller){
     const state=document.getElementById("paperAutoState");if(!state)return;
-    const running=Boolean(payload?.running);
+    const running=controller?Boolean(controller.running):Boolean(payload?.running);
     state.textContent=running?"RUNNING":"STOPPED";
     state.className=running?"auto-running":"auto-stopped";
-    state.title=`5m/15m/1h consensus · score ≥ ${payload?.min_score||68} · R:R ≥ ${payload?.min_risk_reward||1.8} · scans ${payload?.scan_cycles||0} · opens ${payload?.positions_opened||0} · closes ${payload?.positions_closed||0}`;
+    const mandates=controller?.mandates||{};
+    const active=Object.entries(mandates).filter(([,value])=>value?.running).map(([name])=>name).join(" / ");
+    state.title=`${active||"INTRADAY"} · score ≥ ${payload?.min_score||68} · R:R ≥ ${payload?.min_risk_reward||1.8} · scans ${payload?.scan_cycles||0} · opens ${payload?.positions_opened||0} · closes ${payload?.positions_closed||0}`;
   }
 
   async function fetchJson(url,options){const response=await fetch(url,options);const payload=await response.json();if(!response.ok)throw new Error(payload.message||`HTTP ${response.status}`);return payload}
 
   async function refreshAll(){
     try{
-      const [portfolio,auto]=await Promise.all([fetchJson("/api/paper/portfolio"),fetchJson("/api/paper/autonomy")]);
-      renderPortfolio(portfolio);renderAuto(auto);
+      const [portfolio,auto,controller]=await Promise.all([fetchJson("/api/paper/portfolio"),fetchJson("/api/paper/autonomy"),fetchJson("/api/paper/portfolio-controller")]);
+      renderPortfolio(portfolio);renderAuto(auto,controller);
     }catch(error){const reply=document.getElementById("commandReply");if(reply)reply.textContent=`Paper desk refresh: ${error.message}`}
+  }
+
+  async function startAllDayPaper(){
+    const button=document.getElementById("paperAutoStart");
+    const reply=document.getElementById("commandReply");
+    if(button){button.disabled=true;button.textContent="STARTING…"}
+    if(reply)reply.textContent="Starting all-day governed paper trading and an immediate multi-market scan…";
+    try{
+      const payload=await fetchJson("/api/morning/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({profile:"adaptive_intraday"})});
+      if(reply)reply.textContent=payload.speech||"All-day paper trading started.";
+      renderAuto(payload.autonomy,payload.paper_portfolio_controller);
+      await refreshAll();
+    }catch(error){
+      if(reply)reply.textContent=`AUTO ON failed: ${error.message}`;
+    }finally{
+      if(button){button.disabled=false;button.textContent="AUTO ON"}
+    }
+  }
+
+  async function stopAllDayPaper(){
+    const button=document.getElementById("paperAutoStop");
+    const reply=document.getElementById("commandReply");
+    if(button){button.disabled=true;button.textContent="STOPPING…"}
+    try{
+      const controller=await fetchJson("/api/paper/portfolio-controller/stop",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+      if(reply)reply.textContent="All-day paper trading stopped. Existing paper positions remain visible.";
+      renderAuto(controller?.mandates?.INTRADAY||{},controller);
+      await refreshAll();
+    }catch(error){
+      if(reply)reply.textContent=`AUTO OFF failed: ${error.message}`;
+    }finally{
+      if(button){button.disabled=false;button.textContent="AUTO OFF"}
+    }
   }
 
   async function sendPaper(text){
@@ -100,7 +135,7 @@
       const payload=await fetchJson("/api/paper/command",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})});
       if(reply)reply.textContent=payload.speech||payload.message||"Paper command processed.";
       if(payload.portfolio)renderPortfolio(payload.portfolio);
-      if(payload.autonomy)renderAuto(payload.autonomy);
+      if(payload.autonomy)renderAuto(payload.autonomy,payload.paper_portfolio_controller);
       else await refreshAll();
     }catch(error){if(reply)reply.textContent=error.message}
   }

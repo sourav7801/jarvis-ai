@@ -11,6 +11,30 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class QuantTerminalV2Tests(unittest.TestCase):
+    def test_intelligence_module_terminal_is_served_and_linked(self):
+        root = Path(__file__).resolve().parents[1]
+        markup = (root / "workstation" / "quant_terminal_v2_static" / "index.html").read_text(
+            encoding="utf-8"
+        )
+        app = (root / "workstation" / "quant_terminal_v2_static" / "app.js").read_text(
+            encoding="utf-8"
+        )
+        server = (root / "workstation" / "quant_terminal_v2.py").read_text(encoding="utf-8")
+        self.assertIn('data-module="option-chain"', markup)
+        self.assertIn('data-module="heatmaps"', markup)
+        self.assertIn("openIntelligenceModule", app)
+        self.assertIn('/api/intelligence/module', server)
+        self.assertIn('/intelligence.html', server)
+
+    def test_chart_auto_fit_and_pattern_annotation_contract(self):
+        app = (ROOT / "workstation" / "quant_terminal_v2_static" / "app.js").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("centerChart", app)
+        self.assertIn("scrollToPosition", app)
+        self.assertIn("chart-pattern-state", app)
+        self.assertIn("createSeriesMarkers", app)
+
     def test_supported_symbols_cover_india_commodities_and_crypto(self):
         self.assertEqual(quant_terminal_v2.normalize_symbol("Nifty 50"), "NIFTY")
         self.assertEqual(quant_terminal_v2.normalize_symbol("crude oil"), "CRUDEOIL")
@@ -59,6 +83,8 @@ class QuantTerminalV2Tests(unittest.TestCase):
         result = quant_terminal_v2._timeframe_evidence("BTC", "5m")
         self.assertTrue(result["decision"]["success"])
         self.assertFalse(result["decision"]["live_execution"])
+        self.assertEqual(len(result["journal_bars"]), 80)
+        self.assertEqual(result["journal_bars"][-1]["close"], candles[-1]["close"])
 
     @patch("workstation.quant_terminal_v2._paper_session_open", return_value=True)
     @patch("workstation.quant_terminal_v2._timeframe_evidence")

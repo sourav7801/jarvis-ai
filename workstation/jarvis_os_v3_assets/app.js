@@ -126,6 +126,48 @@ function setCoreState(
 }
 
 
+let voiceOwnerStatus = {
+    mode: "CHECKING",
+    owner_lock_required: false,
+    owner_lock_enforced: false,
+    owner_verified: false
+};
+
+
+function voiceReadyLabel() {
+    if (voiceOwnerStatus.owner_lock_enforced) {
+        return "● OWNER VOICE LOCKED";
+    }
+    if (voiceOwnerStatus.owner_lock_required) {
+        return "● OWNER LOCK · ENROLLMENT REQUIRED";
+    }
+    return "● VOICE DICTATION · OWNER LOCK OFF";
+}
+
+
+async function refreshVoiceOwnerStatus() {
+    try {
+        voiceOwnerStatus = await api("/api/voice/owner-status");
+    } catch (_) {
+        voiceOwnerStatus = {
+            mode: "UNAVAILABLE",
+            owner_lock_required: false,
+            owner_lock_enforced: false,
+            owner_verified: false,
+            detail: "Owner-voice status endpoint is unavailable."
+        };
+    }
+
+    const stateElement = document.getElementById("voiceState");
+    const activeState = document.documentElement.dataset.jarvisVoiceState;
+    if (stateElement && !["listening", "speaking", "thinking"].includes(activeState)) {
+        stateElement.textContent = voiceReadyLabel();
+        stateElement.title = String(voiceOwnerStatus.detail || "");
+    }
+    return voiceOwnerStatus;
+}
+
+
 function addConversation(
     who,
     text,
@@ -1106,6 +1148,19 @@ function executeWorkspaceActions(
             action.type
             === "open_window"
         ) {
+
+            if (
+                action.window === "company"
+            ) {
+
+                window.open(
+                    "/company.html",
+                    "_blank",
+                    "noopener"
+                );
+
+                continue;
+            }
 
             openWindow(
                 action.window
@@ -3094,7 +3149,7 @@ function setupVoice() {
             document.getElementById(
                 "voiceState"
             ).textContent =
-                "● VOICE READY";
+                voiceReadyLabel();
 
 
             setCoreState(
@@ -3952,7 +4007,7 @@ window.addEventListener("pointermove", event => {
             const names = {
 
                 ready:
-                    "● VOICE READY",
+                    voiceReadyLabel(),
 
                 listening:
                     "● LISTENING",
@@ -7407,7 +7462,7 @@ window.addEventListener("pointermove", event => {
             return;
         }
 
-        if (key === "quant" && url) {
+        if (["quant", "company"].includes(key) && url) {
             window.open(url, "_blank", "noopener");
             overlay.classList.remove("is-open");
             return;
@@ -7540,5 +7595,68 @@ window.addEventListener("pointermove", event => {
         document.addEventListener("DOMContentLoaded", () => setTimeout(install, 150));
     } else {
         setTimeout(install, 150);
+    }
+})();
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", refreshVoiceOwnerStatus, {once: true});
+} else {
+    refreshVoiceOwnerStatus();
+}
+
+/* Dedicated browser workspaces for Master Chat and specialist terminals. */
+(() => {
+    "use strict";
+
+    const params = new URLSearchParams(window.location.search);
+    const workspace = String(params.get("workspace") || "").toLowerCase();
+    const workspaces = {
+        "chat": {title: "MASTER CHAT", kind: "chat"},
+        "research": {title: "RESEARCH INTELLIGENCE", window: "win-research"},
+        "paper": {title: "AUTONOMOUS PAPER DESK", window: "win-paper"},
+        "journal": {title: "TRADING JOURNAL", window: "win-paper", journal: true},
+        "company": {title: "COMPANY OPERATING SYSTEM", window: "win-company"},
+        "missions": {title: "MISSION CONTROL / AGENT MESH", window: "win-missions"},
+        "system": {title: "SYSTEM CORE", window: "win-system"}
+    };
+    const spec = workspaces[workspace];
+    if (!spec) return;
+
+    if (workspace === "journal") {
+        window.location.replace("http://127.0.0.1:8787/intelligence.html?module=trade-journal&symbol=NIFTY&universe=NIFTY50");
+        return;
+    }
+
+    document.body.classList.add("jarvis-standalone-workspace", `jarvis-workspace-${workspace}`);
+    const title = document.getElementById("standaloneWorkspaceTitle");
+    if (title) {
+        title.hidden = false;
+        const label = title.querySelector("strong");
+        if (label) label.textContent = spec.title;
+    }
+
+    const desktop = document.getElementById("desktop");
+    const consolePanel = document.getElementById("masterConsole");
+    if (spec.kind === "chat") {
+        if (desktop) desktop.style.display = "none";
+        if (consolePanel) consolePanel.style.display = "flex";
+    } else {
+        if (consolePanel) consolePanel.style.display = "none";
+        if (desktop) desktop.style.display = "block";
+        document.querySelectorAll(".jarvisWindow").forEach(node => {
+            node.style.display = node.id === spec.window ? "block" : "none";
+            node.classList.toggle("standalone-active-window", node.id === spec.window);
+        });
+        if (spec.journal) document.body.classList.add("jarvis-journal-focus");
+    }
+
+    const handoff = String(params.get("command") || "").trim().slice(0, 1000);
+    if (handoff && spec.kind === "chat") {
+        params.delete("command");
+        window.history.replaceState(null, "", `${window.location.pathname}?${params}`);
+        window.requestAnimationFrame(() => executeCommand(handoff, {
+            input_mode: "typed",
+            source: "quant_handoff"
+        }));
     }
 })();

@@ -99,6 +99,8 @@ class PaperPosition:
     quantity_step: float
     tick_size: float | None
     cost_model_status: str
+    portfolio_bucket: str
+    bucket_allocation_fraction: float
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -403,6 +405,8 @@ class PaperTradingDesk:
             strategy_exposure: dict[str, float] = {}
             direction_exposure: dict[str, float] = {}
             correlation_cluster_exposure: dict[str, float] = {}
+            bucket_exposure: dict[str, float] = {}
+            bucket_risk_at_stops: dict[str, float] = {}
 
             for row in rows:
                 row_metadata = self._metadata(row)
@@ -438,6 +442,17 @@ class PaperTradingDesk:
                 cluster = self.correlation_clusters.get(symbol.strip().upper())
                 if cluster:
                     self._add_exposure(correlation_cluster_exposure, cluster, notional)
+                portfolio_bucket = str(
+                    row_metadata.get("portfolio_bucket") or "GENERAL"
+                ).strip().upper() or "GENERAL"
+                bucket_allocation_fraction = max(
+                    0.0,
+                    min(_f(row_metadata.get("bucket_allocation_fraction"), 1.0), 1.0),
+                )
+                self._add_exposure(bucket_exposure, portfolio_bucket, notional)
+                self._add_exposure(
+                    bucket_risk_at_stops, portfolio_bucket, position_risk
+                )
                 positions.append(
                     PaperPosition(
                         id=int(row["id"]),
@@ -476,6 +491,8 @@ class PaperTradingDesk:
                         quantity_step=accounting["quantity_step"],
                         tick_size=accounting["tick_size"],
                         cost_model_status=accounting["cost_model_status"],
+                        portfolio_bucket=portfolio_bucket,
+                        bucket_allocation_fraction=bucket_allocation_fraction,
                     )
                 )
 
@@ -523,6 +540,8 @@ class PaperTradingDesk:
                 "strategy_exposure": strategy_exposure,
                 "direction_exposure": direction_exposure,
                 "correlation_cluster_exposure": correlation_cluster_exposure,
+                "bucket_exposure": bucket_exposure,
+                "bucket_risk_at_stops": bucket_risk_at_stops,
                 "correlation_clusters_status": "CONFIGURED" if self.correlation_clusters else "UNCONFIGURED",
                 "risk_limits": {
                     "max_single_risk_fraction": self.max_single_risk_fraction,
@@ -563,12 +582,19 @@ class PaperTradingDesk:
         valuation_multiplier: float = 1.0,
         instrument_spec: dict[str, Any] | None = None,
         execution_cost_config: dict[str, Any] | None = None,
+        portfolio_bucket: str = "GENERAL",
+        bucket_allocation_fraction: float = 1.0,
     ) -> dict[str, Any]:
         symbol = str(symbol or "").strip().upper()
         resolved_side = _side(side)
         entry_value = _f(entry)
         stop_value = _f(stop) if stop is not None else None
         target_value = _f(target) if target is not None else None
+        normalized_bucket = str(portfolio_bucket or "GENERAL").strip().upper() or "GENERAL"
+        bounded_bucket_fraction = max(
+            0.01,
+            min(_f(bucket_allocation_fraction, 1.0), 1.0),
+        )
         if not symbol or entry_value <= 0:
             return {"success": False, "reason": "INVALID_ENTRY", "paper_only": True, "live_execution": False}
 
@@ -681,11 +707,41 @@ class PaperTradingDesk:
             total_risk_after = _f(snapshot["risk_at_stops"]) + trade_risk
             if equity > 0 and total_risk_after > equity * self.max_total_risk_fraction:
                 return {"success": False, "reason": "PORTFOLIO_RISK_LIMIT", "paper_only": True, "live_execution": False}
+            bucket_risk = snapshot.get("bucket_risk_at_stops")
+            bucket_risk = bucket_risk if isinstance(bucket_risk, dict) else {}
+            bucket_risk_after = _f(bucket_risk.get(normalized_bucket)) + trade_risk
+            bucket_risk_limit = (
+                equity * self.max_total_risk_fraction * bounded_bucket_fraction
+            )
+            if equity > 0 and bucket_risk_after > bucket_risk_limit + 1e-9:
+                return {
+                    "success": False,
+                    "reason": "BUCKET_RISK_LIMIT",
+                    "portfolio_bucket": normalized_bucket,
+                    "bucket_risk_limit": bucket_risk_limit,
+                    "paper_only": True,
+                    "live_execution": False,
+                }
 
             new_notional = abs(entry_value * quantity_value) * position_multiplier
             notional_after = _f(snapshot["gross_exposure"]) + new_notional
             if equity > 0 and notional_after > equity * self.max_gross_exposure_multiple:
                 return {"success": False, "reason": "GROSS_EXPOSURE_LIMIT", "paper_only": True, "live_execution": False}
+            bucket_exposures = snapshot.get("bucket_exposure")
+            bucket_exposures = bucket_exposures if isinstance(bucket_exposures, dict) else {}
+            bucket_notional_after = _f(bucket_exposures.get(normalized_bucket)) + new_notional
+            bucket_notional_limit = (
+                equity * self.max_gross_exposure_multiple * bounded_bucket_fraction
+            )
+            if equity > 0 and bucket_notional_after > bucket_notional_limit + 1e-9:
+                return {
+                    "success": False,
+                    "reason": "BUCKET_EXPOSURE_LIMIT",
+                    "portfolio_bucket": normalized_bucket,
+                    "bucket_exposure_limit": bucket_notional_limit,
+                    "paper_only": True,
+                    "live_execution": False,
+                }
 
             def exposure_after(group: str, key: str) -> float:
                 exposures = snapshot.get(group) if isinstance(snapshot.get(group), dict) else {}
@@ -753,6 +809,8 @@ class PaperTradingDesk:
                     json.dumps(
                         {
                             **(metadata or {}),
+                            "portfolio_bucket": normalized_bucket,
+                            "bucket_allocation_fraction": bounded_bucket_fraction,
                             "valuation_multiplier": bounded_valuation_multiplier,
                             "instrument_spec": spec.to_dict() if spec is not None else None,
                             "position_multiplier": position_multiplier,
@@ -1757,18 +1815,32 @@ def paper_command_payload(text: str) -> dict[str, Any] | None:
         return None
 
     if kind in {"AUTO_START", "AUTO_STOP", "AUTO_STATUS"}:
-        from workstation.paper_autonomy_engine import paper_autonomy
-
         if kind == "AUTO_START":
-            auto = paper_autonomy.start()
-            speech = "Autonomous paper trading started across the governed multi-asset universe. Live broker execution remains locked."
+            from workstation.morning_trading_coordinator import start_morning_paper_workflow
+
+            workflow = start_morning_paper_workflow()
+            auto = dict(workflow.get("autonomy") or {})
+            controller = dict(workflow.get("paper_portfolio_controller") or {})
+            speech = str(
+                workflow.get("speech")
+                or "All-day paper trading started across the governed multi-asset universe."
+            )
         elif kind == "AUTO_STOP":
-            auto = paper_autonomy.stop()
-            speech = "Autonomous paper trading stopped. Existing paper positions remain in the portfolio and continue to be visible."
-        else:
-            auto = paper_autonomy.status()
+            from workstation.paper_portfolio_controller import paper_portfolio_controller
+
+            controller = paper_portfolio_controller.stop()
+            auto = dict(controller.get("mandates", {}).get("INTRADAY") or {})
             speech = (
-                f"Autonomous paper trading is {'RUNNING' if auto.get('running') else 'STOPPED'}. "
+                "All-day paper trading stopped across intraday, swing and investment mandates. "
+                "Existing paper positions remain visible."
+            )
+        else:
+            from workstation.paper_portfolio_controller import paper_portfolio_controller
+
+            controller = paper_portfolio_controller.status()
+            auto = dict(controller.get("mandates", {}).get("INTRADAY") or {})
+            speech = (
+                f"All-day paper trading is {'RUNNING' if controller.get('running') else 'STOPPED'}. "
                 f"Scans={auto.get('scan_cycles', 0)}, opens={auto.get('positions_opened', 0)}, closes={auto.get('positions_closed', 0)}."
             )
         portfolio = portfolio_payload()
@@ -1776,6 +1848,7 @@ def paper_command_payload(text: str) -> dict[str, Any] | None:
             "action": kind.lower(),
             "speech": speech,
             "autonomy": auto,
+            "paper_portfolio_controller": controller,
             "portfolio": portfolio,
             "paper_only": True,
             "live_execution": False,

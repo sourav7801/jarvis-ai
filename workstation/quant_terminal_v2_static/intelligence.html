@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>JARVIS Quant Intelligence Module</title>
+  <link rel="stylesheet" href="/intelligence.css">
+</head>
+<body>
+  <header class="module-topbar">
+    <div class="brand"><span class="logo">J</span><div><b>JARVIS QUANT INTELLIGENCE</b><small>VERIFIED DATA · PAPER / RESEARCH ONLY</small></div></div>
+    <div class="safety"><span>● PAPER MODE</span><strong>● LIVE EXECUTION LOCKED</strong></div>
+  </header>
+  <main>
+    <aside class="module-nav" aria-label="Intelligence modules">
+      <div class="eyebrow">INTELLIGENCE MODULES</div>
+      <button data-module="option-chain">OPTION CHAIN</button>
+      <button data-module="oi-iv">OI / IV</button>
+      <button data-module="fvg">FAIR VALUE GAPS</button>
+      <button data-module="structure">MARKET STRUCTURE</button>
+      <button data-module="heatmaps">MARKET HEATMAPS</button>
+      <button data-module="portfolio-risk">PORTFOLIO RISK</button>
+      <button data-module="trade-journal">TRADE JOURNAL</button>
+      <a href="/" class="back">← QUANT TERMINAL</a>
+    </aside>
+    <section class="module-workspace">
+      <header class="workspace-head">
+        <div><div class="eyebrow" id="moduleKicker">READ-ONLY INTELLIGENCE</div><h1 id="moduleTitle">LOADING</h1><p id="moduleMessage">Loading verified evidence…</p></div>
+        <div class="controls">
+          <select id="symbolSelect">
+            <option value="NIFTY">NIFTY 50</option><option value="BANKNIFTY">BANK NIFTY</option><option value="SENSEX">SENSEX</option>
+            <option value="CRUDEOIL">CRUDE OIL</option><option value="GOLD">GOLD</option><option value="SILVER">SILVER</option><option value="NATURALGAS">NAT GAS</option>
+            <option value="BTC">BITCOIN</option><option value="ETH">ETHEREUM</option><option value="SOL">SOLANA</option>
+          </select>
+          <select id="universeSelect">
+            <option value="NIFTY50">NIFTY 50</option><option value="BANKNIFTY">BANK NIFTY</option><option value="SENSEX30">SENSEX 30</option>
+            <option value="INDIA_INDICES">INDIA INDICES</option><option value="MCX_MAJOR">COMMODITIES</option><option value="CRYPTO_MAJOR">CRYPTO</option><option value="GLOBAL_MAJOR">GLOBAL</option>
+          </select>
+          <select id="expirySelect" hidden>
+            <option value="">NEAREST EXPIRY</option>
+          </select>
+          <button id="refreshButton">REFRESH VERIFIED DATA</button>
+        </div>
+      </header>
+      <div class="truth-strip"><span id="sourceState">SOURCE: CHECKING</span><span id="generatedState">—</span><strong>NO BROKER ORDER API</strong></div>
+      <section id="moduleContent" class="module-content"><div class="loading">JARVIS is composing the selected module from existing verified engines…</div></section>
+    </section>
+  </main>
+  <script src="/intelligence.js"></script>
+</body>
+</html>

@@ -4,6 +4,8 @@ from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta, timezone
 import json
 import math
+import threading
+import time
 import urllib.parse
 import urllib.request
 from typing import Any
@@ -18,6 +20,11 @@ UNDERLYINGS = {
     "NIFTY": "NSE:NIFTY50-INDEX",
     "BANKNIFTY": "NSE:NIFTYBANK-INDEX",
 }
+
+MCX_UNDERLYINGS = {"CRUDEOIL", "GOLD", "SILVER", "NATURALGAS"}
+_CHAIN_CACHE_TTL_SECONDS = 15.0
+_CHAIN_CACHE: dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
+_CHAIN_CACHE_LOCK = threading.RLock()
 
 
 @dataclass(frozen=True)
@@ -174,6 +181,120 @@ def fetch_option_chain(
             "greeks": "1" if greeks else None,
         },
     )
+
+
+def option_chain_snapshot(
+    underlying: str,
+    *,
+    expiry: str | None = None,
+) -> dict[str, Any]:
+    """Return a verified FYERS chain for an index or active MCX future."""
+
+    canonical = str(underlying or "").strip().upper().replace(" ", "")
+    provider_symbol = UNDERLYINGS.get(canonical)
+    if canonical in MCX_UNDERLYINGS:
+        from workstation.paper_market_data import PAPER_MARKET_DATA
+
+        contract = PAPER_MARKET_DATA.provider_symbol(canonical)
+        if not isinstance(contract, dict) or not contract.get("provider_symbol"):
+            raise RuntimeError(f"No active FYERS {canonical} futures contract could be resolved.")
+        provider_symbol = str(contract["provider_symbol"])
+    if not provider_symbol:
+        raise ValueError(f"Unsupported FYERS option-chain underlying: {underlying}")
+
+    cache_key = (canonical, str(expiry or "NEAREST"))
+    with _CHAIN_CACHE_LOCK:
+        cached = _CHAIN_CACHE.get(cache_key)
+        if cached and time.monotonic() - cached[0] <= _CHAIN_CACHE_TTL_SECONDS:
+            return {**cached[1], "cache_hit": True}
+
+    # The nearest chain is served by one FYERS request.  A user-selected later
+    # expiry requires the small expiry-discovery request followed by the exact
+    # chain request.  This avoids doubling calls on every ordinary refresh.
+    first = _fyers_json(
+        "/options-chain-v3",
+        {
+            "symbol": provider_symbol,
+            "strikecount": 20 if not expiry else 2,
+            "greeks": "1" if not expiry else None,
+        },
+    )
+    first_data = first.get("data") if isinstance(first, dict) else {}
+    expiries = list(first_data.get("expiryData") or []) if isinstance(first_data, dict) else []
+    request = IndiaOptionRequest(
+        underlying=canonical,
+        strike=None,
+        option_type=None,
+        expiry_date=str(expiry) if expiry else None,
+        expiry_mode="EXACT_DATE" if expiry else "NEAREST",
+        paper_requested=False,
+        buy_requested=False,
+        sell_requested=False,
+    )
+    chosen = _choose_expiry(expiries, request)
+    available_expiries = [value for value in (_expiry_iso(row) for row in expiries) if value]
+    if chosen is None:
+        return {
+            "success": False,
+            "provider": "FYERS_READ_ONLY",
+            "symbol": canonical,
+            "provider_symbol": provider_symbol,
+            "expiry": expiry,
+            "available_expiries": available_expiries,
+            "chain": [],
+            "message": f"No listed {canonical} option expiry matches {expiry or 'the nearest expiry'}.",
+            "paper_only": True,
+            "live_execution": False,
+        }
+
+    full = first if not expiry else _fyers_json(
+        "/options-chain-v3",
+        {
+            "symbol": provider_symbol,
+            "strikecount": 20,
+            "timestamp": str(chosen.get("expiry")),
+            "greeks": "1",
+        },
+    )
+    rows = _chain_rows(full)
+    spot = _spot(rows)
+    from workstation.options_chain_analytics import analyze_chain, normalize_contracts
+
+    expiry_iso = _expiry_iso(chosen)
+    normalized = normalize_contracts(
+        rows,
+        underlying=canonical,
+        provider="FYERS_READ_ONLY",
+        expiry=expiry_iso,
+        provider_symbol=provider_symbol,
+    )
+    analytics = analyze_chain(normalized, spot=spot, verified=True, stale=False)
+    full_data = full.get("data") if isinstance(full, dict) else {}
+    call_oi = _safe_float(full_data.get("callOi")) if isinstance(full_data, dict) else None
+    put_oi = _safe_float(full_data.get("putOi")) if isinstance(full_data, dict) else None
+    result = {
+        "success": bool(normalized),
+        "provider": "FYERS_READ_ONLY",
+        "source": "FYERS_OPTION_CHAIN_V3",
+        "symbol": canonical,
+        "provider_symbol": provider_symbol,
+        "expiry": dict(chosen),
+        "available_expiries": available_expiries,
+        "spot": spot,
+        "call_oi": call_oi,
+        "put_oi": put_oi,
+        "pcr_oi": (put_oi / call_oi) if put_oi is not None and call_oi not in (None, 0) else None,
+        "chain": [item.to_dict() for item in normalized],
+        "chain_analytics": analytics,
+        "message": f"Verified FYERS {canonical} option chain loaded for {expiry_iso or 'nearest expiry'}.",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "paper_only": True,
+        "live_execution": False,
+    }
+    if result["success"]:
+        with _CHAIN_CACHE_LOCK:
+            _CHAIN_CACHE[cache_key] = (time.monotonic(), result)
+    return result
 
 
 def _chain_rows(payload: dict[str, Any]) -> list[dict[str, Any]]:

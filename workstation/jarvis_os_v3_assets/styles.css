@@ -4784,3 +4784,80 @@ body.v6x3-cinematic-active:not([data-v6x-mode="home"]) .v6x-rail {
 .jcc-launcher{position:fixed;right:18px;bottom:18px;z-index:99999;display:inline-flex;align-items:center;gap:9px;min-height:46px;padding:0 14px;border:1px solid rgba(139,222,255,.17);border-radius:15px;background:rgba(5,14,23,.88);color:inherit;backdrop-filter:blur(16px);box-shadow:0 12px 34px rgba(0,0,0,.28);cursor:pointer}
 .jcc-launcher-icon{font-size:19px}.jcc-launcher small,.jcc-launcher strong{display:block;text-align:left}.jcc-launcher small{font-size:7px;letter-spacing:.16em;opacity:.45}.jcc-launcher strong{margin-top:2px;font-size:9px;letter-spacing:.12em}
 @media(max-width:850px){.jcc-overlay{padding:1.5vh 1.5vw}.jcc-shell{width:97vw}.jcc-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.jcc-table{min-width:900px}.jcc-shortcut{margin-left:0}}
+
+body.jarvis-standalone-workspace #topbar,
+body.jarvis-standalone-workspace #dock,
+body.jarvis-standalone-workspace #jarvis-command-center-button,
+body.jarvis-standalone-workspace .v6x2-home,
+body.jarvis-standalone-workspace .v6x2-market,
+body.jarvis-standalone-workspace .v6x-rail,
+body.jarvis-standalone-workspace .v6x-topbar,
+body.jarvis-standalone-workspace .v6x-bottom-dock{display:none!important}
+body.jarvis-standalone-workspace{overflow:hidden;background:radial-gradient(circle at 12% 4%,rgba(74,218,255,.13),transparent 30%),radial-gradient(circle at 90% 18%,rgba(173,104,255,.1),transparent 34%),#02070b}
+#standaloneWorkspaceTitle{position:fixed;z-index:12000;left:14px;right:14px;top:10px;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;border:1px solid rgba(94,213,255,.26);border-radius:13px;background:linear-gradient(100deg,rgba(5,24,35,.97),rgba(17,9,31,.95));box-shadow:0 15px 50px rgba(0,0,0,.35)}
+#standaloneWorkspaceTitle span{font-size:9px;letter-spacing:.2em;color:#7eabba}#standaloneWorkspaceTitle strong{font-size:13px;letter-spacing:.15em;color:#8ee7ff}
+body.jarvis-standalone-workspace #desktop{position:fixed!important;inset:70px 12px 12px!important;border-color:rgba(94,213,255,.18);overflow:hidden!important}
+body.jarvis-standalone-workspace .jarvisWindow.standalone-active-window{left:6px!important;top:6px!important;width:calc(100% - 12px)!important;height:calc(100% - 12px)!important;min-width:0!important;min-height:0!important;resize:none!important;transform:none!important;border-color:rgba(94,213,255,.36)!important}
+body.jarvis-standalone-workspace .standalone-active-window .windowControls{display:none!important}
+body.jarvis-workspace-chat #desktop{display:none!important}
+body.jarvis-workspace-chat #masterConsole{position:fixed!important;display:flex!important;flex-direction:column;inset:70px 12px 12px!important;width:auto!important;height:auto!important;min-height:0!important;margin:0!important;max-height:none!important;padding:14px!important;border-color:rgba(94,213,255,.32)}
+body.jarvis-workspace-chat #conversation{flex:1!important;height:auto!important;padding:12px 16px!important;border-radius:10px;font-size:14px;line-height:1.55}
+body.jarvis-workspace-chat .conversationItem{grid-template-columns:92px 1fr!important;gap:14px!important;padding:11px 4px!important;font-size:14px!important}
+body.jarvis-workspace-chat .conversationItem .speaker{font-size:10px!important;letter-spacing:.1em}
+body.jarvis-workspace-chat #commandRow{min-height:56px;align-items:center;margin-top:12px!important}body.jarvis-workspace-chat #commandInput{height:46px;font-size:14px!important}
+/* The V6 shell moves the console into its command-zone after this route is
+   selected. Keep the dedicated chat workspace independent from the shell's
+   zero-width cinematic home rail and compact 102px command-console rules. */
+body.jarvis-workspace-chat #v6x-root{
+    display:block!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    pointer-events:none;
+}
+body.jarvis-workspace-chat #v6x-root .v6x-main{
+    display:block!important;
+    position:fixed!important;
+    inset:0!important;
+    min-width:0!important;
+    min-height:0!important;
+}
+body.jarvis-workspace-chat #v6x-root .v6x-header,
+body.jarvis-workspace-chat #v6x-root .v6x-stage{
+    display:none!important;
+}
+body.jarvis-workspace-chat #v6x-root .v6x-command-zone{
+    position:fixed!important;
+    inset:70px 12px 12px!important;
+    z-index:12001!important;
+    display:block!important;
+    min-width:0!important;
+    padding:0!important;
+    background:none!important;
+    pointer-events:auto;
+}
+body.jarvis-workspace-chat #v6x-root #masterConsole{
+    position:absolute!important;
+    display:flex!important;
+    flex-direction:column!important;
+    inset:0!important;
+    width:auto!important;
+    height:auto!important;
+    min-width:0!important;
+    min-height:0!important;
+    max-height:none!important;
+    margin:0!important;
+    padding:14px!important;
+    border-color:rgba(94,213,255,.32)!important;
+    border-radius:16px!important;
+}
+body.jarvis-workspace-chat #v6x-root .consoleHeading{display:flex!important}
+body.jarvis-workspace-chat #v6x-root #conversation{
+    flex:1!important;
+    height:auto!important;
+    margin:0!important;
+    padding:12px 16px!important;
+    border:1px solid rgba(94,213,255,.12)!important;
+    mask-image:none!important;
+    overflow:auto!important;
+}
+body.jarvis-journal-focus .paperHero,body.jarvis-journal-focus .paperMetricGrid,body.jarvis-journal-focus .paperControls,body.jarvis-journal-focus .paperOptionBook,body.jarvis-journal-focus .paperTelemetry,body.jarvis-journal-focus .paperSplit>section:first-child{display:none!important}
+body.jarvis-journal-focus .paperSplit{display:block!important;height:calc(100% - 12px)!important}body.jarvis-journal-focus .paperSplit>section:last-child{height:100%!important;max-height:none!important}body.jarvis-journal-focus #paperClosedTrades{max-height:none!important;overflow:auto!important}

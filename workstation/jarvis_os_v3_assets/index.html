@@ -54,8 +54,11 @@ JARVIS OS V3.1
 
     <nav>
 
-        <button data-layout="command">
-            COMMAND
+        <button
+            type="button"
+            onclick="window.open('/?workspace=chat','_blank','noopener')"
+        >
+            CHAT
         </button>
 
         <button
@@ -65,35 +68,39 @@ JARVIS OS V3.1
             TRADING INTELLIGENCE
         </button>
 
-        <button data-open="chart">
+        <button type="button" onclick="window.open('http://127.0.0.1:8787','_blank','noopener')">
             CHART TERMINAL
         </button>
 
-        <button data-open="quant">
+        <button type="button" onclick="window.open('http://127.0.0.1:8787','_blank','noopener')">
             QUANT
         </button>
 
-        <button data-open="research">
+        <button type="button" onclick="window.open('/?workspace=research','_blank','noopener')">
             INTELLIGENCE
         </button>
 
-        <button data-open="missions">
+        <button type="button" onclick="window.open('/?workspace=missions','_blank','noopener')">
             MISSIONS
         </button>
 
-        <button data-open="company">
+        <button type="button" onclick="window.open('/company.html','_blank','noopener')">
             COMPANY OS
         </button>
 
-        <button data-open="paper">
+        <button type="button" onclick="window.open('/?workspace=paper','_blank','noopener')">
             PAPER
+        </button>
+
+        <button type="button" onclick="window.open('/?workspace=journal','_blank','noopener')">
+            JOURNAL
         </button>
 
         <button data-open="apps">
             APPS
         </button>
 
-        <button data-open="system">
+        <button type="button" onclick="window.open('/?workspace=system','_blank','noopener')">
             SYSTEM
         </button>
 
@@ -106,7 +113,7 @@ JARVIS OS V3.1
             class="status green"
             id="voiceState"
         >
-            ● VOICE READY
+            ● VOICE DICTATION · OWNER LOCK CHECKING
         </span>
 
         <span class="status amber">
@@ -128,6 +135,11 @@ JARVIS OS V3.1
     </div>
 
 </header>
+
+<div id="standaloneWorkspaceTitle" hidden>
+    <span>JARVIS WORKSPACE</span>
+    <strong>MASTER CHAT</strong>
+</div>
 
 
 <section id="masterConsole">

@@ -52,15 +52,19 @@ function updateIndicators(slot){
   slot.ema20.applyOptions({visible:indicatorState.ema});slot.ema50.applyOptions({visible:indicatorState.ema});slot.vwap.applyOptions({visible:indicatorState.vwap});slot.bbUpper.applyOptions({visible:indicatorState.bb});slot.bbLower.applyOptions({visible:indicatorState.bb});slot.rsi.applyOptions({visible:indicatorState.rsi});
 }
 function decisionSignal(decision){const side=String(decision?.side||"WAIT").toUpperCase();return side==="LONG"?"BUY":side==="SHORT"?"SELL":"WAIT"}
-function clearSignalLines(slot){for(const line of slot?.signalLines||[]){try{slot.candles.removePriceLine(line)}catch{}}if(slot)slot.signalLines=[]}
+function clearSignalLines(slot){for(const line of slot?.signalLines||[]){try{slot.candles.removePriceLine(line)}catch{}}if(slot?.signalMarker){try{slot.signalMarker.detach()}catch{}slot.signalMarker=null}if(slot)slot.signalLines=[]}
 function applyDecision(slot,decision){
   if(!slot)return;clearSignalLines(slot);slot.decision=decision||null;const signal=decisionSignal(decision);const cls=signal.toLowerCase();slot.signalBadge.textContent=`${signal} · ${Number(decision?.score||0).toFixed(1)}`;slot.signalBadge.className=`chart-signal ${cls}`;
+  const pattern=decision?.pattern_confirmation||{};const patternState=String(pattern.state||"NO CONFIRMED PATTERN").replaceAll("_"," ");if(slot.patternState){slot.patternState.textContent=`${patternState} · ${decision?.qualified?"PAPER SETUP QUALIFIED":"MONITORING"}`;slot.patternState.className=`chart-pattern-state ${cls}`}
   if(slot.index===selectedSlot){
     $("liveSignal").textContent=signal;$("liveSignal").className=`signal-badge ${cls}`;$("signalScore").textContent=`${Number(decision?.score||0).toFixed(1)} SCORE`;$("signalRegime").textContent=String(decision?.regime||"NO VERIFIED DECISION").replaceAll("_"," ");
     const votes=Array.isArray(decision?.votes)?decision.votes:[];const blockers=Array.isArray(decision?.blockers)?decision.blockers:[];const evidence=votes.slice(0,4).map(vote=>`${vote.timeframe?`${vote.timeframe} `:""}${String(vote.strategy||"strategy").replaceAll("_"," ")} ${vote.side||"WAIT"}`).join(" · ");$("signalReason").textContent=decision?.message||(blockers.length?blockers.join(" · ").replaceAll("_"," "):(evidence||"Unified 5m / 15m / 1h consensus remains in WAIT."));
   }
   if(!decision?.success||decision.entry==null)return;
   const levels=[[decision.entry,"ENTRY","#5cdbff",1],[decision.stop,"STOP","#ff6f83",2],[decision.target,"TARGET","#78f2aa",2]];for(const [price,title,color,width] of levels){if(Number.isFinite(Number(price)))slot.signalLines.push(slot.candles.createPriceLine({price:Number(price),color,lineWidth:width,lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title}))}
+  if(slot.data?.length&&typeof LightweightCharts.createSeriesMarkers==="function"&&["BUY","SELL"].includes(signal)){
+    const last=slot.data[slot.data.length-1];slot.signalMarker=LightweightCharts.createSeriesMarkers(slot.candles,[{time:last.time,position:signal==="BUY"?"belowBar":"aboveBar",shape:signal==="BUY"?"arrowUp":"arrowDown",color:signal==="BUY"?"#78f2aa":"#ff6f83",text:`${signal} · ${patternState}`}]);
+  }
 }
 async function loadDecision(symbol=selectedSymbol){
   try{const decision=await fetchJson(`/api/scan?${new URLSearchParams({symbol,profile:analysisProfile})}`,{},40000);const slot=chartSlots[selectedSlot];if(slot&&slot.symbol===symbol)applyDecision(slot,decision);return decision}catch(error){const decision={success:false,side:"WAIT",score:0,message:error.message};applyDecision(chartSlots[selectedSlot],decision);return decision}
@@ -113,6 +117,15 @@ function chartOptions(){return {
   handleScale:{axisPressedMouseMove:true,mouseWheel:true,pinch:true}
 }}
 
+function centerChart(slot){
+  if(!slot?.chart)return;
+  const scale=slot.chart.timeScale();
+  scale.fitContent();
+  // Keep enough forward space for live candles, entry/SL/target labels and
+  // active pattern annotations instead of pinning the latest candle to edge.
+  window.requestAnimationFrame(()=>scale.scrollToPosition(12,false));
+}
+
 function destroySlot(slot){
   if(!slot)return;
   if(slot.cryptoSocket){try{slot.cryptoSocket.close()}catch{}slot.cryptoSocket=null}
@@ -135,10 +148,11 @@ function mountCharts(){
     head.innerHTML=`<strong>${marketMeta(symbol).label}</strong><span>${timeframe} · LOADING</span>`;
     const chartHost=document.createElement("div");chartHost.className="chart-host";
     const signalBadge=document.createElement("div");signalBadge.className="chart-signal wait";signalBadge.textContent="WAIT · 0.0";
+    const patternState=document.createElement("div");patternState.className="chart-pattern-state wait";patternState.textContent="PATTERN ENGINE · WAITING";
     const status=document.createElement("div");status.className="chart-status";status.textContent="Loading verified candles…";
-    cell.append(head,chartHost,signalBadge,status);host.appendChild(cell);
+    cell.append(head,chartHost,signalBadge,patternState,status);host.appendChild(cell);
     cell.addEventListener("click",()=>{selectedSlot=index;selectedSymbol=chartSlots[index].symbol;$("scanSymbol").textContent=marketMeta(selectedSymbol).label;document.querySelectorAll(".chart-cell").forEach((node,i)=>node.classList.toggle("selected",i===selectedSlot));buildWatch();if(chartSlots[index].decision)applyDecision(chartSlots[index],chartSlots[index].decision);scanSelected()});
-    chartSlots.push({index,symbol,cell,head,chartHost,signalBadge,status,chart:null,candles:null,volume:null,ema20:null,ema50:null,vwap:null,bbUpper:null,bbLower:null,rsi:null,signalLines:[],decision:null,data:[],cryptoSocket:null,cryptoTimer:null,pendingCrypto:null});
+    chartSlots.push({index,symbol,cell,head,chartHost,signalBadge,patternState,status,chart:null,candles:null,volume:null,ema20:null,ema50:null,vwap:null,bbUpper:null,bbLower:null,rsi:null,signalLines:[],signalMarker:null,decision:null,data:[],cryptoSocket:null,cryptoTimer:null,pendingCrypto:null});
     loads.push(loadSlot(index));
   }
   return Promise.allSettled(loads);
@@ -164,7 +178,7 @@ function createSeries(slot,payload){
   slot.candles.setData(slot.data.map(({time,open,high,low,close})=>({time,open,high,low,close})));
   slot.volume.setData(slot.data.map(row=>({time:row.time,value:row.volume,color:row.close>=row.open?"rgba(97,230,154,.28)":"rgba(255,102,125,.28)"})));
   updateIndicators(slot);
-  slot.chart.timeScale().fitContent();
+  centerChart(slot);
 }
 
 async function loadSlot(index){
@@ -265,10 +279,21 @@ async function sendCommand(){
   const input=$("commandInput");const text=input.value.trim();if(!text)return;$("commandReply").textContent="JARVIS is routing the trading command…";
   try{
     const result=await fetchJson("/api/agent",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})},45000);$("commandReply").textContent=result.speech||result.message||"Command processed.";
-    if(result.chart){await openSignalChart(result.chart,result.decision)}
+    if(result.action==="open_master_chat"){
+      const handoff=String(result.text||text).slice(0,1000);
+      window.open(`http://127.0.0.1:8797/?workspace=chat&command=${encodeURIComponent(handoff)}`,"_blank","noopener");
+    }
+    else if(result.chart){await openSignalChart(result.chart,result.decision)}
     else if(result.action==="set_layout"&&Number(result.layout)){layout=[1,2,4,6,8].includes(Number(result.layout))?Number(result.layout):layout;selectedSlot=0;syncControls();await mountCharts()}
     else if(result.action==="open_quant"&&result.symbol){await openSignalChart({symbol:result.symbol,timeframe,layout:1},result.decision)}
   }catch(error){$("commandReply").textContent=error.message}
+}
+
+function openIntelligenceModule(moduleName){
+  const params=new URLSearchParams({module:String(moduleName||""),symbol:selectedSymbol,profile:"intraday"});
+  const defaultUniverse={NIFTY:"NIFTY50",BANKNIFTY:"BANKNIFTY",SENSEX:"SENSEX30",BTC:"CRYPTO_MAJOR",ETH:"CRYPTO_MAJOR",SOL:"CRYPTO_MAJOR",CRUDEOIL:"MCX_MAJOR",GOLD:"MCX_MAJOR",SILVER:"MCX_MAJOR",NATURALGAS:"MCX_MAJOR"}[selectedSymbol];
+  if(defaultUniverse)params.set("universe",defaultUniverse);
+  window.open(`/intelligence.html?${params.toString()}`,"_blank","noopener");
 }
 
 function syncControls(){document.querySelectorAll("[data-layout]").forEach(button=>button.classList.toggle("active",Number(button.dataset.layout)===layout));document.querySelectorAll("[data-timeframe]").forEach(button=>button.classList.toggle("active",button.dataset.timeframe===timeframe));document.querySelectorAll("[data-indicator]").forEach(button=>button.classList.toggle("active",Boolean(indicatorState[button.dataset.indicator])))}
@@ -277,10 +302,11 @@ function bindControls(){
   document.querySelectorAll("[data-layout]").forEach(button=>button.addEventListener("click",()=>{layout=Number(button.dataset.layout);selectedSlot=0;syncControls();mountCharts()}));
   document.querySelectorAll("[data-timeframe]").forEach(button=>button.addEventListener("click",async()=>{timeframe=button.dataset.timeframe;analysisProfile=timeframe==="1d"?"swing":"intraday";syncControls();await Promise.allSettled(chartSlots.map((_,i)=>loadSlot(i)));scanSelected()}));
   document.querySelectorAll("[data-indicator]").forEach(button=>button.addEventListener("click",()=>{const key=button.dataset.indicator;indicatorState[key]=!indicatorState[key];syncControls();chartSlots.forEach(updateIndicators)}));
-  $("fitButton").addEventListener("click",()=>chartSlots.forEach(slot=>slot.chart?.timeScale().fitContent()));
+  $("fitButton").addEventListener("click",()=>chartSlots.forEach(centerChart));
   $("reloadCharts").addEventListener("click",()=>chartSlots.forEach((_,i)=>loadSlot(i)));
   $("scanButton").addEventListener("click",scanSelected);
   $("sendCommand").addEventListener("click",sendCommand);$("commandInput").addEventListener("keydown",event=>{if(event.key==="Enter")sendCommand()});
+  document.querySelectorAll("[data-module]").forEach(button=>button.addEventListener("click",()=>openIntelligenceModule(button.dataset.module)));
   $("loginButton").addEventListener("click",async()=>{try{const payload=await fetchJson("/api/fyers/login",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"},15000);$("providerMessage").textContent=payload.message||"FYERS login launched."}catch(error){$("providerMessage").textContent=error.message}});
   $("restartButton").addEventListener("click",async()=>{try{await fetchJson("/api/market/restart",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"},15000);setTimeout(refreshProvider,700);chartSlots.forEach((_,i)=>loadSlot(i))}catch(error){$("providerMessage").textContent=error.message}});
   $("providerButton").addEventListener("click",()=>$("providerState").scrollIntoView({behavior:"smooth",block:"center"}));

@@ -33,6 +33,7 @@ from omni.jarvis_workspace_orchestrator import (
 )
 from omni.loopback_http import exclusive_server
 from omni.service_health_contract import ServiceHealthClock
+from omni.voice_owner_gate import VOICE_OWNER_GATE
 
 from workstation.jarvis_v3_chart_provider import (
     get_chart,
@@ -1253,6 +1254,9 @@ def status():
 
         "components":
             {},
+
+        "voice_owner":
+            VOICE_OWNER_GATE.status(),
     }
 
 
@@ -1853,11 +1857,15 @@ class Handler(
         )
 
 
-        if parsed.path == "/":
+        if parsed.path in {"/", "/company.html"}:
 
             source = (
                 ASSETS
-                / "index.html"
+                / (
+                    "company.html"
+                    if parsed.path == "/company.html"
+                    else "index.html"
+                )
             ).read_text(
                 encoding="utf-8"
             )
@@ -1913,6 +1921,22 @@ class Handler(
             )
 
 
+        if parsed.path == "/company.css":
+
+            return self.send_asset(
+                ASSETS / "company.css",
+                "text/css; charset=utf-8",
+            )
+
+
+        if parsed.path == "/company.js":
+
+            return self.send_asset(
+                ASSETS / "company.js",
+                "application/javascript; charset=utf-8",
+            )
+
+
         if not self.authorized():
 
             return self.send_json(
@@ -1930,6 +1954,11 @@ class Handler(
             if parsed.path == "/api/command-center":
                 return self.send_json(
                     command_center_snapshot()
+                )
+
+            if parsed.path == "/api/voice/owner-status":
+                return self.send_json(
+                    VOICE_OWNER_GATE.status()
                 )
 
             if parsed.path == "/api/status":
@@ -2180,6 +2209,26 @@ class Handler(
                         "workspace_actions": [],
                     }
                 )
+
+            if input_mode == "voice":
+                voice_authorization = VOICE_OWNER_GATE.authorize_voice_command(
+                    data.get("voice_verification")
+                )
+                if not voice_authorization["allowed"]:
+                    return self.send_json(
+                        {
+                            "success": True,
+                            "route": "VOICE_OWNER_REQUIRED",
+                            "response": (
+                                "Voice owner lock is enabled, but no trusted local "
+                                "speaker verification is available for this utterance. "
+                                "I did not execute the command. Type it instead, or "
+                                "complete local owner-voice enrollment."
+                            ),
+                            "voice_owner": VOICE_OWNER_GATE.status(),
+                            "workspace_actions": [],
+                        }
+                    )
 
 
             actions = (

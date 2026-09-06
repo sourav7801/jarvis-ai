@@ -1,5 +1,6 @@
 import unittest
 from dataclasses import dataclass
+from pathlib import Path
 from unittest.mock import patch
 
 import main
@@ -292,6 +293,15 @@ class MemoryCommandTests(
                 main.jarvis_memory_command_answer
             )
         )
+
+    def test_main_entrypoint_runs_after_runtime_helpers_are_defined(self):
+        source = Path(main.__file__).read_text(encoding="utf-8")
+        entrypoint = source.rfind('if __name__ == "__main__":')
+        salient_helper = source.index("def jarvis_capture_salient_input(")
+        memory_helper = source.index("def jarvis_memory_command_answer(")
+
+        self.assertGreater(entrypoint, salient_helper)
+        self.assertGreater(entrypoint, memory_helper)
 
 
     def test_workstation_helper_exists(self):

@@ -16,6 +16,7 @@ class TradingTimeframeProfile:
     scan_interval_seconds: float
     risk_multiplier: float
     description: str
+    require_pattern_or_strategy_confirmation: bool = False
 
     @property
     def single_timeframe(self) -> bool:
@@ -26,6 +27,21 @@ class TradingTimeframeProfile:
 
 
 PROFILES: dict[str, TradingTimeframeProfile] = {
+    "adaptive_intraday": TradingTimeframeProfile(
+        name="adaptive_intraday",
+        timeframes=("5m", "15m"),
+        minimum_score=67.0,
+        minimum_alignment=100,
+        minimum_risk_reward=1.8,
+        require_confirmed_pattern=False,
+        scan_interval_seconds=5.0,
+        risk_multiplier=0.25,
+        description=(
+            "Reduced-risk 5m/15m paper entries with full directional agreement "
+            "and a confirmed chart pattern or regime-compatible strategy vote."
+        ),
+        require_pattern_or_strategy_confirmation=True,
+    ),
     "intraday": TradingTimeframeProfile(
         name="intraday",
         timeframes=("5m", "15m", "1h"),
@@ -61,6 +77,20 @@ PROFILES: dict[str, TradingTimeframeProfile] = {
         scan_interval_seconds=60.0,
         risk_multiplier=1.0,
         description="Governed 1h/4h/1d swing consensus.",
+    ),
+    "investment": TradingTimeframeProfile(
+        name="investment",
+        timeframes=("1d",),
+        minimum_score=75.0,
+        minimum_alignment=100,
+        minimum_risk_reward=2.5,
+        require_confirmed_pattern=False,
+        scan_interval_seconds=900.0,
+        risk_multiplier=0.50,
+        description=(
+            "Long-only daily paper-investment mandate with a higher evidence gate "
+            "and half-sized risk."
+        ),
     ),
     "1m_only": TradingTimeframeProfile(
         name="1m_only",
@@ -99,6 +129,10 @@ PROFILES: dict[str, TradingTimeframeProfile] = {
 
 
 ALIASES = {
+    "adaptive": "adaptive_intraday",
+    "adaptiveintraday": "adaptive_intraday",
+    "flexible": "adaptive_intraday",
+    "flexibleintraday": "adaptive_intraday",
     "default": "intraday",
     "mtf": "intraday",
     "multi": "intraday",
@@ -110,6 +144,10 @@ ALIASES = {
     "daily": "swing",
     "position": "swing",
     "positional": "swing",
+    "invest": "investment",
+    "investment": "investment",
+    "longterm": "investment",
+    "longterminvestment": "investment",
     "scalp": "1m_only",
     "scalping": "1m_only",
     "1m": "1m_only",
@@ -150,6 +188,8 @@ def requested_trading_profile(text: str, *, default: str = "intraday") -> Tradin
         value,
     ):
         return PROFILES["paper_exploration"]
+    if re.search(r"\b(?:adaptive|flexible)\s+(?:intraday|paper|trading)\b", value):
+        return PROFILES["adaptive_intraday"]
     if re.search(r"\b(?:scalp|scalping)\b", value):
         return PROFILES["1m_only"]
     if re.search(r"\b(?:swing|positional|daily\s+strategy)\b", value):

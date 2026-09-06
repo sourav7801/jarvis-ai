@@ -103,6 +103,11 @@ class MultiMarketScanner:
         self._results: list[dict[str, Any]] = []
         self._errors: list[dict[str, Any]] = []
         self._sources: dict[str, dict[str, Any]] = {}
+        self._monitoring = False
+        self._monitor_thread: threading.Thread | None = None
+        self._monitor_stop = threading.Event()
+        self._monitor_interval_seconds = 300.0
+        self._monitor_cycles = 0
 
     def status(self) -> dict[str, Any]:
         with self._lock:
@@ -137,6 +142,9 @@ class MultiMarketScanner:
                 "results": list(self._results[:160]),
                 "errors": list(self._errors[:30]),
                 "auto_enroll": self._auto_enroll,
+                "monitoring": self._monitoring and not self._monitor_stop.is_set(),
+                "monitor_interval_seconds": self._monitor_interval_seconds,
+                "monitor_cycles": self._monitor_cycles,
                 "paper_only": True,
                 "live_execution": False,
             }
@@ -168,6 +176,8 @@ class MultiMarketScanner:
         force: bool = False,
         auto_enroll: bool = False,
         profile: str = "intraday",
+        continuous: bool = False,
+        interval_seconds: float = 300.0,
     ) -> dict[str, Any]:
         normalized = tuple(
             dict.fromkeys(
@@ -176,6 +186,23 @@ class MultiMarketScanner:
                 if str(item).strip()
             )
         ) or DEFAULT_MORNING_UNIVERSES
+        if continuous:
+            with self._lock:
+                self._selected = normalized
+                self._profile = str(profile or "intraday")
+                self._auto_enroll = self._auto_enroll or bool(auto_enroll)
+                self._monitor_interval_seconds = max(60.0, float(interval_seconds))
+                if self._monitor_thread and self._monitor_thread.is_alive():
+                    return self.status()
+                self._monitor_stop.clear()
+                self._monitoring = True
+                self._monitor_thread = threading.Thread(
+                    target=self._monitor_loop,
+                    name="JarvisMultiMarketDiscoveryMonitor",
+                    daemon=True,
+                )
+                self._monitor_thread.start()
+            return self.status()
         with self._lock:
             if self._running:
                 self._auto_enroll = self._auto_enroll or bool(auto_enroll)
@@ -207,6 +234,40 @@ class MultiMarketScanner:
             )
             self._thread.start()
         return self.status()
+
+    def stop_monitoring(self) -> dict[str, Any]:
+        self._monitor_stop.set()
+        thread = self._monitor_thread
+        if thread and thread is not threading.current_thread() and thread.is_alive():
+            thread.join(timeout=3.0)
+        with self._lock:
+            self._monitoring = bool(thread and thread.is_alive())
+        return self.status()
+
+    def _monitor_loop(self) -> None:
+        try:
+            while not self._monitor_stop.is_set():
+                with self._lock:
+                    selected = self._selected
+                    profile = self._profile
+                    auto_enroll = self._auto_enroll
+                    interval = self._monitor_interval_seconds
+                self.start(
+                    universes=selected,
+                    force=True,
+                    auto_enroll=auto_enroll,
+                    profile=profile,
+                )
+                while not self._monitor_stop.wait(0.5):
+                    with self._lock:
+                        if not self._running:
+                            self._monitor_cycles += 1
+                            break
+                if self._monitor_stop.wait(interval):
+                    break
+        finally:
+            with self._lock:
+                self._monitoring = False
 
     @staticmethod
     def _scan_one(instrument: ScannerInstrument) -> dict[str, Any]:
@@ -262,6 +323,13 @@ class MultiMarketScanner:
             "CONFIRMED_BREAKOUT", "UNCONFIRMED_BREAKOUT", "BREAKOUT_WATCH",
             "CONFIRMED_BREAKDOWN", "UNCONFIRMED_BREAKDOWN", "BREAKDOWN_WATCH",
         } and score >= 55.0
+        previous_close = float(candles[-2]["close"]) if len(candles) > 1 else None
+        close = float(candles[-1]["close"])
+        percent_change = (
+            ((close - previous_close) / previous_close) * 100.0
+            if previous_close not in (None, 0.0)
+            else None
+        )
         return {
             **base,
             "success": True,
@@ -270,7 +338,9 @@ class MultiMarketScanner:
             "direction": pattern_direction,
             "signal": "BUY" if pattern_direction == "BULLISH" else "SELL" if pattern_direction == "BEARISH" else "WAIT",
             "score": round(max(0.0, min(score, 100.0)), 2),
-            "close": float(candles[-1]["close"]),
+            "close": close,
+            "previous_close": previous_close,
+            "percent_change": round(percent_change, 3) if percent_change is not None else None,
             "breakout_level": pattern.get("breakout_level"),
             "breakdown_level": pattern.get("breakdown_level"),
             "volume_ratio": pattern.get("volume_ratio"),
@@ -364,6 +434,8 @@ class MultiMarketScanner:
 
 
 multi_market_scanner = MultiMarketScanner()
+# Public alias retained for module-level composition and deterministic mocking.
+MULTI_MARKET_SCANNER = multi_market_scanner
 
 
 def multi_market_scan_command_payload(text: str) -> dict[str, Any] | None:

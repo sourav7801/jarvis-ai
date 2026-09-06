@@ -8,6 +8,52 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class SpecialistWindowRenderingTests(unittest.TestCase):
+    def test_master_specialists_have_standalone_browser_workspaces(self):
+        app = (ROOT / "workstation" / "jarvis_os_v3_assets" / "app.js").read_text(
+            encoding="utf-8"
+        )
+        markup = (ROOT / "workstation" / "jarvis_os_v3_assets" / "index.html").read_text(
+            encoding="utf-8"
+        )
+        styles = (ROOT / "workstation" / "jarvis_os_v3_assets" / "styles.css").read_text(
+            encoding="utf-8"
+        )
+
+        for workspace in ("chat", "research", "paper", "journal", "missions", "system"):
+            self.assertIn(f'"{workspace}"', app)
+            self.assertIn(f"workspace={workspace}", markup)
+        self.assertIn('action.window === "company"', app)
+        self.assertIn("/company.html", markup)
+        self.assertIn("jarvis-standalone-workspace", app)
+        self.assertIn("jarvis-standalone-workspace", styles)
+        self.assertIn("standaloneWorkspaceTitle", markup)
+
+    def test_chat_workspace_executes_bounded_quant_handoff_command(self):
+        app = (ROOT / "workstation" / "jarvis_os_v3_assets" / "app.js").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('params.get("command")', app)
+        self.assertIn("executeCommand(handoff", app)
+        self.assertIn('params.delete("command")', app)
+
+        markup = (ROOT / "workstation" / "jarvis_os_v3_assets" / "index.html").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("/?workspace=chat", markup)
+
+    def test_chat_workspace_escapes_cinematic_zero_width_shell(self):
+        styles = (ROOT / "workstation" / "jarvis_os_v3_assets" / "styles.css").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("body.jarvis-workspace-chat #v6x-root", styles)
+        self.assertIn("grid-template-columns:minmax(0,1fr)!important", styles)
+        self.assertIn("body.jarvis-workspace-chat #v6x-root .v6x-command-zone", styles)
+        self.assertIn("inset:70px 12px 12px!important", styles)
+        self.assertIn("body.jarvis-workspace-chat #v6x-root #masterConsole", styles)
+        self.assertIn("height:auto!important", styles)
+        self.assertIn("body.jarvis-workspace-chat #v6x-root #conversation", styles)
+        self.assertIn("mask-image:none!important", styles)
+
     def test_command_endpoint_preserves_safe_specialist_payload(self):
         source = (ROOT / "workstation" / "jarvis_os_v3.py").read_text(encoding="utf-8")
         self.assertIn('"raw":\n                        safe(', source)

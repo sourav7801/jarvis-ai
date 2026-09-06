@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>JARVIS Company OS</title>
+  <link rel="stylesheet" href="/company.css">
+</head>
+<body class="company-terminal">
+  <div class="aurora aurora-a"></div><div class="aurora aurora-b"></div>
+  <header class="terminal-header">
+    <div class="brand"><span class="brand-core">J</span><div><strong>JARVIS COMPANY OPERATING SYSTEM</strong><small>IDEA → EVIDENCE → PROTOTYPE → GOVERNED COMPANY</small></div></div>
+    <nav>
+      <button id="masterChat" type="button">MASTER CHAT</button>
+      <button id="refreshCompany" type="button">REFRESH</button>
+      <button id="companyListen" type="button">LISTEN</button>
+      <span id="companyVoiceState" class="safe">VOICE · CHECKING</span>
+      <span class="safe">EXTERNAL ACTIONS APPROVAL-GATED</span>
+      <span class="locked">LIVE EXECUTION LOCKED</span>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero glass">
+      <div>
+        <span class="kicker">ACTIVE SUPERVISED VENTURE</span>
+        <h1 id="ventureName">NO ACTIVE VENTURE</h1>
+        <p id="ventureIdea">Describe a real problem or startup idea. JARVIS will build local evidence, plans, drafts, prototypes and department work—without silently publishing, spending, filing or contacting anyone.</p>
+      </div>
+      <div class="hero-orbit" aria-hidden="true"><i></i><i></i><b>J</b></div>
+      <div class="metrics">
+        <article><small>DEPARTMENTS</small><strong id="departmentCount">0</strong></article>
+        <article><small>LOCAL ARTIFACTS</small><strong id="artifactCount">0</strong></article>
+        <article><small>RESEARCH TRACKS</small><strong id="trackCount">0</strong></article>
+        <article><small>APPROVAL GATES</small><strong id="approvalCount">0</strong></article>
+      </div>
+    </section>
+
+    <section class="command glass">
+      <label for="companyCommand">START OR DIRECT A COMPANY MISSION</label>
+      <div><input id="companyCommand" autocomplete="off" placeholder="e.g. I have an idea for movable modular homes. Start research and build the supervised company workspace."><button id="executeCompany" type="button">EXECUTE</button></div>
+      <p id="commandResult">Local research, planning, code and drafts may run automatically. Publishing, accounts, payments, contracts, outreach and regulated decisions require explicit approval.</p>
+    </section>
+
+    <section class="status-ribbon glass">
+      <div><small>VENTURE STATE</small><strong id="ventureStatus">CHECKING</strong></div>
+      <div><small>RESEARCH</small><strong id="researchStatus">CHECKING</strong></div>
+      <div><small>DEPARTMENT RUN</small><strong id="departmentStatus">CHECKING</strong></div>
+      <div><small>PUBLISHING</small><strong id="publishingStatus">LOCKED</strong></div>
+    </section>
+
+    <section class="workspace-grid">
+      <article class="panel span-2 glass"><header><span>DEPARTMENT WORKBOARD</span><em>REAL TASK STATE</em></header><div id="departmentBoard" class="board"></div></article>
+      <article class="panel glass"><header><span>RESEARCH PROGRAM</span><em>QUESTIONS, NOT CLAIMS</em></header><div id="researchTracks" class="board"></div></article>
+      <article class="panel glass"><header><span>1 / 4 / 5 YEAR GATES</span><em>DECISION PATH</em></header><div id="roadmapBoard" class="board"></div></article>
+      <article class="panel glass"><header><span>LOCAL ARTIFACTS</span><em>FILES CREATED</em></header><div id="artifactBoard" class="board"></div></article>
+      <article class="panel glass"><header><span>APPROVAL QUEUE</span><em>NOT EXECUTED</em></header><div id="approvalBoard" class="board"></div></article>
+      <article class="panel glass"><header><span>AUTONOMY PULSE</span><em>REAL BACKGROUND RUNS</em></header><div id="activityBoard" class="board"></div></article>
+      <article class="panel span-2 glass"><header><span>EXECUTIVE TRUTH & NEXT ACTIONS</span><em>NO FABRICATED PROGRESS</em></header><div id="executiveBoard" class="board"></div></article>
+    </section>
+  </main>
+
+  <footer><span>JARVIS COMPANY OS · SUPERVISED AUTONOMY</span><span>PAPER / SANDBOX SAFETY BOUNDARY</span></footer>
+  <script>window.JARVIS_TOKEN="__JARVIS_TOKEN__";</script>
+  <script src="/company.js"></script>
+</body>
+</html>

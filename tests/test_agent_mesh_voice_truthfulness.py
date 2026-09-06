@@ -68,6 +68,22 @@ class AgentMeshVoiceTruthfulnessTests(unittest.TestCase):
         self.assertIn("value.agent_health", script)
         self.assertNotIn("of agents.slice(\n            0,\n            24", script)
 
+    def test_frontend_reports_owner_voice_status_without_claiming_identity(self):
+        script = (
+            ROOT / "workstation" / "jarvis_os_v3_assets" / "app.js"
+        ).read_text(encoding="utf-8")
+        markup = (
+            ROOT / "workstation" / "jarvis_os_v3_assets" / "index.html"
+        ).read_text(encoding="utf-8")
+        server = (
+            ROOT / "workstation" / "jarvis_os_v3.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("/api/voice/owner-status", script)
+        self.assertIn("VOICE DICTATION", markup)
+        self.assertIn('parsed.path == "/api/voice/owner-status"', server)
+        self.assertIn("authorize_voice_command", server)
+
 
 if __name__ == "__main__":
     unittest.main()
