@@ -33,7 +33,7 @@ class Workspace:
 
 WORKSPACES = (
     Workspace("master", "Master JARVIS", "CORE",
-              "Conversation, orchestration, voice, tools and multi-agent control.",
+              "V8 executive intent, context, conversation, orchestration, voice, tools and multi-agent control.",
               "open master jarvis", "home", "http://127.0.0.1:8797", 8797, "GOVERNED", "main"),
     Workspace("company", "Company OS", "VENTURE",
               "Venture workspace, research, evidence, departments, decisions and launch planning.",
@@ -72,8 +72,8 @@ WORKSPACES = (
               "show fyers status", url="http://127.0.0.1:8790", port=8790,
               safety="DATA ONLY", module="workstation.fyers_live_bridge_service",
               health_path="/api/health"),
-    Workspace("completion", "Project Completion Center", "CORE",
-              "Repository completion matrix, runtime truth, approvals, missions, code intelligence and research governance.",
+    Workspace("completion", "Unified Intelligence Center", "CORE",
+              "V8 executive planning, repository completion, runtime truth, approvals, missions, code intelligence and research governance.",
               "open project completion center", "system", "http://127.0.0.1:8799", 8799,
               "GOVERNED / READ MOSTLY", "workstation.completion_console", "/api/health"),
 )
@@ -222,8 +222,8 @@ def snapshot() -> dict[str, Any]:
     health_source, health_contract = _call_health_contract(rows)
     return {
         "ok": True,
-        "version": "7.0",
-        "title": "JARVIS Command Center",
+        "version": "8.0",
+        "title": "JARVIS V8 Command Center",
         "workspace_count": len(rows),
         "health_source": health_source,
         "health_contract": health_contract,
@@ -234,6 +234,9 @@ def snapshot() -> dict[str, Any]:
             "paper_scan_ledger": _module_available("workstation.paper_scan_ledger"),
             "project_completion_audit": _module_available("omni.project_completion"),
             "code_intelligence": _module_available("omni.code_intelligence"),
+            "unified_intent_router": _module_available("omni.unified_intent_router"),
+            "context_fabric": _module_available("omni.context_fabric"),
+            "executive_control_plane": _module_available("omni.executive_control_plane"),
         },
         "safety": {
             "protected_core": "REQUIRED",
