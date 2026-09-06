@@ -33,7 +33,7 @@ REM V6.2 preflight refuses to adopt an obsolete Quant listener that merely
 REM claims the old health identity but lacks the restored intelligence/chart routes.
 REM It reclaims only trusted C:\Jarvis-owned listeners and then delegates normal
 REM Master/Quant/Nautilus lifecycle management to the bounded supervisor.
-"%JARVIS_PY%" "C:\Jarvis\scripts\jarvis_runtime_supervisor_v62.py"
+"%JARVIS_PY%" -m scripts.jarvis_runtime_supervisor_v62
 
 if errorlevel 1 (
     echo.
