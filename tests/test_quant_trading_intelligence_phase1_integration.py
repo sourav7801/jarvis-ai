@@ -25,9 +25,14 @@ class QuantTradingIntelligencePhase1IntegrationTests(unittest.TestCase):
             encoding="utf-8",
             errors="ignore",
         )
-        # V6.2+ launches through the hardened wrapper. The canonical supervisor
-        # remains responsible for starting the Quant terminal child process.
-        self.assertIn("scripts.jarvis_runtime_supervisor_v62", launcher)
+        v7_wrapper = (ROOT / "scripts" / "jarvis_runtime_supervisor_v7.py")
+        direct_v62 = "-m scripts.jarvis_runtime_supervisor_v62" in launcher
+        via_v7 = "-m scripts.jarvis_runtime_supervisor_v7" in launcher
+        self.assertTrue(direct_v62 or via_v7)
+        if via_v7:
+            source = v7_wrapper.read_text(encoding="utf-8")
+            self.assertIn("reclaim_obsolete_quant_listener", source)
+            self.assertIn("default_services", source)
         self.assertIn("start_jarvis_quant_terminal.py", supervisor)
         self.assertNotIn(
             'start "JARVIS Quant Trading Intelligence" /min "%JARVIS_PY%"',
