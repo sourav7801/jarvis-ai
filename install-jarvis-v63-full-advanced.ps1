@@ -213,6 +213,8 @@ try {
         tests.test_options_chain_analytics `
         tests.test_paper_trading_desk `
         tests.test_jarvis_runtime_supervisor `
+        tests.test_runtime_supervisor_v62 `
+        tests.test_quant_trading_intelligence_phase1_integration `
         -q
     if ($LASTEXITCODE -ne 0) { throw "Targeted V6.3 regression failed." }
     Write-Host "Targeted regression: PASS" -ForegroundColor Green
