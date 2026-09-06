@@ -1,8 +1,9 @@
-"""JARVIS V7 Project Completion Center.
+"""JARVIS V8 Project Completion / Executive Center.
 
 A loopback-only operator console for repository completion, runtime posture,
-approvals, mission queue, code intelligence, memory, model telemetry, market
-events and governed strategy research.  It contains no broker-order surface.
+approvals, mission queue, executive planning, code intelligence, memory, model
+telemetry, market events and governed strategy research. It contains no
+broker-order surface.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 STATIC = ROOT / "workstation" / "completion_console_static"
 HOST = os.getenv("JARVIS_COMPLETION_HOST", "127.0.0.1").strip()
 PORT = int(os.getenv("JARVIS_COMPLETION_PORT", "8799"))
-HEALTH = ServiceHealthClock("JARVIS_COMPLETION_CENTER", "7.0")
+HEALTH = ServiceHealthClock("JARVIS_COMPLETION_CENTER", "8.0")
 _APPROVAL_ID = re.compile(r"^approval-[0-9a-f]{16}$")
 
 
@@ -91,15 +92,17 @@ def overview_payload() -> dict[str, Any]:
     from omni.model_router_telemetry import MODEL_ROUTER_TELEMETRY
     from omni.mission_queue import MISSION_QUEUE
     from omni.approval_queue import approval_queue
+    from omni.executive_control_plane import EXECUTIVE_CONTROL_PLANE
     from omni.trading_intelligence.champion_challenger import CHAMPION_CHALLENGER
     from workstation.market_event_bus import MARKET_EVENT_BUS
 
     return {
         "success": True,
         "service": "JARVIS_COMPLETION_CENTER",
-        "version": "7.0",
+        "version": "8.0",
         "completion": completion_snapshot(),
         "workspaces": workspace_snapshot(),
+        "executive": EXECUTIVE_CONTROL_PLANE.status(),
         "approvals": {
             "pending": list(approval_queue.pending()),
             "external_actions": "APPROVAL_GATED",
@@ -122,7 +125,7 @@ def overview_payload() -> dict[str, Any]:
 
 
 class CompletionHandler(BaseHTTPRequestHandler):
-    server_version = "JARVISCompletion/7.0"
+    server_version = "JARVISCompletion/8.0"
 
     def log_message(self, _format: str, *_args: Any) -> None:
         return
@@ -175,8 +178,9 @@ class CompletionHandler(BaseHTTPRequestHandler):
                 HEALTH.payload(
                     status="READY",
                     healthy=True,
-                    dependencies={"repository": "READY"},
+                    dependencies={"repository": "READY", "executive_control_plane": "READY"},
                     completion_center=True,
+                    executive_control_plane=True,
                     engine_ready=True,
                 )
             )
@@ -197,6 +201,15 @@ class CompletionHandler(BaseHTTPRequestHandler):
         if path == "/api/completion":
             from omni.project_completion import snapshot
             return self.send_json(snapshot())
+        if path == "/api/executive":
+            from omni.executive_control_plane import EXECUTIVE_CONTROL_PLANE
+            return self.send_json(EXECUTIVE_CONTROL_PLANE.status())
+        if path == "/api/executive/plan":
+            from omni.executive_control_plane import EXECUTIVE_CONTROL_PLANE
+            text = str((params.get("text") or [""])[0]).strip()
+            if not text:
+                return self.send_json({"success": False, "message": "text required"}, 400)
+            return self.send_json(EXECUTIVE_CONTROL_PLANE.plan(text))
         if path == "/api/code":
             from omni.code_intelligence import CODE_INTELLIGENCE
             query = str((params.get("q") or [""])[0])
@@ -260,7 +273,7 @@ class CompletionHandler(BaseHTTPRequestHandler):
 def main() -> int:
     server = exclusive_server(HOST, PORT, CompletionHandler)
     print("=" * 72)
-    print("JARVIS V7 PROJECT COMPLETION CENTER")
+    print("JARVIS V8 PROJECT COMPLETION / EXECUTIVE CENTER")
     print("=" * 72)
     print(f"Console: http://{HOST}:{PORT}")
     print("Mode: LOCAL / GOVERNED / PAPER-RESEARCH")
