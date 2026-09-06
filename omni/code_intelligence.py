@@ -1,6 +1,6 @@
 """Bounded, read-only repository code intelligence for JARVIS V7.
 
-The index parses Python source only.  It never imports target modules, executes
+The index parses Python source only. It never imports target modules, executes
 repository code, edits files, or follows paths outside the repository root.
 """
 
@@ -9,7 +9,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import threading
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -54,9 +54,7 @@ def _source_files(roots: Iterable[str] = DEFAULT_ROOTS, max_files: int = 2_500) 
         if not _inside_root(base) or not base.exists():
             continue
         for path in base.rglob("*.py"):
-            if any(part in EXCLUDED_NAMES for part in path.parts):
-                continue
-            if not _inside_root(path):
+            if any(part in EXCLUDED_NAMES for part in path.parts) or not _inside_root(path):
                 continue
             found.append(path)
             if len(found) >= max_files:
@@ -68,16 +66,16 @@ def _call_name(node: ast.Call) -> str | None:
     target = node.func
     if isinstance(target, ast.Name):
         return target.id
-    if isinstance(target, ast.Attribute):
-        pieces: list[str] = [target.attr]
-        value = target.value
-        while isinstance(value, ast.Attribute):
-            pieces.append(value.attr)
-            value = value.value
-        if isinstance(value, ast.Name):
-            pieces.append(value.id)
-        return ".".join(reversed(pieces))
-    return None
+    if not isinstance(target, ast.Attribute):
+        return None
+    pieces: list[str] = [target.attr]
+    value = target.value
+    while isinstance(value, ast.Attribute):
+        pieces.append(value.attr)
+        value = value.value
+    if isinstance(value, ast.Name):
+        pieces.append(value.id)
+    return ".".join(reversed(pieces))
 
 
 def analyze_file(path: Path) -> SourceRecord:
@@ -106,25 +104,16 @@ def analyze_file(path: Path) -> SourceRecord:
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             imports.update(alias.name for alias in node.names)
-        elif isinstance(node, ast.ImportFrom):
-            module = str(node.module or "")
-            if module:
-                imports.add(module)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imports.add(str(node.module))
         elif isinstance(node, ast.Call):
             name = _call_name(node)
             if name:
                 calls.add(name)
     return SourceRecord(
-        relative,
-        digest,
-        source.count("\n") + 1,
-        tuple(functions),
-        tuple(async_functions),
-        tuple(classes),
-        tuple(sorted(imports)),
-        tuple(sorted(calls))[:500],
-        "OK",
-        None,
+        relative, digest, source.count("\n") + 1,
+        tuple(functions), tuple(async_functions), tuple(classes),
+        tuple(sorted(imports)), tuple(sorted(calls))[:500], "OK", None,
     )
 
 
@@ -137,22 +126,26 @@ class CodeIntelligenceIndex:
     def build(self, *, force: bool = False) -> dict[str, Any]:
         with self._lock:
             if self._built and not force:
-                return self.snapshot(include_records=False)
-            records = [analyze_file(path) for path in _source_files()]
+                return {"success": True, "files": len(self._records), "cached": True}
+        records = [analyze_file(path) for path in _source_files()]
+        with self._lock:
             self._records = records
             self._built = True
-        return self.snapshot(include_records=False)
+        return {"success": True, "files": len(records), "cached": False}
+
+    def _records_copy(self) -> list[SourceRecord]:
+        if not self._built:
+            self.build()
+        with self._lock:
+            return list(self._records)
 
     def search(self, query: str, limit: int = 30) -> list[dict[str, Any]]:
         value = " ".join(str(query or "").lower().split())
         if not value:
             return []
-        self.build()
         terms = [term for term in value.replace(".", " ").replace("_", " ").split() if term]
         scored: list[tuple[int, SourceRecord]] = []
-        with self._lock:
-            records = list(self._records)
-        for record in records:
+        for record in self._records_copy():
             haystack = " ".join(
                 [record.path, *record.functions, *record.async_functions, *record.classes, *record.imports]
             ).lower().replace("_", " ").replace(".", " ")
@@ -166,9 +159,7 @@ class CodeIntelligenceIndex:
         ]
 
     def dependency_edges(self, limit: int = 500) -> list[dict[str, str]]:
-        self.build()
-        with self._lock:
-            records = list(self._records)
+        records = self._records_copy()
         local_modules = {
             record.path[:-3].replace("/", "."): record.path
             for record in records if record.path.endswith(".py")
@@ -176,22 +167,20 @@ class CodeIntelligenceIndex:
         edges: list[dict[str, str]] = []
         for record in records:
             for imported in record.imports:
-                candidate = imported
-                target = local_modules.get(candidate)
+                target = local_modules.get(imported)
                 if target is None:
-                    matches = [path for module, path in local_modules.items() if module.startswith(candidate + ".")]
-                    target = matches[0] if matches else None
+                    target = next(
+                        (path for module, path in local_modules.items() if module.startswith(imported + ".")),
+                        None,
+                    )
                 if target:
                     edges.append({"source": record.path, "target": target, "import": imported})
-                if len(edges) >= limit:
+                if len(edges) >= max(1, min(int(limit), 5000)):
                     return edges
         return edges
 
     def snapshot(self, *, include_records: bool = False) -> dict[str, Any]:
-        if not self._built:
-            self.build()
-        with self._lock:
-            records = list(self._records)
+        records = self._records_copy()
         errors = [row for row in records if row.parse_status != "OK"]
         result: dict[str, Any] = {
             "success": True,
