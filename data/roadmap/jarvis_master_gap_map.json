@@ -1,17 +1,23 @@
 {
-  "schema": "JARVIS_MASTER_GAP_MAP_V2",
-  "release": "V7_PROJECT_COMPLETION_CORE",
-  "base_checkpoint": "ade91b7526252bc29f3b2c4956919dcdc0ebef5c",
+  "schema": "JARVIS_MASTER_GAP_MAP_V3",
+  "release": "V8_UNIFIED_INTELLIGENCE_OS",
+  "base_checkpoint": "b0b67a67046717dca4d0b76ad68194f0001f67e7",
   "runtime_source": "omni.project_completion.snapshot",
   "status_values": ["PRESENT", "PARTIAL", "MISSING", "BROKEN", "BLOCKED_EXTERNAL"],
   "safety": {
     "paper_only": true,
     "live_execution": false,
     "automatic_broker_order": false,
+    "automatic_production_strategy_rewrite": false,
     "external_actions": "APPROVAL_GATED"
   },
   "repository_controlled": {
     "master_control_plane": "PRESENT",
+    "unified_intent_router": "PRESENT",
+    "unified_context_fabric": "PRESENT",
+    "executive_control_plane": "PRESENT",
+    "master_v8_runtime": "PRESENT",
+    "master_surface_ownership_recovery": "PRESENT",
     "workspace_command_center": "PRESENT",
     "runtime_recovery": "PRESENT",
     "voice_runtime": "PRESENT",
@@ -36,7 +42,7 @@
     "robust_strategy_validation": "PRESENT",
     "champion_challenger_registry": "PRESENT",
     "professional_quant_ui": "PRESENT",
-    "project_completion_center": "PRESENT"
+    "unified_completion_executive_center": "PRESENT"
   },
   "external_or_separately_governed": {
     "compatible_native_windows_speech_recognizer": "BLOCKED_EXTERNAL",
@@ -53,13 +59,15 @@
   "verification_policy": [
     "compile touched Python",
     "JavaScript syntax",
-    "exact command contracts",
+    "exact workspace command contracts",
+    "executive intent and planning contracts",
     "targeted subsystem regression",
     "trading safety regression",
     "full repository regression",
     "Protected Core import",
     "clean git status",
     "owned-process runtime launch",
+    "V8 Master surface identity verification",
     "HTTP service verification"
   ]
 }
