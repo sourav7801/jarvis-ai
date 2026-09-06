@@ -17,12 +17,22 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class QuantTradingIntelligencePhase1IntegrationTests(unittest.TestCase):
     def test_jarvis_launcher_starts_quant_terminal(self):
-        source = (ROOT / "JARVIS.bat").read_text(
+        launcher = (ROOT / "JARVIS.bat").read_text(
             encoding="utf-8",
             errors="ignore",
         )
-        self.assertIn("JARVIS_QUANT_TRADING_INTELLIGENCE_V1", source)
-        self.assertIn("start_jarvis_quant_terminal.py", source)
+        supervisor = (ROOT / "scripts" / "jarvis_runtime_supervisor.py").read_text(
+            encoding="utf-8",
+            errors="ignore",
+        )
+        # V6.2+ launches through the hardened wrapper. The canonical supervisor
+        # remains responsible for starting the Quant terminal child process.
+        self.assertIn("scripts.jarvis_runtime_supervisor_v62", launcher)
+        self.assertIn("start_jarvis_quant_terminal.py", supervisor)
+        self.assertNotIn(
+            'start "JARVIS Quant Trading Intelligence" /min "%JARVIS_PY%"',
+            launcher,
+        )
 
     def test_home_dashboard_has_dedicated_trading_entry(self):
         source = (
