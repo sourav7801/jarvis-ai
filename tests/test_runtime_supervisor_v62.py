@@ -59,7 +59,8 @@ class RuntimeSupervisorV62Tests(unittest.TestCase):
 
     def test_launcher_uses_v62_supervisor(self):
         source = (ROOT / "JARVIS.bat").read_text(encoding="utf-8")
-        self.assertIn("jarvis_runtime_supervisor_v62.py", source)
+        self.assertIn("-m scripts.jarvis_runtime_supervisor_v62", source)
+        self.assertNotIn("scripts\\jarvis_runtime_supervisor_v62.py", source)
 
     def test_wrapper_has_no_live_order_surface(self):
         source = (ROOT / "scripts" / "jarvis_runtime_supervisor_v62.py").read_text(encoding="utf-8")
