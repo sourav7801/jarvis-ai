@@ -69,11 +69,16 @@ _NAVIGATION_VERBS = (
     "restore", "save",
 )
 
+# These phrases prove that a navigation-looking sentence also asks for domain
+# work.  A bare word such as "research" is intentionally not included because
+# "open research workspace" is a pure UI command and must not fall through to
+# a language model.
 _NON_NAVIGATION_MARKERS = (
-    "analyze", "analyse", "analysis", "explain", "research", "compare",
-    "find trade", "trade setup", "signal", "strategy for", "why", "what is",
-    "what are", "how does", "how is", "build", "create", "write", "debug",
-    "fix code", "paper trade", "take trade", "execute trade", "monitor",
+    "analyze", "analyse", "analysis", "explain", "research the", "research about",
+    "research latest", "compare", "find trade", "trade setup", "signal",
+    "strategy for", "why", "what is", "what are", "how does", "how is",
+    "build", "create", "write", "debug", "fix code", "paper trade",
+    "take trade", "execute trade", "monitor",
 )
 
 
