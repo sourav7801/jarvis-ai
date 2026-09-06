@@ -1,9 +1,9 @@
 """Repository-controlled JARVIS completion audit.
 
-This module is deliberately conservative.  It distinguishes capabilities that
+This module is deliberately conservative. It distinguishes capabilities that
 can be completed inside the repository from integrations that need licensed
 services, hardware, credentials, production infrastructure, or a separate live
-execution review.  A missing evidence file downgrades the declared capability
+execution review. A missing evidence file downgrades the declared capability
 rather than manufacturing readiness.
 """
 
@@ -32,12 +32,8 @@ class CompletionItem:
 
     def to_dict(self) -> dict[str, Any]:
         value = asdict(self)
-        value["evidence_present"] = [
-            path for path in self.evidence if (ROOT / path).exists()
-        ]
-        value["evidence_missing"] = [
-            path for path in self.evidence if not (ROOT / path).exists()
-        ]
+        value["evidence_present"] = [path for path in self.evidence if (ROOT / path).exists()]
+        value["evidence_missing"] = [path for path in self.evidence if not (ROOT / path).exists()]
         return value
 
 
@@ -67,13 +63,33 @@ def _item(
 
 
 def declared_items() -> tuple[CompletionItem, ...]:
-    """Return the audited V7 capability matrix before filesystem validation."""
+    """Return the audited V8 capability matrix before filesystem validation."""
 
     return (
         _item(
             "master_control_plane", "Master control plane", "CORE", "PRESENT", 5,
-            ("workstation/jarvis_os_v3.py", "omni/control_plane.py", "omni/agent_registry.py"),
-            "Master routing, typed agents, diagnostics and fail-closed authority boundaries are implemented.",
+            ("workstation/jarvis_os_v8.py", "omni/control_plane.py", "omni/agent_registry.py"),
+            "V8 Master preserves typed agents and authority boundaries while adding an executive routing layer.",
+        ),
+        _item(
+            "unified_intent_router", "Unified deterministic intent router", "CORE", "PRESENT", 4,
+            ("omni/unified_intent_router.py", "omni/jarvis_workspace_orchestrator.py"),
+            "V8 resolves deterministic OS/workspace commands before broad model routing and preserves compound domain commands.",
+        ),
+        _item(
+            "context_fabric", "Unified context fabric", "INTELLIGENCE", "PRESENT", 4,
+            ("omni/context_fabric.py", "omni/conversation_turns.py", "omni/hybrid_memory.py"),
+            "V8 supplies one bounded read-only context view across recent conversation, workspaces, missions, memory and paper state.",
+        ),
+        _item(
+            "executive_control_plane", "Executive reasoning and planning control plane", "CORE", "PRESENT", 5,
+            ("omni/executive_control_plane.py", "omni/meta_agent_specs.py"),
+            "V8 maps outcomes to explicit domains, specialist hints, blueprint-aligned plan phases, verification and governance gates.",
+        ),
+        _item(
+            "master_surface_ownership", "V8 Master surface ownership recovery", "RELIABILITY", "PRESENT", 3,
+            ("scripts/jarvis_runtime_supervisor_v8.py", "workstation/jarvis_os_v8_assets/runtime.js"),
+            "V8 refuses to adopt an obsolete Master surface and reclaims only a proven C:\\Jarvis-owned listener.",
         ),
         _item(
             "workspace_command_center", "Command Center and workspaces", "CORE", "PRESENT", 4,
@@ -82,8 +98,8 @@ def declared_items() -> tuple[CompletionItem, ...]:
         ),
         _item(
             "runtime_recovery", "Owned-process runtime recovery", "RELIABILITY", "PRESENT", 5,
-            ("scripts/jarvis_runtime_supervisor.py", "scripts/jarvis_runtime_supervisor_v62.py"),
-            "Bounded restart, port ownership and stale-Quant protection are present.",
+            ("scripts/jarvis_runtime_supervisor.py", "scripts/jarvis_runtime_supervisor_v62.py", "scripts/jarvis_runtime_supervisor_v8.py"),
+            "Bounded restart, port ownership, stale-Quant protection and stale-Master protection are present.",
         ),
         _item(
             "voice", "Voice reliability", "INTERFACE", "PARTIAL", 3,
@@ -99,7 +115,7 @@ def declared_items() -> tuple[CompletionItem, ...]:
         _item(
             "memory_lifecycle", "Memory lifecycle governance", "INTELLIGENCE", "PRESENT", 2,
             ("omni/memory_lifecycle.py",),
-            "V7 adds non-destructive age/kind statistics and retention previews.",
+            "Non-destructive aging, recall eligibility and supersession/forget controls are present.",
         ),
         _item(
             "model_router", "Provider-neutral model router", "INTELLIGENCE", "PRESENT", 3,
@@ -109,7 +125,7 @@ def declared_items() -> tuple[CompletionItem, ...]:
         _item(
             "model_metrics", "Model routing telemetry", "INTELLIGENCE", "PRESENT", 2,
             ("omni/model_router_telemetry.py",),
-            "V7 adds persistent bounded routing/outcome/latency telemetry without enabling cloud models.",
+            "Persistent bounded routing/outcome/latency telemetry exists without enabling cloud models.",
         ),
         _item(
             "mission_control", "Multi-agent Mission Control", "AUTONOMY", "PRESENT", 5,
@@ -119,12 +135,12 @@ def declared_items() -> tuple[CompletionItem, ...]:
         _item(
             "mission_queue", "Resumable local mission queue", "AUTONOMY", "PRESENT", 3,
             ("omni/mission_queue.py",),
-            "V7 adds a persistent lease/retry/recovery queue. It does not bypass approval gates.",
+            "Persistent lease/retry/recovery queue is present and does not bypass approval gates.",
         ),
         _item(
             "approvals", "Scoped approval queue", "SAFETY", "PRESENT", 4,
             ("omni/approval_queue.py",),
-            "Payload-bound, expiring, one-time approvals are present; V7 exposes deliberate approve/reject UI controls only.",
+            "Payload-bound, expiring, one-time approvals are present; the UI changes approval state without auto-consuming actions.",
         ),
         _item(
             "company_os", "Company operating system", "VENTURE", "PRESENT", 4,
@@ -134,7 +150,7 @@ def declared_items() -> tuple[CompletionItem, ...]:
         _item(
             "coding_intelligence", "Repository code intelligence", "ENGINEERING", "PRESENT", 3,
             ("omni/code_intelligence.py", "agents/coding_agent.py"),
-            "V7 adds a bounded AST/project index. Code execution and production edits remain separately governed.",
+            "Bounded AST/project indexing grounds the Coding Agent. Production edits remain separately governed.",
         ),
         _item(
             "market_data_contract", "Canonical market-data contract", "TRADING", "PRESENT", 5,
@@ -144,7 +160,7 @@ def declared_items() -> tuple[CompletionItem, ...]:
         _item(
             "market_event_publishers", "Market-event publisher adapters", "TRADING", "PRESENT", 3,
             ("workstation/market_event_publishers.py",),
-            "V7 adds verified adapters for options, OI, volatility, order book, news and provider health.",
+            "Verified adapters for options, OI, volatility, order book, news and provider health are present.",
         ),
         _item(
             "feature_engine", "Unified feature/structure engine", "TRADING", "PRESENT", 5,
@@ -169,7 +185,7 @@ def declared_items() -> tuple[CompletionItem, ...]:
         _item(
             "correlation_intelligence", "Rolling correlation intelligence", "TRADING", "PRESENT", 3,
             ("workstation/correlation_risk_engine.py",),
-            "V7 adds deterministic rolling-return correlation clusters as research/risk evidence without silently changing existing limits.",
+            "Deterministic rolling-return correlation clusters are available as research/risk evidence without silently changing limits.",
         ),
         _item(
             "strategy_research", "Strategy Research Lab", "TRADING", "PRESENT", 4,
@@ -179,12 +195,12 @@ def declared_items() -> tuple[CompletionItem, ...]:
         _item(
             "robust_validation", "Robust OOS/Monte-Carlo/cost validation", "TRADING", "PRESENT", 4,
             ("omni/trading_intelligence/robust_validation.py",),
-            "V7 adds deterministic OOS degradation, bootstrap tail, walk-forward and cost-stress gates.",
+            "Deterministic OOS degradation, bootstrap tail, walk-forward and cost-stress gates are present.",
         ),
         _item(
             "champion_challenger", "Champion/challenger research registry", "TRADING", "PRESENT", 4,
             ("omni/trading_intelligence/champion_challenger.py",),
-            "V7 adds a durable paper/research registry. No production strategy promotion is automatic.",
+            "Durable paper/research registry is present. No production strategy promotion is automatic.",
         ),
         _item(
             "professional_quant_ui", "Professional Quant intelligence terminal", "INTERFACE", "PRESENT", 4,
@@ -192,9 +208,9 @@ def declared_items() -> tuple[CompletionItem, ...]:
             "Charts, intelligence modules, portfolio/journal, Adaptive Brain and strategy research surfaces are present.",
         ),
         _item(
-            "completion_center", "Project Completion Center", "CORE", "PRESENT", 3,
-            ("workstation/completion_console.py", "workstation/completion_console_static/index.html"),
-            "V7 adds one operator-facing completion, diagnostics, approvals, queue and research-governance console.",
+            "completion_center", "Unified Completion / Executive Center", "CORE", "PRESENT", 3,
+            ("workstation/completion_console.py", "workstation/completion_console_static/index.html", "workstation/completion_console_static/app.js"),
+            "V8 unifies completion, executive planning, diagnostics, approvals, queue, code intelligence and research governance on 8799.",
         ),
         _item(
             "licensed_l2_data", "Exchange-grade L2/L3 and licensed tick data", "EXTERNAL", "BLOCKED_EXTERNAL", 0.1,
@@ -246,13 +262,11 @@ def snapshot() -> dict[str, Any]:
     counts = {status: 0 for status in sorted(VALID_STATUSES)}
     for row in rows:
         counts[str(row["status"])] = counts.get(str(row["status"]), 0) + 1
-    remaining = [
-        row for row in repo_rows if row["status"] in {"PARTIAL", "MISSING", "BROKEN"}
-    ]
+    remaining = [row for row in repo_rows if row["status"] in {"PARTIAL", "MISSING", "BROKEN"}]
     return {
         "success": True,
         "service": "JARVIS_PROJECT_COMPLETION_AUDIT",
-        "version": "7.0",
+        "version": "8.0",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "repository_completion_percent": repo_percent,
         "repository_complete": not remaining,
