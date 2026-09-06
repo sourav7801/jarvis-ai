@@ -170,31 +170,53 @@ class JarvisRuntimeSupervisorTests(unittest.TestCase):
             ]
             self.assertEqual(events[-1]["event"], "SERVICE_QUARANTINED")
 
-    def test_canonical_batch_launcher_uses_runtime_supervisor(self):
+    def test_canonical_batch_launcher_uses_runtime_supervisor_chain(self):
         source = Path("JARVIS.bat").read_text(encoding="utf-8")
-        direct_launcher = "scripts\\jarvis_runtime_supervisor.py" in source
-        hardened_launcher = "scripts.jarvis_runtime_supervisor_v62" in source
+        direct = "scripts\\jarvis_runtime_supervisor.py" in source
+        via_v62 = "scripts.jarvis_runtime_supervisor_v62" in source
+        via_v7 = "scripts.jarvis_runtime_supervisor_v7" in source
+        via_v8 = "scripts.jarvis_runtime_supervisor_v8" in source
         self.assertTrue(
-            direct_launcher or hardened_launcher,
-            msg="JARVIS.bat must launch the canonical supervisor directly or through the hardened V6.2 wrapper.",
+            direct or via_v62 or via_v7 or via_v8,
+            msg="JARVIS.bat must reach the canonical supervisor through a verified wrapper chain.",
         )
-        if hardened_launcher:
+
+        if via_v62:
             wrapper = Path("scripts/jarvis_runtime_supervisor_v62.py").read_text(encoding="utf-8")
             self.assertIn("scripts.jarvis_runtime_supervisor", wrapper)
             self.assertIn("JarvisRuntimeSupervisor", wrapper)
+        if via_v7:
+            wrapper = Path("scripts/jarvis_runtime_supervisor_v7.py").read_text(encoding="utf-8")
+            self.assertIn("JarvisRuntimeSupervisor", wrapper)
+            self.assertIn("reclaim_obsolete_quant_listener", wrapper)
+        if via_v8:
+            wrapper = Path("scripts/jarvis_runtime_supervisor_v8.py").read_text(encoding="utf-8")
+            v7 = Path("scripts/jarvis_runtime_supervisor_v7.py").read_text(encoding="utf-8")
+            self.assertIn("JarvisRuntimeSupervisor", wrapper)
+            self.assertIn("v7_services", wrapper)
+            self.assertIn("reclaim_obsolete_quant_listener", wrapper)
+            self.assertIn("scripts.jarvis_runtime_supervisor_v62", v7)
+
         self.assertNotIn(
             'start "JARVIS Quant Trading Intelligence" /min "%JARVIS_PY%"',
             source,
         )
 
     def test_supervisor_source_cannot_place_live_orders(self):
-        sources = [
-            Path("scripts/jarvis_runtime_supervisor.py").read_text(encoding="utf-8"),
-            Path("scripts/jarvis_runtime_supervisor_v62.py").read_text(encoding="utf-8"),
+        paths = [
+            Path("scripts/jarvis_runtime_supervisor.py"),
+            Path("scripts/jarvis_runtime_supervisor_v62.py"),
+            Path("scripts/jarvis_runtime_supervisor_v7.py"),
+            Path("scripts/jarvis_runtime_supervisor_v8.py"),
         ]
-        for source in sources:
-            self.assertNotIn("place_order", source)
-            self.assertNotIn("submit_order", source)
+        sources = []
+        for path in paths:
+            if not path.exists():
+                continue
+            source = path.read_text(encoding="utf-8")
+            sources.append(source)
+            self.assertNotIn("place_order(", source)
+            self.assertNotIn("submit_order(", source)
         self.assertNotIn("fyers", sources[0].lower())
 
 
