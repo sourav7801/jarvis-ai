@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 import subprocess
 import sys
 from datetime import datetime
@@ -162,7 +161,7 @@ def verify_git_state() -> tuple[str, str]:
 
 def fetch_sources() -> None:
     print("FETCH > refreshing origin refs")
-    run("git", "fetch", "origin", V61_BRANCH, ADAPTIVE_BRANCH, RECOVERY_BRANCH)
+    run("git", "fetch", "origin", "--prune")
     # Prove both remote source refs are now resolvable before touching files.
     git("rev-parse", remote_ref(V61_BRANCH))
     git("rev-parse", remote_ref(ADAPTIVE_BRANCH))
@@ -197,9 +196,15 @@ assert payload["safety"]["live_execution"] is False
 
 from workstation.quant_firm_runtime import decision_payload
 from omni.trading_intelligence.adaptive_quant_brain import adaptive_decide
-from omni.trading_intelligence.strategy_research_lab import strategy_research_lab
-from omni.trading_intelligence.trade_learning_engine import learning_engine
-from omni.trading_intelligence.self_improvement_coordinator import self_improvement_coordinator
+import omni.trading_intelligence.strategy_research_lab as strategy_research_lab
+import omni.trading_intelligence.trade_learning_engine as trade_learning_engine
+import omni.trading_intelligence.self_improvement_coordinator as self_improvement_coordinator
+
+assert callable(decision_payload)
+assert callable(adaptive_decide)
+assert strategy_research_lab is not None
+assert trade_learning_engine is not None
+assert self_improvement_coordinator is not None
 
 import main
 status = main.jarvis_trading_v8_status()
