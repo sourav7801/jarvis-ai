@@ -72,6 +72,10 @@ WORKSPACES = (
               "show fyers status", url="http://127.0.0.1:8790", port=8790,
               safety="DATA ONLY", module="workstation.fyers_live_bridge_service",
               health_path="/api/health"),
+    Workspace("completion", "Project Completion Center", "CORE",
+              "Repository completion matrix, runtime truth, approvals, missions, code intelligence and research governance.",
+              "open project completion center", "system", "http://127.0.0.1:8799", 8799,
+              "GOVERNED / READ MOSTLY", "workstation.completion_console", "/api/health"),
 )
 
 
@@ -218,7 +222,7 @@ def snapshot() -> dict[str, Any]:
     health_source, health_contract = _call_health_contract(rows)
     return {
         "ok": True,
-        "version": "6.1",
+        "version": "7.0",
         "title": "JARVIS Command Center",
         "workspace_count": len(rows),
         "health_source": health_source,
@@ -228,6 +232,8 @@ def snapshot() -> dict[str, Any]:
             "loopback_http": _module_available("omni.loopback_http"),
             "official_exchange_calendar": _module_available("workstation.official_exchange_calendar"),
             "paper_scan_ledger": _module_available("workstation.paper_scan_ledger"),
+            "project_completion_audit": _module_available("omni.project_completion"),
+            "code_intelligence": _module_available("omni.code_intelligence"),
         },
         "safety": {
             "protected_core": "REQUIRED",
