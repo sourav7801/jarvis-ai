@@ -238,7 +238,8 @@ try {
     }
 
     Write-Host "EXACT COMMAND CONTRACT > open apps workspace" -ForegroundColor Cyan
-    & $Python -c "from omni.unified_intent_router import route_intent; d=route_intent('open apps workspace'); assert d.deterministic is True; assert d.kind == 'WORKSPACE_CONTROL'; assert {'type':'open_window','window':'apps'} in list(d.workspace_actions); assert 'Computer & Apps' in d.response; assert \"couldn't understand\" not in d.response.lower(); print('open apps workspace: PASS ->', d.response)"
+    $ExactApps = "from omni.unified_intent_router import route_intent; d=route_intent('open apps workspace'); assert d.deterministic is True; assert d.kind == 'WORKSPACE_CONTROL'; assert {'type':'open_window','window':'apps'} in list(d.workspace_actions); assert 'Computer & Apps' in d.response; assert 'understand' not in d.response.lower(); print('open apps workspace: PASS ->', d.response)"
+    & $Python -c $ExactApps
     if ($LASTEXITCODE -ne 0) { throw "Exact Apps workspace command contract failed." }
 
     Write-Host "TARGETED REGRESSION > V8 unified intelligence + V7 + V6.3 advanced baseline" -ForegroundColor Cyan
