@@ -1261,6 +1261,7 @@ def agent_payload(text: str) -> dict[str, Any]:
     from workstation.option_chart_data import attach_chart_directive
     from workstation.paper_trading_desk import paper_command_payload
     from workstation.paper_trade_action_router import paper_trade_action_payload
+    from workstation.quant_intelligence_commands import quant_intelligence_command_payload
     from workstation.quant_signal_terminal import attach_signal_chart, signal_terminal_payload
     from workstation.nautilus_universe_router import universe_command_payload
 
@@ -1297,6 +1298,10 @@ def agent_payload(text: str) -> dict[str, Any]:
     trade_action = paper_trade_action_payload(command)
     if trade_action is not None:
         return attach_signal_chart(command, trade_action)
+
+    intelligence_result = quant_intelligence_command_payload(command)
+    if intelligence_result is not None:
+        return intelligence_result
 
     signal_result = signal_terminal_payload(command)
     if signal_result is not None:
@@ -1372,6 +1377,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_file(STATIC / "nautilus_core_runtime.js", "application/javascript; charset=utf-8")
         if path == "/advanced_terminal_runtime.js":
             return self.send_file(STATIC / "advanced_terminal_runtime.js", "application/javascript; charset=utf-8")
+        if path == "/adaptive_brain_runtime.js":
+            return self.send_file(STATIC / "adaptive_brain_runtime.js", "application/javascript; charset=utf-8")
         if path == "/style.css":
             return self.send_file(STATIC / "style.css", "text/css; charset=utf-8")
         if path == "/api/health":
@@ -1445,6 +1452,45 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(payload, 200 if payload.get("success") else 503)
             except Exception as exc:
                 return self.send_json({"success": False, "message": _safe_message(exc)}, 400)
+        if path == "/api/intelligence/decision":
+            try:
+                from workstation.quant_firm_runtime import decision_payload
+
+                symbol = str((params.get("symbol") or ["BTC"])[0])
+                timeframe = str((params.get("timeframe") or ["15m"])[0])
+                decision = decision_payload(symbol, timeframe)
+                return self.send_json(
+                    {
+                        "success": bool(decision.get("success")),
+                        "decision": decision,
+                        "paper_only": True,
+                        "live_execution": False,
+                    },
+                    200 if decision.get("success") else 503,
+                )
+            except Exception as exc:
+                return self.send_json(
+                    {
+                        "success": False,
+                        "message": _safe_message(exc),
+                        "paper_only": True,
+                        "live_execution": False,
+                    },
+                    400,
+                )
+        if path == "/api/intelligence/status":
+            from omni.trading_intelligence.trade_learning_engine import learning_engine
+            from omni.trading_intelligence.self_improvement_coordinator import self_improvement_coordinator
+
+            return self.send_json(
+                {
+                    "success": True,
+                    "learning": learning_engine.status(),
+                    "self_improvement": self_improvement_coordinator.status(),
+                    "paper_only": True,
+                    "live_execution": False,
+                }
+            )
         if path == "/api/paper/portfolio":
             from workstation.paper_trading_desk import portfolio_payload
 

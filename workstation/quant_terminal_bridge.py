@@ -224,6 +224,12 @@ def is_quant_terminal_request(text: str) -> bool:
     if is_universe_scan_request(text):
         return True
 
+    from workstation.paper_trade_action_router import is_paper_trade_action_request
+    from workstation.quant_intelligence_commands import is_quant_intelligence_command
+
+    if is_paper_trade_action_request(text) or is_quant_intelligence_command(text):
+        return True
+
     if not requested_symbols(text):
         return False
 

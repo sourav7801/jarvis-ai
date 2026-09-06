@@ -255,6 +255,12 @@ class PaperAutonomyEngine:
             decision_review_coordinator.start()
         except Exception:
             pass
+        try:
+            from omni.trading_intelligence.self_improvement_coordinator import self_improvement_coordinator
+
+            self_improvement_coordinator.start()
+        except Exception:
+            pass
         if scan_now:
             self.trigger_scan()
         return self.status()
@@ -282,6 +288,12 @@ class PaperAutonomyEngine:
                 thread is not None and thread.is_alive()
                 for thread in (self._scan_thread, self._mark_thread)
             )
+        try:
+            from omni.trading_intelligence.self_improvement_coordinator import self_improvement_coordinator
+
+            self_improvement_coordinator.stop()
+        except Exception:
+            pass
         return self.status()
 
     def add_symbols(self, symbols: Iterable[str], *, cap: int = 18) -> dict[str, Any]:

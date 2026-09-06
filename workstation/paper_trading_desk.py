@@ -1151,6 +1151,19 @@ class PaperTradingDesk:
             )
             conn.commit()
 
+        try:
+            from omni.trading_intelligence.trade_learning_engine import learning_engine
+
+            learning_engine.record_closed_row(
+                row,
+                exit_price=exit_value,
+                pnl=pnl,
+                reason=reason,
+            )
+        except Exception:
+            # Learning telemetry must never block a synthetic paper exit.
+            pass
+
         return {
             "success": True,
             "reason": reason,

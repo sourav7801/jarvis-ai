@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Iterable
 
 from omni.trading_intelligence.autonomous_paper_trader import AutonomousPaperTrader
-from omni.trading_intelligence.quant_firm_engine import decide
+from omni.trading_intelligence.adaptive_quant_brain import adaptive_decide
 from workstation.quant_terminal_v2 import candles_payload, normalize_symbol, normalize_timeframe
 
 
@@ -48,7 +48,8 @@ def decision_payload(symbol: str, timeframe: str = "5m") -> dict[str, Any]:
             "paper_only": True,
             "live_execution": False,
         }
-    result = decide(canonical, tf, candles).to_dict()
+    result = adaptive_decide(canonical, tf, candles)
+    result = dict(result)
     result["success"] = True
     return result
 
