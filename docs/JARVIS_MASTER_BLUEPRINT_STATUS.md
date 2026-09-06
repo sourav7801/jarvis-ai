@@ -1,151 +1,191 @@
-# JARVIS Master Blueprint Status — V7 Project Completion Core
+# JARVIS Master Blueprint Status — V8 Unified Intelligence OS
 
 Last repository audit: 2026-09-07 (Asia/Kolkata)
 
 Governing specification: `docs/JARVIS_MASTER_AUTONOMOUS_BLUEPRINT_FOR_CODEX.md`
 
-## Verified baseline
+## Verified rollback floor
 
-The last locally verified release before V7 is:
+The last locally verified release before V8 is V7 Project Completion Core:
 
-- Branch: `jarvis-dev/20260907-JARVIS-V6-3-full-advanced-single-patch`
-- Verified HEAD: `ade91b7526252bc29f3b2c4956919dcdc0ebef5c`
-- Targeted regression: **85/85 passed**
-- Full regression: **1258/1258 passed**
+- Branch: `jarvis-dev/20260907-JARVIS-V7-project-completion-core`
+- Verified HEAD: `b0b67a67046717dca4d0b76ad68194f0001f67e7`
+- Targeted regression: **100/100 passed**
+- Full regression: **1273/1273 passed**
+- Protected Core import: **PASS**
+- V7 safety contract: **PASS**
 - Master `127.0.0.1:8797`: HTTP 200
-- Quant health `127.0.0.1:8787/api/health`: HTTP 200
-- Quant intelligence page/JS/Lightweight Charts/Adaptive Brain runtime: HTTP 200
-- Quant learning/intelligence APIs: HTTP 200
+- Quant and restored advanced Quant surfaces: HTTP 200
+- Completion Center `127.0.0.1:8799`: HTTP 200
 - Live broker execution: **LOCKED**
 
-V6.3 is therefore the rollback floor for V7.
+V7 remains the exact rollback floor for V8.
 
-## V7 branch
+## V8 branch
 
-Current completion branch:
+Current engineering branch:
 
-`jarvis-dev/20260907-JARVIS-V7-project-completion-core`
+`jarvis-dev/20260907-JARVIS-V8-unified-intelligence-os`
 
-V7 is intentionally layered on the exact V6.3 verified checkpoint.  It is a repository-completion program, not a change to the paper/live safety boundary.
+V8 is a larger architectural integration milestone. It does not replace the
+verified V7 capabilities; it puts a deterministic intent, context and executive
+control layer above them so Master JARVIS behaves more like one operating
+intelligence rather than a set of disconnected feature routes.
 
-### New V7 repository-controlled capabilities
+## Immediate regression fixed by V8
 
-1. **Project Completion Auditor** — `omni/project_completion.py`
-   - PRESENT/PARTIAL/MISSING/BROKEN/BLOCKED_EXTERNAL statuses
-   - evidence-file verification
-   - weighted repository completion
-   - external blockers explicitly excluded from repository defect scoring
+Observed user command:
 
-2. **Project Completion Center** — `127.0.0.1:8799`
-   - completion matrix
-   - workspace/runtime health
-   - deliberate approval/reject controls (approval state only; no auto-consume)
-   - Mission queue state
-   - Code Intelligence
-   - memory/model telemetry
-   - market-event observability
-   - champion/challenger research governance
+`open apps workspace`
 
-3. **Bounded Code Intelligence** — `omni/code_intelligence.py`
-   - AST-only Python indexing
-   - symbols/imports/dependency graph/search
-   - no target-module import
-   - no code execution
-   - no automatic edits
+V7 already produced the correct UI action through
+`omni.jarvis_workspace_orchestrator.interpret_workspace_command`, but the Master
+HTTP command path still sent the same text through broad `dispatch_command()`.
+The broad route could answer `I couldn't understand that request` even though
+the UI action was valid.
 
-4. **Resumable Mission Queue** — `omni/mission_queue.py`
-   - durable queue
-   - worker leases
-   - expired-lease recovery
-   - retry/fail/cancel states
-   - no external-action bypass
+V8 changes the architecture instead of adding a one-phrase patch:
 
-5. **Model Router Telemetry** — `omni/model_router_telemetry.py`
-   - bounded persistent route/outcome/latency/quality observations
-   - does not enable cloud models or change privacy policy
+1. parse deterministic operating-system intents first;
+2. if the request is pure workspace/navigation control, return a deterministic
+   `WORKSPACE_CONTROL` result immediately;
+3. execute the existing UI action;
+4. do **not** ask a language model to reinterpret a command JARVIS already
+   understands;
+5. preserve compound commands such as `open NIFTY 15m chart and analyze it` so
+   the chart action occurs while domain reasoning still reaches Quant.
 
-6. **Robust Strategy Validation** — `omni/trading_intelligence/robust_validation.py`
-   - trade metrics
-   - explicit train/OOS split
-   - deterministic bootstrap/Monte Carlo-style resampling
-   - cost/slippage stress
-   - walk-forward gate integration contract
-   - paper-challenger eligibility only
+This contract is covered by permanent V8 regression tests.
 
-7. **Durable Champion/Challenger Registry** — `omni/trading_intelligence/champion_challenger.py`
-   - preserves legacy comparator
-   - stores versioned research evidence
-   - paper challenger and paper champion states
-   - automatic production/live promotion absent
+## V8 blueprint-aligned architecture
 
-8. **Correlation Risk Intelligence** — `workstation/correlation_risk_engine.py`
-   - rolling returns
-   - pairwise correlation
-   - transparent connected correlation clusters
-   - read-only research/risk evidence; no silent portfolio-limit mutation
+### 1. Unified Intent Router
 
-9. **Canonical Market Event Publishers** — `workstation/market_event_publishers.py`
-   - option-chain
-   - OI
-   - volatility
-   - Greeks
-   - order-book snapshot/delta
-   - news/macro
-   - provider health
-   - rejects stale/unverified/missing-provenance input
+`omni/unified_intent_router.py`
 
-10. **V7 Runtime Extension** — `scripts/jarvis_runtime_supervisor_v7.py`
-    - preserves the proven V6.2 stale-Quant ownership preflight
-    - supervises Master, Quant, Nautilus and Completion Center
-    - Completion Center uses exclusive loopback binding on port 8799
+Responsibilities:
 
-## Repository vs external completion
+- deterministic workspace/navigation grammar
+- Jarvis-prefix normalization
+- compound-command preservation
+- domain classification hints
+- safe dedicated loopback workspace links
+- explicit paper/live safety metadata
 
-JARVIS must not claim that licensed services or hardware exist because code was written around them.  The machine-readable map is:
+Pure workspace commands now include Apps, Research, Paper, Mission, System,
+Company, trading layouts and dedicated V8/Completion surfaces.
 
-`data/roadmap/jarvis_master_gap_map.json`
+### 2. Unified Context Fabric
 
-Repository-controlled capability is audited separately from external dependencies.
+`omni/context_fabric.py`
 
-### Deliberately external or separately governed
+One bounded read-only context packet can include:
 
-- compatible native Windows speech recognizer installation when the machine lacks one
-- exchange-grade licensed L2/L3/tick feeds
-- colocation/FIX/HFT infrastructure
-- premium/proprietary research databases
-- optional cloud/frontier-model accounts
-- licensed advanced charting sources
-- hardware/biometric authorization
-- production VM/container isolation and OS quotas
-- independent production security review
-- **real broker execution and reconciliation**
+- recent conversational working context
+- Command Center/workspace health
+- latest durable Mission Control state
+- resumable mission queue
+- durable memory statistics
+- paper portfolio/risk summary for market-related requests
 
-These are `BLOCKED_EXTERNAL`, not silently marked complete.
+The fabric does not mutate memory, risk policy or portfolio state.
 
-## Trading Definition-of-Done alignment
+### 3. Executive Control Plane
 
-The repository contains the major local-first foundations for:
+`omni/executive_control_plane.py`
 
-- verified-data contracts and venue sessions
-- event bus
-- unified features/indicators
-- multi-timeframe evidence
-- regime-aware Adaptive Quant decisions
-- option chains and defined-risk paper spreads
-- persistent portfolio/risk controls
-- autonomous paper trading and active exits
-- journal / MAE / MFE / mistake analysis
+V8 maps an outcome into an explainable plan with domain, agent hints,
+capabilities, verification and governance.
+
+Blueprint-aligned market plan:
+
+`PERCEPTION -> CONTEXT -> REASON -> RISK -> VERIFY`
+
+Engineering plan:
+
+`CODE INDEX -> PLAN -> IMPLEMENT GOVERNED -> VERIFY`
+
+Mission plan:
+
+`PLAN -> DELEGATE -> VERIFY -> APPROVAL GOVERNANCE`
+
+Company, Research, System and general conversational plans use their own
+bounded capability sequences.
+
+The Executive agent is registered in the typed Agent Registry with explicit
+capabilities rather than receiving unrestricted authority.
+
+### 4. Master V8 Runtime
+
+`workstation/jarvis_os_v8.py`
+
+The V8 Master server layers over the proven V3/V7 workstation:
+
+- retains the existing UI, Company terminal, chart, Paper, voice and specialist
+  routing surfaces;
+- adds `/api/executive/status` and `/api/executive/plan`;
+- short-circuits deterministic workspace control before broad model dispatch;
+- returns executive plan metadata with normal domain responses;
+- preserves duplicate suppression and voice-owner/uncertainty gates.
+
+`workstation/jarvis_os_v8_assets/runtime.js` adds only loopback-safe dedicated
+workspace navigation and executive status observation.
+
+### 5. V8 Runtime Ownership
+
+`scripts/jarvis_runtime_supervisor_v8.py`
+
+V8 retains the V6.2 stale-Quant preflight and V7 service set, then adds Master
+surface identity verification. A process on 8797 is accepted as current only if
+it serves both the V8 home identity and V8 browser runtime. An obsolete listener
+is terminated only when it can be proven to belong to the JARVIS Master under
+`C:\Jarvis`; unknown processes fail closed.
+
+### 6. Unified Completion / Executive Center
+
+Port 8799 now adds an Executive surface beside:
+
+- completion matrix
+- runtime health
+- approvals
+- missions
+- AST Code Intelligence
+- memory
+- model telemetry
+- market-event telemetry
+- champion/challenger governance
+
+The Executive surface can inspect a proposed outcome and show intent, domain,
+agent hints, phases and safety gates without executing an external action.
+
+## Existing advanced systems preserved
+
+V8 remains layered over the verified V7/V6.3 capabilities, including:
+
+- Company OS and sixteen-department supervised venture workflows
+- professional Quant terminal
+- Adaptive Quant Brain
+- unified market structure/feature engine
+- option chain/OI/IV/Greeks intelligence
+- defined-risk paper options
+- autonomous paper portfolio and active exits
+- journal, MAE/MFE and bounded trade learning
 - Strategy Research Lab
-- robust validation foundation
-- champion/challenger evidence registry
-- professional Quant UI
-- runtime recovery and strict paper/live separation
-
-V7 does **not** turn on real trading. Shadow/live observation and any future broker execution remain separate governed milestones.
+- OOS/bootstrap/cost robust validation
+- champion/challenger research governance
+- market event contracts and publisher adapters
+- correlation intelligence
+- Nautilus infrastructure
+- Hybrid Memory and lifecycle governance
+- Mission Control and resumable queue
+- AST Code Intelligence-grounded Coding Agent
+- model routing telemetry
+- Completion Center
+- runtime recovery
 
 ## Safety invariants
 
-The V7 completion branch must continue to satisfy:
+V8 must continue to satisfy:
 
 ```text
 paper_only = true
@@ -155,30 +195,51 @@ automatic_production_strategy_rewrite = false
 external_actions = APPROVAL_GATED
 ```
 
-No repository-completion metric may override these invariants.
+A repository completion score cannot override these boundaries.
 
-## V7 release gate
+## External or separately governed dependencies
 
-V7 is not considered verified merely because these files exist on GitHub.  The local installer must pass:
+The following remain external rather than being falsely declared complete:
 
-1. clean-tree preflight
-2. timestamped backup branch
-3. Python compile for touched modules
-4. JavaScript syntax checks
-5. V7 exact capability/safety regressions
-6. V6.3 recovery/runtime regressions
-7. complete repository regression suite
-8. Protected Core import
-9. `git diff --check`
-10. clean post-test tree
-11. owned-process launch
-12. HTTP 200 for Master, Quant and Completion Center contracts
-13. explicit safety assertions
+- compatible native Windows speech recognizer when absent from the machine
+- licensed exchange-grade L2/L3/tick feeds
+- colocation/FIX/HFT infrastructure
+- premium/proprietary research databases
+- optional cloud/frontier-model accounts
+- licensed advanced charting source
+- hardware/biometric authorization
+- production VM/container isolation and OS quotas
+- independent production security review
+- real broker execution and reconciliation
 
-On any failure, the installer restores the exact previous branch/HEAD and retains the backup branch.
+## V8 release gate
+
+V8 is not verified merely because GitHub contains the files. The local installer
+must pass:
+
+1. clean-tree preflight;
+2. timestamped V7 backup branch;
+3. exact ancestry from verified V7 HEAD `b0b67a6`;
+4. Python compile of all new/touched runtime modules;
+5. JavaScript syntax checks;
+6. exact `open apps workspace` command regression;
+7. V8 intent/context/executive/runtime tests;
+8. V7 Project Completion regressions;
+9. V6.3 advanced Quant and recovery regressions;
+10. complete repository regression suite;
+11. Protected Core import and explicit safety assertions;
+12. `git diff --check` and clean tree;
+13. owned-process launch;
+14. V8 Master identity/runtime HTTP verification;
+15. Quant advanced-surface HTTP verification;
+16. Completion/Executive Center HTTP verification.
+
+On any failure, installation restores the exact previous branch/HEAD and retains
+its timestamped backup.
 
 ## Current release verdict
 
-**V7 IMPLEMENTATION STAGED — LOCAL VERIFICATION REQUIRED.**
+**V8 UNIFIED INTELLIGENCE OS — IMPLEMENTATION STAGED, LOCAL VERIFICATION REQUIRED.**
 
-The repository-controlled V7 code is present on the completion branch.  Do not call the V7 release complete until the local installer and full regression succeed on `C:\Jarvis`.
+Do not call V8 verified until the V8 installer and full local regression pass on
+`C:\Jarvis`.
