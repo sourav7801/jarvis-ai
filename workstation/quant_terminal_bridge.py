@@ -101,40 +101,54 @@ def normalize(text: str) -> str:
 
 
 def requested_symbols(text: str) -> tuple[str, ...]:
-    """Resolve supported markets in the same order the user mentioned them.
-
-    Longer aliases win when aliases overlap, e.g. ``bank nifty`` beats the
-    nested ``nifty`` token and ``nifty 50`` beats ``nifty``.
-    """
-
     value = normalize(text)
     candidates = []
-
     for alias, symbol in _SYMBOL_ALIASES:
-        for match in re.finditer(
-            rf"(?<![a-z0-9]){re.escape(alias)}(?![a-z0-9])",
-            value,
-        ):
-            start, end = match.span()
-            candidates.append((start, -(end - start), end, symbol))
-
+        for match in re.finditer(rf"(?<![a-z0-9]){re.escape(alias)}(?![a-z0-9])", value):
+            left, right = match.span()
+            candidates.append((left, -(right-left), right, symbol))
     candidates.sort()
-
     found = []
     occupied = []
-
-    for start, _negative_length, end, symbol in candidates:
-        if any(
-            start < right and end > left
-            for left, right in occupied
-        ):
+    for left, _length, right, symbol in candidates:
+        if any(left < r and right > l for l, r in occupied):
             continue
-
-        occupied.append((start, end))
-
+        occupied.append((left, right))
         if symbol not in found:
             found.append(symbol)
 
+    tokens = list(re.finditer(r"[a-z0-9]+", value))
+    aliases = [(re.sub(r"[^a-z0-9]", "", alias), symbol) for alias, symbol in _SYMBOL_ALIASES]
+    fuzzy = []
+    for index in range(len(tokens)):
+        for width in (1, 2, 3):
+            stop = index + width
+            if stop > len(tokens):
+                continue
+            left = tokens[index].start()
+            right = tokens[stop-1].end()
+            if any(left < r and right > l for l, r in occupied):
+                continue
+            window = "".join(token.group(0) for token in tokens[index:stop])
+            if len(window) < 4:
+                continue
+            best_symbol = None
+            best_ratio = 0.0
+            for alias, symbol in aliases:
+                if symbol in found or not alias or abs(len(window)-len(alias)) > 2:
+                    continue
+                ratio = 1.0 if window == alias else SequenceMatcher(None, window, alias).ratio()
+                if ratio > best_ratio:
+                    best_ratio = ratio
+                    best_symbol = symbol
+            if best_symbol and best_ratio >= 0.88:
+                fuzzy.append((left, right, best_symbol, best_ratio))
+    for left, right, symbol, ratio in sorted(fuzzy, key=lambda item: (item[0], -(item[1]-item[0]), -item[3])):
+        if any(left < r and right > l for l, r in occupied):
+            continue
+        occupied.append((left, right))
+        if symbol not in found:
+            found.append(symbol)
     return tuple(found)
 
 
@@ -188,6 +202,12 @@ def is_quant_terminal_request(text: str) -> bool:
     from workstation.nautilus_universe_router import is_universe_scan_request
 
     if is_universe_scan_request(text):
+        return True
+
+    from workstation.paper_trade_action_router import is_paper_trade_action_request
+    from workstation.quant_intelligence_commands import is_quant_intelligence_command
+
+    if is_paper_trade_action_request(text) or is_quant_intelligence_command(text):
         return True
 
     if not requested_symbols(text):
@@ -335,7 +355,11 @@ def dispatch_quant_terminal(text: str) -> QuantTerminalDispatch:
             f"If the browser did not open automatically, use {TRADING_URL}."
         )
 
-    response_parts.append("Live broker execution remains locked.")
+    if not any(
+        "live broker execution remains locked" in str(part).lower()
+        for part in response_parts
+    ):
+        response_parts.append("Live broker execution remains locked.")
 
     return QuantTerminalDispatch(
         success=True,

@@ -249,14 +249,20 @@ class VoiceV32HybridTests(unittest.TestCase):
             text=True,
         )
 
-        self.assertEqual(
-            result.returncode,
-            0,
-            msg=(
-                result.stdout
-                + result.stderr
-            ),
-        )
+        try:
+            self.assertEqual(
+                result.returncode,
+                0,
+                msg=(
+                    result.stdout
+                    + result.stderr
+                ),
+            )
+        finally:
+            try:
+                output.unlink(missing_ok=True)
+            except Exception:
+                pass
 
 
     @unittest.skipUnless(
@@ -310,7 +316,7 @@ class VoiceV32HybridTests(unittest.TestCase):
         output = (
             ROOT
             / ".jarvis-dev"
-            / "JarvisVoiceService.test.exe"
+            / f"JarvisVoiceService.test.{os.getpid()}.{id(self)}.exe"
         )
 
         output.parent.mkdir(
@@ -329,7 +335,7 @@ class VoiceV32HybridTests(unittest.TestCase):
             "$csc=$candidates | Where-Object { Test-Path $_ } | Select-Object -First 1;"
             "if(-not $csc){ throw 'C# compiler not found' };"
             "& $csc /nologo /target:exe /optimize+ "
-            "'/out:C:\\Jarvis\\.jarvis-dev\\JarvisVoiceService.test.exe' "
+            f"'/out:{output}' "
             "('/reference:' + $speech) "
             "'C:\\Jarvis\\workstation\\native_voice\\JarvisVoiceService.cs';"
             "exit $LASTEXITCODE"

@@ -199,6 +199,7 @@ async function sendCommand(){
     if(result.action==="set_layout"&&Number(result.layout)){layout=[1,2,4,6,8].includes(Number(result.layout))?Number(result.layout):layout;selectedSlot=0;syncControls();mountCharts()}
     if(result.action==="set_chart"&&result.chart){const raw=String(result.chart.label||result.chart.symbol||"").toUpperCase().replaceAll(" ","");const found=MARKETS.find(item=>item.symbol===raw||item.label.toUpperCase().replaceAll(" ","")===raw);if(found)selectMarket(found.symbol)}
     if(result.action==="open_quant"&&result.symbol){const raw=String(result.symbol).toUpperCase().replaceAll(" ","");const found=MARKETS.find(item=>item.symbol===raw||item.label.toUpperCase().replaceAll(" ","")===raw);if(found){selectMarket(found.symbol);scanSelected()}}
+    if(["paper_trade_opened","paper_trade_armed","paper_trade_existing_position","paper_trade_risk_rejected","quant_adaptive_explanation","quant_strategy_research"].includes(result.action)&&result.symbol){const raw=String(result.symbol).toUpperCase().replaceAll(" ","");const found=MARKETS.find(item=>item.symbol===raw||item.label.toUpperCase().replaceAll(" ","")===raw);if(found){selectMarket(found.symbol);scanSelected()}}
   }catch(error){$("commandReply").textContent=error.message}
 }
 

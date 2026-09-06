@@ -88,12 +88,24 @@ class PaperAutonomyEngine:
             )
             self._scan_thread.start()
             self._mark_thread.start()
+        try:
+            from omni.trading_intelligence.self_improvement_coordinator import self_improvement_coordinator
+
+            self_improvement_coordinator.start()
+        except Exception:
+            pass
         return self.status()
 
     def stop(self) -> dict[str, Any]:
         self._stop.set()
         with self._lock:
             self._running = False
+        try:
+            from omni.trading_intelligence.self_improvement_coordinator import self_improvement_coordinator
+
+            self_improvement_coordinator.stop()
+        except Exception:
+            pass
         return self.status()
 
     def status(self) -> dict[str, Any]:
@@ -198,7 +210,7 @@ class PaperAutonomyEngine:
                 target=float(row["target"]),
                 quantity=None,
                 timeframe=str(row.get("timeframe") or ""),
-                strategy="QUANT_V4_REGIME_ENSEMBLE",
+                strategy="ADAPTIVE_QUANT_V6_REGIME_ENSEMBLE",
                 score=float(row.get("score") or 0.0),
                 source="AUTONOMOUS_PAPER",
                 asset_type="CRYPTO" if symbol in {"BTC", "ETH", "SOL"} else "MARKET",

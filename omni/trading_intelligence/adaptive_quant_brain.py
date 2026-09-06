@@ -6,6 +6,8 @@ from statistics import fmean, pstdev
 from typing import Any, Iterable
 
 from omni.trading_intelligence.quant_firm_engine import strategy_votes
+from omni.trading_intelligence.chart_pattern_engine import detect_chart_patterns
+from omni.trading_intelligence.indicator_plugin_registry import indicator_registry
 
 
 MIN_BARS = 80
@@ -295,6 +297,7 @@ def structure_snapshot(candles: list[dict[str, Any]]) -> dict[str, Any]:
         "fvg": fvg[-5:],
         "liquidity_sweep": sweep,
         "patterns": patterns,
+        "chart_patterns": detect_chart_patterns(candles),
     }
 
 
@@ -365,6 +368,15 @@ def _advanced_votes(indicators: dict[str, Any], structure: dict[str, Any]) -> li
     if "BEARISH_ENGULFING" in structure.get("patterns", []):
         votes.append(_vote("CANDLE_PATTERN", "pattern", "SHORT", 58, ["Bearish engulfing"]))
 
+    for pattern in structure.get("chart_patterns") or []:
+        bias = str(pattern.get("bias") or "").upper()
+        name = str(pattern.get("pattern") or "CHART_PATTERN")
+        confidence = float(pattern.get("confidence") or 0.0)
+        if bias == "BULLISH":
+            votes.append(_vote("HIGHER_ORDER_CHART_PATTERN", "pattern", "LONG", 52 + confidence * 20, [name]))
+        elif bias == "BEARISH":
+            votes.append(_vote("HIGHER_ORDER_CHART_PATTERN", "pattern", "SHORT", 52 + confidence * 20, [name]))
+
     return votes
 
 
@@ -388,6 +400,8 @@ def adaptive_decide(symbol: str, timeframe: str, candles: list[dict[str, Any]]) 
     indicators = indicator_snapshot(candles)
     structure = structure_snapshot(candles)
     regime = _regime(candles, indicators)
+
+    custom_indicators = indicator_registry.evaluate_all(candles)
 
     base_votes = [
         {
@@ -466,7 +480,9 @@ def adaptive_decide(symbol: str, timeframe: str, candles: list[dict[str, Any]]) 
         "structure": structure,
         "learning_weights": learned,
         "confluence_count": len(ranked_votes),
+        "custom_indicators": custom_indicators,
         "indicator_plugins": {
+            "registered": indicator_registry.describe(),
             "supported": [
                 "EMA", "RSI", "ATR", "VWAP", "MACD", "BOLLINGER", "STOCHASTIC", "ROC", "ADX", "RELATIVE_VOLUME"
             ],
