@@ -1,11 +1,10 @@
-"""Read-only context fabric for JARVIS V8 executive reasoning.
+"""Read-only context fabric for JARVIS executive reasoning.
 
-The fabric gathers bounded local state from existing JARVIS subsystems without
-creating broker orders, mutating portfolio policy, or changing memory records.
-It is designed to give planners one coherent view instead of making every agent
-reconstruct context independently.
+V9.3 extends the proven V8 context contract with a bounded provenance-aware
+World Model and typed Cognitive Event Bus. The fabric still gathers local state
+without creating broker orders, mutating portfolio policy, or changing memory
+records.
 """
-
 from __future__ import annotations
 
 import json
@@ -90,11 +89,29 @@ def _paper_summary() -> dict[str, Any]:
     }
 
 
+def _world_context() -> dict[str, Any]:
+    from omni.cognitive_bridges import install_cognitive_bridges
+    from omni.world_model import WORLD_MODEL
+
+    bridge = install_cognitive_bridges()
+    refresh = WORLD_MODEL.refresh_local()
+    world = WORLD_MODEL.snapshot(limit=40)
+    return {"bridge": bridge, "refresh": refresh, "world": world}
+
+
+def _cognitive_context() -> dict[str, Any]:
+    from omni.cognitive_event_bus import COGNITIVE_EVENT_BUS
+
+    return COGNITIVE_EVENT_BUS.snapshot(limit=30)
+
+
 def snapshot(query: str = "", *, include_market_context: bool | None = None) -> dict[str, Any]:
     """Return bounded current context for executive planning.
 
     Heavy trading context is included only when the request appears market
-    related, unless explicitly requested by the caller.
+    related, unless explicitly requested by the caller. World-state and
+    cognitive-event views are bounded and contain explicit provenance/freshness
+    metadata; they do not grant execution authority.
     """
 
     from omni.workspace_command_center import snapshot as workspace_snapshot
@@ -114,7 +131,10 @@ def snapshot(query: str = "", *, include_market_context: bool | None = None) -> 
     recent = conversation_turns.history(limit=3, useful_only=True)
     payload: dict[str, Any] = {
         "success": True,
+        # Keep the historical context-fabric version for compatibility while
+        # exposing V9.3 capabilities explicitly below.
         "version": "8.0",
+        "world_model_version": "9.3",
         "query": str(query or "")[:1000],
         "conversation": {
             "latest": conversation_turns.latest(prefer_anchor=True),
@@ -125,6 +145,8 @@ def snapshot(query: str = "", *, include_market_context: bool | None = None) -> 
         "missions": _mission_summary(),
         "mission_queue": MISSION_QUEUE.snapshot(limit=20),
         "memory": _safe("memory", _memory_summary),
+        "world_model": _safe("world_model", _world_context),
+        "cognitive_events": _safe("cognitive_events", _cognitive_context),
         "paper": _safe("paper", _paper_summary) if market_related else {
             "success": True,
             "name": "paper",
@@ -133,6 +155,9 @@ def snapshot(query: str = "", *, include_market_context: bool | None = None) -> 
         "policy": {
             "local_first": True,
             "context_mutation": False,
+            "state_provenance": True,
+            "freshness_explicit": True,
+            "cognitive_bus": True,
             "paper_only": True,
             "live_execution": False,
             "automatic_broker_order": False,
