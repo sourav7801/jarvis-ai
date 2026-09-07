@@ -1,4 +1,4 @@
-"""JARVIS V8 Project Completion / Executive Center.
+"""JARVIS V8/V9 Project Completion / Executive Center.
 
 A loopback-only operator console for repository completion, runtime posture,
 approvals, mission queue, executive planning, code intelligence, memory, model
@@ -20,6 +20,7 @@ from typing import Any, Callable
 from config import HYBRID_MEMORY_DB, MISSION_STATE_FILE
 from omni.loopback_http import exclusive_server
 from omni.service_health_contract import ServiceHealthClock
+from omni.subsystem_snapshot import SubsystemSnapshotCollector, sanitize_error
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,10 +28,13 @@ STATIC = ROOT / "workstation" / "completion_console_static"
 HOST = os.getenv("JARVIS_COMPLETION_HOST", "127.0.0.1").strip()
 PORT = int(os.getenv("JARVIS_COMPLETION_PORT", "8799"))
 HEALTH = ServiceHealthClock("JARVIS_COMPLETION_CENTER", "8.0")
+SNAPSHOTS = SubsystemSnapshotCollector(max_inflight=8)
 _APPROVAL_ID = re.compile(r"^approval-[0-9a-f]{16}$")
 
 
 def _safe_call(name: str, function: Callable[[], Any]) -> dict[str, Any]:
+    """Compatibility helper used by older Completion Center consumers."""
+
     try:
         value = function()
         return {"success": True, "name": name, "data": value}
@@ -38,7 +42,7 @@ def _safe_call(name: str, function: Callable[[], Any]) -> dict[str, Any]:
         return {
             "success": False,
             "name": name,
-            "error": f"{type(exc).__name__}: {exc}"[:500],
+            "error": f"{type(exc).__name__}: {sanitize_error(exc)}"[:500],
         }
 
 
@@ -85,35 +89,102 @@ def _mission_state() -> dict[str, Any]:
     return {"mission_count": 0, "latest_id": None, "latest_status": "READY"}
 
 
-def overview_payload() -> dict[str, Any]:
-    from omni.project_completion import snapshot as completion_snapshot
-    from omni.workspace_command_center import snapshot as workspace_snapshot
-    from omni.code_intelligence import CODE_INTELLIGENCE
-    from omni.model_router_telemetry import MODEL_ROUTER_TELEMETRY
-    from omni.mission_queue import MISSION_QUEUE
-    from omni.approval_queue import approval_queue
-    from omni.executive_control_plane import EXECUTIVE_CONTROL_PLANE
-    from omni.trading_intelligence.champion_challenger import CHAMPION_CHALLENGER
-    from workstation.market_event_bus import MARKET_EVENT_BUS
+# Overview providers are deliberately lazy.  Import or runtime failure in one
+# subsystem is captured by SubsystemSnapshotCollector instead of preventing the
+# rest of the Completion Center from rendering.
+def _completion_provider() -> Any:
+    from omni.project_completion import snapshot
+    return snapshot()
 
+
+def _workspaces_provider() -> Any:
+    from omni.workspace_command_center import snapshot
+    return snapshot()
+
+
+def _executive_provider() -> Any:
+    from omni.executive_control_plane import EXECUTIVE_CONTROL_PLANE
+    return EXECUTIVE_CONTROL_PLANE.status()
+
+
+def _approvals_provider() -> Any:
+    from omni.approval_queue import approval_queue
+    return {
+        "pending": list(approval_queue.pending()),
+        "external_actions": "APPROVAL_GATED",
+    }
+
+
+def _mission_queue_provider() -> Any:
+    from omni.mission_queue import MISSION_QUEUE
+    return MISSION_QUEUE.snapshot()
+
+
+def _code_provider() -> Any:
+    from omni.code_intelligence import CODE_INTELLIGENCE
+    return CODE_INTELLIGENCE.snapshot(include_records=False)
+
+
+def _model_router_provider() -> Any:
+    from omni.model_router_telemetry import MODEL_ROUTER_TELEMETRY
+    return MODEL_ROUTER_TELEMETRY.status()
+
+
+def _market_events_provider() -> Any:
+    from workstation.market_event_bus import MARKET_EVENT_BUS
+    return MARKET_EVENT_BUS.snapshot(limit=25)
+
+
+def _strategy_provider() -> Any:
+    from omni.trading_intelligence.champion_challenger import CHAMPION_CHALLENGER
+    return CHAMPION_CHALLENGER.snapshot(limit=30)
+
+
+def _overview_providers() -> dict[str, Callable[[], Any]]:
+    return {
+        "completion": _completion_provider,
+        "workspaces": _workspaces_provider,
+        "executive": _executive_provider,
+        "approvals": _approvals_provider,
+        "missions": _mission_state,
+        "mission_queue": _mission_queue_provider,
+        "code_intelligence": _code_provider,
+        "memory": _memory_snapshot,
+        "model_router": _model_router_provider,
+        "market_events": _market_events_provider,
+        "strategy_governance": _strategy_provider,
+    }
+
+
+def _subsystem_data(subsystems: dict[str, dict[str, Any]], name: str) -> Any:
+    record = subsystems.get(name) or {}
+    return record.get("data") if record.get("healthy") else None
+
+
+def overview_payload() -> dict[str, Any]:
+    subsystems = SNAPSHOTS.collect(_overview_providers(), timeout=2.0)
+    overall = "READY" if subsystems and all(row.get("healthy") for row in subsystems.values()) else "DEGRADED"
+
+    # Preserve the historical top-level fields while adding per-subsystem health.
+    # Memory historically returned a safe-call envelope, so expose the new richer
+    # envelope there while the other fields keep their raw-data shape.
     return {
         "success": True,
         "service": "JARVIS_COMPLETION_CENTER",
         "version": "8.0",
-        "completion": completion_snapshot(),
-        "workspaces": workspace_snapshot(),
-        "executive": EXECUTIVE_CONTROL_PLANE.status(),
-        "approvals": {
-            "pending": list(approval_queue.pending()),
-            "external_actions": "APPROVAL_GATED",
-        },
-        "missions": _mission_state(),
-        "mission_queue": MISSION_QUEUE.snapshot(),
-        "code_intelligence": CODE_INTELLIGENCE.snapshot(include_records=False),
-        "memory": _safe_call("memory", _memory_snapshot),
-        "model_router": MODEL_ROUTER_TELEMETRY.status(),
-        "market_events": MARKET_EVENT_BUS.snapshot(limit=25),
-        "strategy_governance": CHAMPION_CHALLENGER.snapshot(limit=30),
+        "overall": overall,
+        "subsystems": subsystems,
+        "completion": _subsystem_data(subsystems, "completion"),
+        "workspaces": _subsystem_data(subsystems, "workspaces"),
+        "executive": _subsystem_data(subsystems, "executive"),
+        "approvals": _subsystem_data(subsystems, "approvals"),
+        "missions": _subsystem_data(subsystems, "missions"),
+        "mission_queue": _subsystem_data(subsystems, "mission_queue"),
+        "code_intelligence": _subsystem_data(subsystems, "code_intelligence"),
+        "memory": subsystems.get("memory"),
+        "model_router": _subsystem_data(subsystems, "model_router"),
+        "market_events": _subsystem_data(subsystems, "market_events"),
+        "strategy_governance": _subsystem_data(subsystems, "strategy_governance"),
         "safety": {
             "paper_only": True,
             "live_execution": False,
@@ -186,13 +257,18 @@ class CompletionHandler(BaseHTTPRequestHandler):
             )
         if path == "/api/overview":
             try:
-                return self.send_json(overview_payload())
+                payload = overview_payload()
+                if payload.get("overall") == "READY":
+                    HEALTH.mark_success()
+                return self.send_json(payload)
             except Exception as exc:
+                # This is reserved for failure of the aggregation boundary itself;
+                # individual subsystem failures are already isolated and remain 200.
                 HEALTH.mark_error(exc)
                 return self.send_json(
                     {
                         "success": False,
-                        "message": f"{type(exc).__name__}: {exc}"[:500],
+                        "message": f"{type(exc).__name__}: {sanitize_error(exc)}"[:500],
                         "paper_only": True,
                         "live_execution": False,
                     },
@@ -266,14 +342,14 @@ class CompletionHandler(BaseHTTPRequestHandler):
                     }
                 )
             except (KeyError, RuntimeError, PermissionError) as exc:
-                return self.send_json({"success": False, "message": str(exc)[:400]}, 409)
+                return self.send_json({"success": False, "message": sanitize_error(exc)[:400]}, 409)
         self.send_error(404)
 
 
 def main() -> int:
     server = exclusive_server(HOST, PORT, CompletionHandler)
     print("=" * 72)
-    print("JARVIS V8 PROJECT COMPLETION / EXECUTIVE CENTER")
+    print("JARVIS V8/V9 PROJECT COMPLETION / EXECUTIVE CENTER")
     print("=" * 72)
     print(f"Console: http://{HOST}:{PORT}")
     print("Mode: LOCAL / GOVERNED / PAPER-RESEARCH")
