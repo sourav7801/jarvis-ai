@@ -1,0 +1,50 @@
+{
+  "schema": "JARVIS_V12_ADAPTIVE_MARKET_INTELLIGENCE_V1",
+  "release": "V12_ADAPTIVE_MARKET_INTELLIGENCE",
+  "base": "3fa42cdca66423d4a7284c9e4c81eb571aac9029",
+  "status": "RELEASE_CANDIDATE_PENDING_WINDOWS_GATE",
+  "capabilities": {
+    "adaptive_expected_value_policy": "PRESENT",
+    "static_67_68_70_execution_authority": "REMOVED_FROM_V12_AUTHORITY",
+    "static_alignment_execution_authority": "REMOVED_FROM_V12_AUTHORITY",
+    "static_profile_rr_execution_authority": "REMOVED_FROM_V12_AUTHORITY",
+    "primary_probe_wait_actions": "PRESENT",
+    "confidence_scaled_paper_risk": "PRESENT",
+    "paper_outcome_learning_calibration": "PRESENT",
+    "adaptive_direct_paper_commands": "PRESENT",
+    "adaptive_intraday_5m_10m_15m": "PRESENT",
+    "adaptive_swing": "PRESENT",
+    "adaptive_investment_long_only": "PRESENT",
+    "live_multi_profile_sampler": "PRESENT",
+    "legacy_http_compatibility": "PRESENT",
+    "v12_quant_identity_protection": "PRESENT",
+    "v12_completion_identity": "PRESENT",
+    "protected_v8_master_identity": "PRESERVED",
+    "v11_world_model_cognitive_bus_execution_mesh": "PRESERVED",
+    "completed_10m_provenance": "PRESERVED"
+  },
+  "hard_boundaries": [
+    "DATA_UNAVAILABLE",
+    "INSUFFICIENT_TIMEFRAME_DATA",
+    "INVALID_RISK_LEVELS",
+    "MARKET_SESSION_CLOSED",
+    "STALE_MARKET_DATA",
+    "RESEARCH_ONLY_GLOBAL_FEED",
+    "INSTRUMENT_SPEC_UNAVAILABLE",
+    "VALUATION_FX_UNAVAILABLE",
+    "LIVE_MARK_OUTSIDE_SETUP",
+    "LIVE_ADAPTIVE_EDGE_DECAYED",
+    "PERSISTENT_PORTFOLIO_RISK"
+  ],
+  "safety": {
+    "permanent_agents": 29,
+    "legacy_critic_agent_preserved": true,
+    "system_planes_do_not_count_as_agents": true,
+    "paper_only": true,
+    "live_execution": false,
+    "automatic_broker_order": false,
+    "automatic_production_strategy_rewrite": false,
+    "external_actions": "APPROVAL_GATED",
+    "fabricated_candles": false
+  }
+}
