@@ -5,10 +5,10 @@ from pathlib import (
 )
 
 import json
-import subprocess
 import tempfile
 
 from omni.runtime_paths import nautilus_python
+from omni.trading_intelligence.nautilus_subprocess import run_nautilus_worker
 
 
 ROOT = (
@@ -207,32 +207,16 @@ class NautilusC3PortfolioBridge:
             )
 
 
-            result = subprocess.run(
-                [
-                    str(
-                        NAUTILUS_PY
-                    ),
-
-                    str(
-                        WORKER
-                    ),
-
+            result = run_nautilus_worker(
+                WORKER,
+                (
                     "--input",
-                    str(
-                        input_path
-                    ),
-
+                    str(input_path),
                     "--output",
-                    str(
-                        output_path
-                    ),
-                ],
-                cwd=ROOT,
-                capture_output=True,
-                text=True,
-                timeout=float(
-                    timeout
+                    str(output_path),
                 ),
+                cwd=ROOT,
+                timeout=float(timeout),
             )
 
 
