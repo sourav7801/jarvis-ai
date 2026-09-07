@@ -114,6 +114,20 @@ PROFILES: dict[str, TradingTimeframeProfile] = {
         risk_multiplier=1.0,
         description="Five-minute paper trading on completed 5m bars with a confirmed breakout or breakdown.",
     ),
+    "10m_only": TradingTimeframeProfile(
+        name="10m_only",
+        timeframes=("10m",),
+        minimum_score=69.0,
+        minimum_alignment=100,
+        minimum_risk_reward=1.8,
+        require_confirmed_pattern=True,
+        scan_interval_seconds=7.5,
+        risk_multiplier=0.75,
+        description=(
+            "Ten-minute paper trading derived only from two contiguous completed 5m provider bars, "
+            "with a confirmed breakout or breakdown and reduced risk sizing."
+        ),
+    ),
     "15m_only": TradingTimeframeProfile(
         name="15m_only",
         timeframes=("15m",),
@@ -158,6 +172,10 @@ ALIASES = {
     "5min": "5m_only",
     "5minute": "5m_only",
     "5monly": "5m_only",
+    "10m": "10m_only",
+    "10min": "10m_only",
+    "10minute": "10m_only",
+    "10monly": "10m_only",
     "15m": "15m_only",
     "15min": "15m_only",
     "15minute": "15m_only",
@@ -177,6 +195,7 @@ def requested_trading_profile(text: str, *, default: str = "intraday") -> Tradin
     patterns = (
         (r"\b1\s*(?:m|min|minute)s?\b", "1m_only"),
         (r"\b5\s*(?:m|min|minute)s?\b", "5m_only"),
+        (r"\b10\s*(?:m|min|minute)s?\b", "10m_only"),
         (r"\b15\s*(?:m|min|minute)s?\b", "15m_only"),
     )
     for pattern, profile in patterns:
