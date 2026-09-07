@@ -1,15 +1,13 @@
 """JARVIS V13 adaptive intelligence runtime supervisor.
 
 Preserves V12/V11/V8 ownership checks while requiring contextual decision
-identity on active Quant/Completion surfaces. Unknown processes are never
+identity on active Master/Quant/Completion surfaces. Unknown processes are never
 terminated. No broker order API is imported here.
 """
 from __future__ import annotations
 
-import json
 import os
 import sys
-import time
 from pathlib import Path
 from typing import Any
 
@@ -34,7 +32,33 @@ from scripts.jarvis_runtime_supervisor_v12 import (  # noqa: E402
     master_v8_surface_status,
     v12_services,
 )
-from scripts.jarvis_runtime_supervisor_v62 import _port_open, _process_info  # noqa: E402
+from scripts.jarvis_runtime_supervisor_v62 import _port_open  # noqa: E402
+
+MASTER_BASE = f"http://{MASTER_HOST}:{MASTER_PORT}"
+
+
+def master_v13_surface_status() -> dict[str, Any]:
+    v8 = master_v8_surface_status()
+    authority_status, authority = _json_http(MASTER_BASE + "/api/v13/paper-authority")
+    current = bool(
+        v8.get("current")
+        and authority_status == 200
+        and authority.get("success") is True
+        and authority.get("version") == "13.0"
+        and authority.get("service") == "JARVIS_MASTER_V13_CONTEXTUAL_BRIDGE"
+        and authority.get("contextual_bridge_installed") is True
+        and authority.get("decision_authority") == "CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE"
+        and authority.get("live_execution") is False
+        and authority.get("automatic_broker_order") is False
+    )
+    return {
+        "current": current,
+        "v8": v8,
+        "authority_status": authority_status,
+        "service": authority.get("service"),
+        "decision_authority": authority.get("decision_authority"),
+        "contextual_bridge_installed": authority.get("contextual_bridge_installed"),
+    }
 
 
 def quant_v13_surface_status() -> dict[str, Any]:
@@ -42,9 +66,6 @@ def quant_v13_surface_status() -> dict[str, Any]:
     controller_status, controller = _json_http(QUANT_BASE + "/api/paper/portfolio-controller", timeout=4.0)
     mandates = controller.get("mandates") if isinstance(controller.get("mandates"), dict) else {}
     intraday = mandates.get("INTRADAY") if isinstance(mandates.get("INTRADAY"), dict) else {}
-    # V13 runtime policy is exposed through adaptive engine status. The controller
-    # compatibility string may remain V12 in old UI consumers, so require the
-    # actual lane policy instead of merely checking the service name.
     lanes = intraday.get("lanes") if isinstance(intraday.get("lanes"), dict) else {}
     contextual = any(
         isinstance(value, dict)
@@ -127,7 +148,7 @@ def _trusted_completion_process(info: dict[str, Any]) -> bool:
 
 
 def reclaim_obsolete_master_listener() -> dict[str, Any]:
-    surface = master_v8_surface_status() if _port_open(MASTER_HOST, MASTER_PORT) else {"current": False}
+    surface = master_v13_surface_status() if _port_open(MASTER_HOST, MASTER_PORT) else {"current": False}
     result = _reclaim_listener(
         host=MASTER_HOST,
         port=MASTER_PORT,
@@ -176,10 +197,10 @@ def v13_services(root: Path = ROOT) -> tuple[ManagedService, ...]:
             services.append(ManagedService(
                 name="master",
                 argv=(python, str(master_wrapper)),
-                health_url=service.health_url,
-                expected_service=service.expected_service,
+                health_url=MASTER_BASE + "/api/v13/paper-authority",
+                expected_service="JARVIS_MASTER_V13_CONTEXTUAL_BRIDGE",
                 port=service.port,
-                health_markers=service.health_markers,
+                health_markers=(),
                 environment=service.environment,
             ))
             continue
