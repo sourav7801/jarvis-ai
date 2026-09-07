@@ -2,7 +2,7 @@
 
 This layer sits in front of broad agent/model routing for commands that JARVIS
 can understand deterministically, especially operating-system workspace
-navigation.  It does not execute broker orders, shell commands, or external
+navigation. It does not execute broker orders, shell commands, or external
 consequential actions.
 """
 
@@ -47,7 +47,7 @@ _WORKSPACE_LABELS = {
     "legacy": "Legacy Trading Workspace",
 }
 
-# Workspaces that are separate services/pages rather than desktop windows.
+# Dedicated loopback services/pages that are not native V3 desktop windows.
 _DEDICATED_WORKSPACES: tuple[tuple[tuple[str, ...], str, str], ...] = (
     (("completion center", "project completion", "completion workspace", "engineering cockpit"),
      "Project Completion Center", "http://127.0.0.1:8799/"),
@@ -70,9 +70,8 @@ _NAVIGATION_VERBS = (
 )
 
 # These phrases prove that a navigation-looking sentence also asks for domain
-# work.  A bare word such as "research" is intentionally not included because
-# "open research workspace" is a pure UI command and must not fall through to
-# a language model.
+# work. A bare word such as "research" is deliberately not included because
+# "open research workspace" is a pure deterministic UI command.
 _NON_NAVIGATION_MARKERS = (
     "analyze", "analyse", "analysis", "explain", "research the", "research about",
     "research latest", "compare", "find trade", "trade setup", "signal",
@@ -84,14 +83,13 @@ _NON_NAVIGATION_MARKERS = (
 
 def _clean(text: str) -> str:
     value = re.sub(r"\s+", " ", str(text or "")).strip()
-    value = re.sub(
+    return re.sub(
         r"^(?:hey\s+|hi\s+|hello\s+|ok(?:ay)?\s+)?jarvis\s*[,;:\-]?\s*",
         "",
         value,
         count=1,
         flags=re.IGNORECASE,
     ).strip()
-    return value
 
 
 def _contains_navigation_verb(lowered: str) -> bool:
@@ -143,7 +141,10 @@ def workspace_actions(text: str) -> tuple[dict[str, Any], ...]:
     return tuple(output)
 
 
-def is_workspace_control_request(text: str, actions: tuple[dict[str, Any], ...] | None = None) -> bool:
+def is_workspace_control_request(
+    text: str,
+    actions: tuple[dict[str, Any], ...] | None = None,
+) -> bool:
     """True when a request is navigation/layout control rather than domain work."""
 
     value = _clean(text)
@@ -153,7 +154,7 @@ def is_workspace_control_request(text: str, actions: tuple[dict[str, Any], ...] 
         return False
 
     # A compound command such as "open NIFTY and analyze it" must continue to
-    # the Quant/domain router after the UI action is emitted.
+    # the Quant/domain router after its UI action has been identified.
     if any(marker in lowered for marker in _NON_NAVIGATION_MARKERS):
         return False
 
@@ -190,13 +191,25 @@ def _action_phrase(action: dict[str, Any]) -> str:
     return "applying the requested workspace action"
 
 
+def _sentence_case(value: str) -> str:
+    """Uppercase only the first character, preserving canonical label casing.
+
+    str.capitalize() lowercases the rest of the string, which turned
+    "Computer & Apps" into "computer & apps" and broke the exact V8 release
+    contract even though routing itself was correct.
+    """
+
+    text = str(value or "")
+    return text[:1].upper() + text[1:] if text else text
+
+
 def workspace_response(actions: tuple[dict[str, Any], ...]) -> str:
     phrases = [_action_phrase(dict(action)) for action in actions[:4]]
     if not phrases:
         return "Workspace command accepted."
     if len(phrases) == 1:
-        return phrases[0].capitalize() + "."
-    return (", ".join(phrases[:-1]) + " and " + phrases[-1]).capitalize() + "."
+        return _sentence_case(phrases[0]) + "."
+    return _sentence_case(", ".join(phrases[:-1]) + " and " + phrases[-1]) + "."
 
 
 def route_intent(text: str) -> IntentDecision:
@@ -228,7 +241,10 @@ def route_intent(text: str) -> IntentDecision:
             reasons=("Mission/orchestration language detected.",),
         )
 
-    if any(word in lowered for word in ("nifty", "banknifty", "bank nifty", "sensex", "btc", "bitcoin", "eth", "crude", "gold", "trading", "market")):
+    if any(word in lowered for word in (
+        "nifty", "banknifty", "bank nifty", "sensex", "btc", "bitcoin",
+        "eth", "crude", "gold", "trading", "market",
+    )):
         return IntentDecision(
             kind="MARKETS",
             route="MARKET_INTELLIGENCE",
@@ -240,7 +256,9 @@ def route_intent(text: str) -> IntentDecision:
             reasons=("Market/instrument language detected.",),
         )
 
-    if any(word in lowered for word in ("code", "python", "debug", "repository", "repo", "function", "class", "test")):
+    if any(word in lowered for word in (
+        "code", "python", "debug", "repository", "repo", "function", "class", "test",
+    )):
         return IntentDecision(
             kind="ENGINEERING",
             route="ENGINEERING",
