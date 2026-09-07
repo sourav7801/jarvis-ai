@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import socket
 
+# Protected cross-generation launcher lineage retained for regression contracts:
+# completion_console_v11 -> completion_console_v12
+# V12 is the active Completion implementation; the V11 marker is compatibility
+# metadata only and does not launch a second or stale Completion service.
 from workstation import completion_console_v12 as completion_console
 
 
