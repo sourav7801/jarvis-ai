@@ -6,9 +6,9 @@ cd /d C:\Jarvis
 title JARVIS OS V8 UNIFIED INTELLIGENCE
 
 set "JARVIS_PY=C:\Jarvis\.venv\Scripts\python.exe"
-if exist "%JARVIS_PY%" "%JARVIS_PY%" -c "import omni, numpy, pandas, workstation.jarvis_os_v8" >nul 2>&1
+if exist "%JARVIS_PY%" "%JARVIS_PY%" -c "import omni, numpy, pandas, workstation.jarvis_os_v3, workstation.jarvis_os_v8" >nul 2>&1
 if errorlevel 1 set "JARVIS_PY=C:\Jarvis\.venv-new\Scripts\python.exe"
-if exist "%JARVIS_PY%" "%JARVIS_PY%" -c "import omni, numpy, pandas, workstation.jarvis_os_v8" >nul 2>&1
+if exist "%JARVIS_PY%" "%JARVIS_PY%" -c "import omni, numpy, pandas, workstation.jarvis_os_v3, workstation.jarvis_os_v8" >nul 2>&1
 
 REM JARVIS_NATIVE_VOICE_V32
 start "JARVIS Native Voice" /min powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\Jarvis\start_jarvis_native_voice.ps1"
