@@ -32,10 +32,7 @@ def _evidence() -> Any:
 
 def _engineering() -> Any:
     from omni.engineering_governance import ENGINEERING_GOVERNANCE
-    return {
-        "status": ENGINEERING_GOVERNANCE.status(),
-        "repository": ENGINEERING_GOVERNANCE.inspect(),
-    }
+    return {"status": ENGINEERING_GOVERNANCE.status(), "repository": ENGINEERING_GOVERNANCE.inspect()}
 
 
 def _diagnostics() -> Any:
@@ -93,6 +90,10 @@ class CompletionHandlerV10(v93.CompletionHandlerV93):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         params = urllib.parse.parse_qs(parsed.query)
+        if path == "/v93_world.js":
+            return self.send_file(STATIC / "v93_world.js", "application/javascript; charset=utf-8")
+        if path == "/v10_advanced.js":
+            return self.send_file(STATIC / "v10_advanced.js", "application/javascript; charset=utf-8")
         if path == "/api/overview":
             try:
                 payload = overview_payload()
