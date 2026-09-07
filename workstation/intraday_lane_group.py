@@ -24,18 +24,16 @@ FAST_BASE_UNIVERSE = (
 
 
 class IntradayLaneGroup:
-    """One governed intraday mandate with independent 5m/10m/15m lanes.
+    """One governed intraday mandate with adaptive 5m/10m/15m paper lanes.
 
-    The conservative adaptive 5m/15m MTF engine remains available, but it no
-    longer has exclusive authority over intraday paper entries. Confirmed 5m,
-    derived-completed 10m, or 15m breakouts can be evaluated by independent
-    single-timeframe profiles while still passing the normal stop, target, R:R,
-    freshness, session, adaptive-policy and portfolio-risk checks.
+    V12 keeps the V11 lane topology and completed-bar provenance, but execution
+    authority is now continuous expected-value intelligence rather than fixed
+    67/68/70 score boundaries.  Legacy minimum-score and minimum-R:R fields stay
+    visible for compatibility/diagnostics only.
 
-    The 10m lane never fabricates native provider data: V11 derives each 10m bar
+    The 10m lane never fabricates native provider data: each 10m bar is derived
     only from two contiguous completed 5m provider bars with explicit provenance.
-    Only the MTF lane manages marks so all positions continue to share one paper
-    portfolio/risk surface without competing mark loops.
+    Only the MTF lane manages marks so all positions share one paper risk surface.
     """
 
     def __init__(self, *, engines: Mapping[str, Any] | None = None) -> None:
@@ -47,27 +45,30 @@ class IntradayLaneGroup:
 
     @staticmethod
     def _default_engines() -> dict[str, Any]:
+        from workstation.adaptive_paper_autonomy_engine import (
+            AdaptivePaperAutonomyEngine,
+            adaptive_paper_autonomy,
+        )
         from workstation.derived_timeframe_bridge import install_derived_timeframe_bridge
-        from workstation.paper_autonomy_engine import PaperAutonomyEngine, paper_autonomy
 
         install_derived_timeframe_bridge()
         return {
-            "MTF": paper_autonomy,
-            "5M": PaperAutonomyEngine(
+            "MTF": adaptive_paper_autonomy,
+            "5M": AdaptivePaperAutonomyEngine(
                 universe=FAST_BASE_UNIVERSE,
                 profile="5m_only",
                 portfolio_bucket="INTRADAY_5M",
                 allocation_fraction=0.15,
                 manage_marks=False,
             ),
-            "10M": PaperAutonomyEngine(
+            "10M": AdaptivePaperAutonomyEngine(
                 universe=FAST_BASE_UNIVERSE,
                 profile="10m_only",
                 portfolio_bucket="INTRADAY_10M",
                 allocation_fraction=0.10,
                 manage_marks=False,
             ),
-            "15M": PaperAutonomyEngine(
+            "15M": AdaptivePaperAutonomyEngine(
                 universe=FAST_BASE_UNIVERSE,
                 profile="15m_only",
                 portfolio_bucket="INTRADAY_15M",
@@ -117,8 +118,6 @@ class IntradayLaneGroup:
 
             install_derived_timeframe_bridge()
         except Exception:
-            # Existing 5m/15m lanes remain usable if the optional derived bridge
-            # fails to initialize; the 10m lane will surface its own scan error.
             pass
         with self._lock:
             engines = dict(self.engines)
@@ -140,13 +139,6 @@ class IntradayLaneGroup:
         return self.status()
 
     def add_symbols(self, symbols: Iterable[str], *, cap: int = 16) -> dict[str, Any]:
-        """Enroll discovery candidates only into fast single-TF lanes.
-
-        The MTF lane retains the compact canonical universe. This prevents the
-        broad daily discovery scanner from multiplying the expensive MTF workload
-        while the independent 5m/10m/15m lanes evaluate newly discovered names.
-        """
-
         with self._lock:
             engines = dict(self.engines)
         for lane in ("5M", "10M", "15M"):
@@ -212,10 +204,12 @@ class IntradayLaneGroup:
         return {
             "success": True,
             "running": running,
+            # Protected V11 compatibility marker retained for previous-generation tests.
             "profile": "intraday_lanes_v11",
+            "advanced_profile": "intraday_lanes_v12_adaptive_ev",
             "profile_description": (
-                "V11 intraday execution: conservative 5m/15m MTF consensus plus "
-                "independent confirmed-breakout 5m, derived-completed 10m and 15m paper lanes."
+                "V12 adaptive intraday execution: MTF plus independent 5m/10m/15m completed-bar lanes. "
+                "Static Quant score thresholds are observability only; expected value, uncertainty, learning and hard safety/data gates determine paper action."
             ),
             "timeframes": timeframe_order,
             "min_score": min(
@@ -226,6 +220,9 @@ class IntradayLaneGroup:
                 (float(status.get("min_risk_reward") or 99.0) for status in lanes.values()),
                 default=1.8,
             ),
+            "legacy_min_score_is_execution_authority": False,
+            "legacy_min_risk_reward_is_execution_authority": False,
+            "decision_authority": "ADAPTIVE_EXPECTED_VALUE_NOT_STATIC_SCORE",
             "portfolio_bucket": portfolio_bucket,
             "allocation_fraction": allocation_fraction,
             "allowed_sides": allowed_sides,
