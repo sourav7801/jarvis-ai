@@ -136,7 +136,21 @@ class ExecutiveControlPlane:
         domain = self._domain(clean, intent)
         agents = self._agent_hints(domain, clean)
         steps = self._steps(domain, intent, agents)
-        context = context_snapshot(clean) if include_context else None
+
+        # Deterministic local workspace actions must remain a near-zero-latency
+        # control path. They neither require external context nor the system
+        # critic; loading the full Context Fabric during a 1,300+ test run (or
+        # under a busy workstation) can otherwise turn a deterministic button
+        # command into a multi-second HTTP request. This also aligns execution
+        # with the existing `critic_required = not intent.deterministic` contract.
+        deterministic_workspace = bool(
+            intent.deterministic and intent.kind == "WORKSPACE_CONTROL"
+        )
+        context = (
+            context_snapshot(clean)
+            if include_context and not deterministic_workspace
+            else None
+        )
         result = {
             "success": True,
             "version": "8.0",
@@ -164,37 +178,47 @@ class ExecutiveControlPlane:
                 "automatic_production_rewrite": False,
             },
         }
-        try:
-            from omni.critic_verifier import CRITIC_VERIFIER
-            evidence = [{
-                "source": "unified_intent_router",
-                "freshness": "FRESH",
-                "provenance": {"intent_kind": intent.kind, "deterministic": intent.deterministic},
-                "claim": "Intent and domain route resolved",
-            }]
-            if context and isinstance(context, dict):
-                evidence.append({
-                    "source": "context_fabric",
-                    "freshness": "FRESH",
-                    "provenance": {"version": context.get("version")},
-                    "claim": "Bounded executive context assembled",
-                })
-            result["critic"] = CRITIC_VERIFIER.verify(
-                subject=f"executive-plan:{domain}:{clean[:120]}",
-                domain=domain,
-                evidence=evidence,
-                required_evidence=1,
-                require_fresh=True,
-                require_provenance=True,
-                policy=result["safety"],
-            )
-        except Exception as exc:
+
+        if deterministic_workspace:
             result["critic"] = {
-                "success": False,
-                "verdict": "FAILED",
-                "reason": f"{type(exc).__name__}: critic unavailable"[:200],
-                "progression_allowed": False,
+                "success": True,
+                "verdict": "DETERMINISTIC_LOCAL_CONTROL",
+                "reason": "Deterministic workspace control requires no system-critic round trip.",
+                "progression_allowed": True,
+                "skipped": True,
             }
+        else:
+            try:
+                from omni.critic_verifier import CRITIC_VERIFIER
+                evidence = [{
+                    "source": "unified_intent_router",
+                    "freshness": "FRESH",
+                    "provenance": {"intent_kind": intent.kind, "deterministic": intent.deterministic},
+                    "claim": "Intent and domain route resolved",
+                }]
+                if context and isinstance(context, dict):
+                    evidence.append({
+                        "source": "context_fabric",
+                        "freshness": "FRESH",
+                        "provenance": {"version": context.get("version")},
+                        "claim": "Bounded executive context assembled",
+                    })
+                result["critic"] = CRITIC_VERIFIER.verify(
+                    subject=f"executive-plan:{domain}:{clean[:120]}",
+                    domain=domain,
+                    evidence=evidence,
+                    required_evidence=1,
+                    require_fresh=True,
+                    require_provenance=True,
+                    policy=result["safety"],
+                )
+            except Exception as exc:
+                result["critic"] = {
+                    "success": False,
+                    "verdict": "FAILED",
+                    "reason": f"{type(exc).__name__}: critic unavailable"[:200],
+                    "progression_allowed": False,
+                }
         with self._lock:
             self._last_plan = result
         return result
