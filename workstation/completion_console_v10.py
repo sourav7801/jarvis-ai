@@ -1,8 +1,9 @@
 """JARVIS V10 Completion Center convergence surface.
 
 Extends V9.3 World Model/Cognitive Center with system-level Critic, Evidence
-Ledger, governed Engineering, System Diagnostics and Trading Governance. No
-broker-order or production-deployment surface is exposed.
+Ledger, governed Engineering, System Diagnostics, Trading Governance and the
+V10 Autonomy Orchestrator. No broker-order or production-deployment surface is
+exposed.
 """
 from __future__ import annotations
 
@@ -17,7 +18,12 @@ HOST = v93.HOST
 PORT = v93.PORT
 STATIC = v93.STATIC
 HEALTH = v93.HEALTH
-ADVANCED = SubsystemSnapshotCollector(max_inflight=5)
+ADVANCED = SubsystemSnapshotCollector(max_inflight=6)
+
+
+def _autonomy() -> Any:
+    from omni.autonomy_orchestrator import AUTONOMY_ORCHESTRATOR
+    return AUTONOMY_ORCHESTRATOR.status()
 
 
 def _critic() -> Any:
@@ -47,6 +53,7 @@ def _trading_governance() -> Any:
 
 def _advanced_providers() -> dict[str, Callable[[], Any]]:
     return {
+        "autonomy_orchestrator": _autonomy,
         "critic_verifier": _critic,
         "evidence_ledger": _evidence,
         "engineering_governance": _engineering,
@@ -65,6 +72,7 @@ def overview_payload() -> dict[str, Any]:
     if not all(row.get("healthy") for row in advanced.values()):
         payload["overall"] = "DEGRADED"
     payload["advanced"] = {
+        "autonomy_orchestrator": True,
         "system_critic": True,
         "evidence_ledger": True,
         "governed_engineering": True,
@@ -72,6 +80,8 @@ def overview_payload() -> dict[str, Any]:
         "trading_governance": True,
         "world_model": True,
         "cognitive_bus": True,
+        "goal_task_graph": True,
+        "mission_worker": True,
     }
     payload.setdefault("safety", {}).update({
         "paper_only": True,
@@ -109,6 +119,8 @@ class CompletionHandlerV10(v93.CompletionHandlerV93):
                     "live_execution": False,
                     "automatic_broker_order": False,
                 }, 500)
+        if path == "/api/autonomy":
+            return self.send_json(_autonomy())
         if path == "/api/critic":
             return self.send_json(_critic())
         if path == "/api/evidence":
@@ -128,6 +140,7 @@ class CompletionHandlerV10(v93.CompletionHandlerV93):
                 "version": "10.0",
                 "service": "JARVIS_ADVANCED_AUTONOMY_CONVERGENCE",
                 "features": {
+                    "autonomy_orchestrator": True,
                     "world_model": True,
                     "cognitive_bus": True,
                     "goal_task_graph": True,
@@ -152,6 +165,12 @@ class CompletionHandlerV10(v93.CompletionHandlerV93):
         path = parsed.path
         body = self._body()
         try:
+            if path == "/api/autonomy/plan":
+                from omni.autonomy_orchestrator import AUTONOMY_ORCHESTRATOR
+                return self.send_json(AUTONOMY_ORCHESTRATOR.plan(
+                    str(body.get("objective") or ""),
+                    enqueue_mission=bool(body.get("enqueue_mission", False)),
+                ))
             if path == "/api/critic/verify":
                 from omni.critic_verifier import CRITIC_VERIFIER
                 result = CRITIC_VERIFIER.verify(
@@ -197,6 +216,7 @@ def main() -> int:
     print("JARVIS V10 ADVANCED AUTONOMY / GOVERNANCE CENTER")
     print("=" * 72)
     print(f"Console: http://{HOST}:{PORT}")
+    print("Autonomy Orchestrator: GOVERNED / EXPLICIT MISSION QUEUE")
     print("World Model + Cognitive Bus: ENABLED")
     print("System Critic + Evidence Ledger: ENABLED")
     print("Governed Engineering + Diagnostics: ENABLED")
