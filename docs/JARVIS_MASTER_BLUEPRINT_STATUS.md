@@ -112,8 +112,11 @@ Mission plan:
 Company, Research, System and general conversational plans use their own
 bounded capability sequences.
 
-The Executive agent is registered in the typed Agent Registry with explicit
-capabilities rather than receiving unrestricted authority.
+The Executive Control Plane is a system-level orchestration service above the
+specialist registry, not a 30th permanent agent. The permanent typed Agent
+Registry remains at the established **29 agents**; executive planning delegates
+into those capability-scoped specialists without changing their count or giving
+itself unrestricted authority.
 
 ### 4. Master V8 Runtime
 
@@ -182,6 +185,7 @@ V8 remains layered over the verified V7/V6.3 capabilities, including:
 - model routing telemetry
 - Completion Center
 - runtime recovery
+- permanent 29-agent typed specialist registry
 
 ## Safety invariants
 
@@ -224,15 +228,17 @@ must pass:
 5. JavaScript syntax checks;
 6. exact `open apps workspace` command regression;
 7. V8 intent/context/executive/runtime tests;
-8. V7 Project Completion regressions;
-9. V6.3 advanced Quant and recovery regressions;
-10. complete repository regression suite;
-11. Protected Core import and explicit safety assertions;
-12. `git diff --check` and clean tree;
-13. owned-process launch;
-14. V8 Master identity/runtime HTTP verification;
-15. Quant advanced-surface HTTP verification;
-16. Completion/Executive Center HTTP verification.
+8. cross-generation compatibility tests for the permanent 29-agent registry,
+   startup profiler, Nautilus launcher and V6.3 runtime-hardening contracts;
+9. V7 Project Completion regressions;
+10. V6.3 advanced Quant and recovery regressions;
+11. complete repository regression suite;
+12. Protected Core import and explicit safety assertions;
+13. `git diff --check` and clean tree;
+14. owned-process launch;
+15. V8 Master identity/runtime HTTP verification;
+16. Quant advanced-surface HTTP verification;
+17. Completion/Executive Center HTTP verification.
 
 On any failure, installation restores the exact previous branch/HEAD and retains
 its timestamped backup.
