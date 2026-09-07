@@ -29,6 +29,7 @@ if exist "%JARVIS_NAUTILUS_PY%" "%JARVIS_NAUTILUS_PY%" -c "import nautilus_trade
 if errorlevel 1 set "JARVIS_NAUTILUS_PY=%JARVIS_PY%"
 
 REM JARVIS_RUNTIME_SUPERVISOR_V8
+REM Compatibility lineage: scripts.jarvis_runtime_supervisor_v62
 REM Preserves V6.2 stale-Quant ownership checks and V7 Completion Center supervision.
 REM V8 additionally refuses to adopt an older Master surface on port 8797.
 REM It then launches the unified executive/context/intelligence Master runtime.
