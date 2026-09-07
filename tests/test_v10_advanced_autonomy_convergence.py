@@ -196,11 +196,26 @@ class CompletionV10Tests(unittest.TestCase):
 
 class V10PermanentAgentContractTests(unittest.TestCase):
     def test_system_planes_do_not_become_agent_30(self):
-        names = {spec.name for spec in default_agent_specs()}
-        self.assertEqual(len(names), 29)
-        self.assertNotIn("critic", names)
-        self.assertNotIn("executive", names)
-        self.assertNotIn("engineering_governance", names)
+        specs = {spec.name: spec for spec in default_agent_specs()}
+        self.assertEqual(len(specs), 29)
+
+        # Protected legacy Critic specialist remains part of the 29-agent contract.
+        self.assertIn("critic", specs)
+        self.assertEqual(specs["critic"].module, "agents.meta_critic")
+
+        # V10 orchestration/governance planes are system services, not agent #30+.
+        for name in (
+            "executive",
+            "autonomy_orchestrator",
+            "critic_verifier",
+            "engineering_governance",
+            "system_diagnostics",
+            "trading_governance",
+            "evidence_ledger",
+            "world_model",
+            "cognitive_event_bus",
+        ):
+            self.assertNotIn(name, specs)
 
 
 if __name__ == "__main__":
