@@ -11,11 +11,12 @@ _INSTALLED = False
 
 
 def install_adaptive_direct_trade_bridge() -> dict[str, Any]:
-    """Make direct paper-trade commands use V12 adaptive authority.
+    """Make legacy paper-control routes use V12 adaptive authority.
 
-    The legacy direct router is retained for parsing, live-entry drift checks,
-    accounting and persistent Paper Desk writes. This bridge replaces only its
-    static qualification/arming hooks. No live broker capability is introduced.
+    The legacy router/endpoints are retained for compatibility, but their
+    paper-autonomy singleton and direct qualification hooks are redirected to
+    V12 adaptive expected-value intelligence. Live-entry drift checks,
+    accounting and persistent Paper Desk risk remain unchanged.
     """
 
     global _INSTALLED
@@ -24,6 +25,13 @@ def install_adaptive_direct_trade_bridge() -> dict[str, Any]:
             return status()
 
         from workstation import paper_trade_action_router as router
+        from workstation import paper_autonomy_engine as legacy_autonomy_module
+        from workstation.adaptive_paper_autonomy_engine import adaptive_paper_autonomy
+
+        # Existing /api/paper/autonomy routes import this module-level name at
+        # request time. Rebinding it keeps the protected HTTP surface while
+        # removing the old static-score singleton from canonical V12 authority.
+        legacy_autonomy_module.paper_autonomy = adaptive_paper_autonomy
 
         if getattr(router, "_v12_adaptive_direct_installed", False):
             _INSTALLED = True
@@ -86,6 +94,7 @@ def status() -> dict[str, Any]:
             "version": "12.0",
             "installed": _INSTALLED,
             "direct_trade_authority": "ADAPTIVE_EXPECTED_VALUE_NOT_STATIC_SCORE",
+            "legacy_autonomy_endpoint_redirected": _INSTALLED,
             "legacy_static_68_gate": False if _INSTALLED else None,
             "legacy_static_18_rr_gate": False if _INSTALLED else None,
             "live_entry_drift_check_preserved": True,
