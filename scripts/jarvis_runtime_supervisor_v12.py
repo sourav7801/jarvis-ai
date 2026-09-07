@@ -1,7 +1,7 @@
 """JARVIS V12 adaptive runtime supervisor.
 
-V12 preserves the protected V8 Master identity and all V11 completed-bar /
-execution-mesh surfaces, but refuses to silently adopt an older Quant or
+V12 preserves the protected V8 Master home/command identity and V11 completed-
+bar/execution surfaces, but refuses to silently adopt an older Master, Quant or
 Completion listener that lacks V12 adaptive expected-value authority. Unknown
 processes are never terminated. No broker order API is imported here.
 """
@@ -32,6 +32,7 @@ from scripts.jarvis_runtime_supervisor_v62 import (  # noqa: E402
 
 MASTER_HOST = "127.0.0.1"
 MASTER_PORT = 8797
+MASTER_BASE = f"http://{MASTER_HOST}:{MASTER_PORT}"
 QUANT_HOST = "127.0.0.1"
 QUANT_PORT = 8787
 QUANT_BASE = f"http://{QUANT_HOST}:{QUANT_PORT}"
@@ -50,6 +51,34 @@ def _json_http(url: str, timeout: float = 2.0) -> tuple[int | None, dict[str, An
         except ValueError:
             payload = {}
     return status, payload
+
+
+def master_v12_surface_status() -> dict[str, Any]:
+    """Require protected V8 identity plus V12 paper-authority identity."""
+
+    protected = master_v8_surface_status()
+    status, payload = _json_http(MASTER_BASE + "/api/v12/paper-authority")
+    current = bool(
+        protected.get("current")
+        and status == 200
+        and payload.get("success") is True
+        and payload.get("version") == "12.0"
+        and payload.get("service") == "JARVIS_MASTER_V12_ADAPTIVE_BRIDGE"
+        and payload.get("protected_master_identity") == "V8_UNIFIED_INTELLIGENCE"
+        and payload.get("adaptive_bridge_installed") is True
+        and payload.get("decision_authority") == "ADAPTIVE_EXPECTED_VALUE_NOT_STATIC_SCORE"
+        and payload.get("paper_only") is True
+        and payload.get("live_execution") is False
+        and payload.get("automatic_broker_order") is False
+    )
+    return {
+        "current": current,
+        "protected_v8": bool(protected.get("current")),
+        "status": status,
+        "version": payload.get("version"),
+        "service": payload.get("service"),
+        "decision_authority": payload.get("decision_authority"),
+    }
 
 
 def quant_v12_surface_status() -> dict[str, Any]:
@@ -106,11 +135,15 @@ def completion_v12_surface_status() -> dict[str, Any]:
     }
 
 
-def _trusted_master_process(info: dict[str, Any]) -> bool:
+def _root_owned(info: dict[str, Any]) -> tuple[bool, str]:
     root = str(ROOT).lower().rstrip("\\/")
     executable = str(info.get("ExecutablePath") or "").lower()
     command = str(info.get("CommandLine") or "").lower()
-    root_owned = executable.startswith(root + "\\") or root in command
+    return executable.startswith(root + "\\") or root in command, command
+
+
+def _trusted_master_process(info: dict[str, Any]) -> bool:
+    root_owned, command = _root_owned(info)
     markers = (
         "start_jarvis_master_v12.py",
         "start_jarvis_v3.py",
@@ -123,10 +156,7 @@ def _trusted_master_process(info: dict[str, Any]) -> bool:
 
 
 def _trusted_completion_process(info: dict[str, Any]) -> bool:
-    root = str(ROOT).lower().rstrip("\\/")
-    executable = str(info.get("ExecutablePath") or "").lower()
-    command = str(info.get("CommandLine") or "").lower()
-    root_owned = executable.startswith(root + "\\") or root in command
+    root_owned, command = _root_owned(info)
     markers = (
         "start_jarvis_completion_console.py",
         "workstation.completion_console",
@@ -141,14 +171,7 @@ def _trusted_completion_process(info: dict[str, Any]) -> bool:
     return bool(root_owned and any(marker in command for marker in markers))
 
 
-def _reclaim_listener(
-    *,
-    host: str,
-    port: int,
-    current: bool,
-    trusted,
-    label: str,
-) -> dict[str, Any]:
+def _reclaim_listener(*, host: str, port: int, current: bool, trusted, label: str) -> dict[str, Any]:
     if not _port_open(host, port):
         return {"action": "NO_LISTENER", "stopped": []}
     if current:
@@ -160,7 +183,6 @@ def _reclaim_listener(
             f"Port {port} is occupied by a non-V12 {label} surface, but its owning PID could not be resolved. "
             "Refusing to terminate an unknown process."
         )
-
     stopped: list[int] = []
     for pid in pids:
         if pid == os.getpid():
@@ -184,7 +206,7 @@ def _reclaim_listener(
 
 
 def reclaim_obsolete_master_listener() -> dict[str, Any]:
-    surface = master_v8_surface_status() if _port_open(MASTER_HOST, MASTER_PORT) else {"current": False}
+    surface = master_v12_surface_status() if _port_open(MASTER_HOST, MASTER_PORT) else {"current": False}
     result = _reclaim_listener(
         host=MASTER_HOST,
         port=MASTER_PORT,
@@ -232,10 +254,10 @@ def v12_services(root: Path = ROOT) -> tuple[ManagedService, ...]:
                 ManagedService(
                     name="master",
                     argv=(python, str(master_wrapper)),
-                    health_url=service.health_url,
-                    expected_service=service.expected_service,
+                    health_url=MASTER_BASE + "/api/v12/paper-authority",
+                    expected_service="JARVIS_MASTER_V12_ADAPTIVE_BRIDGE",
                     port=service.port,
-                    health_markers=service.health_markers,
+                    health_markers=(),
                     environment=service.environment,
                 )
             )
@@ -281,17 +303,11 @@ def main() -> int:
     print("Master ownership preflight:", master.get("action"))
     completion = reclaim_obsolete_completion_listener()
     print("Completion ownership preflight:", completion.get("action"))
-    print("Starting V12 supervised services: protected V8 Master, adaptive Quant, Nautilus, V12 Completion.")
+    print("Starting V12 supervised services: protected V8 Master + V12 authority bridge, adaptive Quant, Nautilus, V12 Completion.")
     print("Paper/research only. Static 67/68/70 score gates are observability only.")
     print("Live broker execution remains locked.")
-    browser = str(os.getenv("JARVIS_NO_BROWSER", "0")).strip().lower() not in {
-        "1", "true", "yes", "on"
-    }
-    return JarvisRuntimeSupervisor(
-        root=ROOT,
-        services=v12_services(ROOT),
-        browser=browser,
-    ).run_forever()
+    browser = str(os.getenv("JARVIS_NO_BROWSER", "0")).strip().lower() not in {"1", "true", "yes", "on"}
+    return JarvisRuntimeSupervisor(root=ROOT, services=v12_services(ROOT), browser=browser).run_forever()
 
 
 if __name__ == "__main__":
