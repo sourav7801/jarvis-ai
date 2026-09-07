@@ -40,14 +40,19 @@ if (-not $Csc) {
 $NeedsBuild = -not (Test-Path $Exe)
 
 if ($NeedsBuild) {
-
-    & $Csc `
-        /nologo `
-        /target:exe `
-        /optimize+ `
-        "/out:$Exe" `
-        "/reference:$SpeechDll" `
+    # Build one explicit argument vector. Passing compiler switches as a
+    # PowerShell expression chain can be re-tokenized by some Windows hosts,
+    # which has produced intermittent CS2020 multi-output errors in regression.
+    $CompilerArgs = @(
+        "/nologo",
+        "/target:exe",
+        "/optimize+",
+        "/out:$Exe",
+        "/reference:$SpeechDll",
         $Source
+    )
+
+    & $Csc @CompilerArgs
 
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Native voice compile failed." -ForegroundColor Red
