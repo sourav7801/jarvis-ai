@@ -114,6 +114,17 @@ class V8ExecutiveControlTests(unittest.TestCase):
         self.assertIs(plan["safety"]["live_execution"], False)
         self.assertIs(plan["safety"]["automatic_broker_order"], False)
 
+    def test_deterministic_workspace_plan_skips_context_and_critic_round_trip(self):
+        with patch("omni.executive_control_plane.context_snapshot") as context, \
+             patch("omni.critic_verifier.CRITIC_VERIFIER.verify") as critic:
+            plan = EXECUTIVE_CONTROL_PLANE.plan("open apps workspace")
+        context.assert_not_called()
+        critic.assert_not_called()
+        self.assertIsNone(plan["context"])
+        self.assertEqual(plan["critic"]["verdict"], "DETERMINISTIC_LOCAL_CONTROL")
+        self.assertTrue(plan["critic"]["progression_allowed"])
+        self.assertTrue(plan["critic"]["skipped"])
+
     def test_market_plan_has_data_reasoning_risk_and_verification(self):
         with patch("omni.executive_control_plane.context_snapshot", return_value={"success": True}):
             plan = EXECUTIVE_CONTROL_PLANE.plan("analyze BTC 15m and find the strongest paper setup")
