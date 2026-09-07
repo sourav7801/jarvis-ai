@@ -108,6 +108,9 @@ class CompletionHandlerV93(base.CompletionHandler):
         path = parsed.path
         params = urllib.parse.parse_qs(parsed.query)
 
+        if path == "/v93_world.js":
+            return self.send_file(STATIC / "v93_world.js", "application/javascript; charset=utf-8")
+
         if path == "/api/overview":
             try:
                 payload = overview_payload()
