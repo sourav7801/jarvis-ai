@@ -2,8 +2,12 @@
 
 Extends V10 with the Governed Execution Mesh, unified Trading Decision Mesh,
 portfolio-aware discovery routing convergence and a completed-bar 10m derived
-research lane. All new surfaces remain system/read-only or paper-only; no live
-broker order or production self-rewrite capability is introduced.
+research lane. Quant owns scanner/controller execution state on port 8787;
+Completion reads that authoritative state over loopback instead of creating
+shadow scanner/controller singletons in the 8799 process.
+
+All new surfaces remain system/read-only or paper-only; no live broker order or
+production self-rewrite capability is introduced.
 """
 from __future__ import annotations
 
@@ -32,13 +36,21 @@ def _trading_decision_mesh() -> dict[str, Any]:
 
 
 def _derived_timeframe() -> dict[str, Any]:
-    from workstation.derived_timeframe_bridge import install_derived_timeframe_bridge
-    return install_derived_timeframe_bridge()
+    """Read 10m runtime state from the authoritative Quant process."""
+
+    from workstation.trading_decision_mesh import TRADING_DECISION_MESH, _loopback_json
+
+    controller = _loopback_json("/api/paper/portfolio-controller", timeout=4.0)
+    return TRADING_DECISION_MESH._derived_10m_runtime(controller)
 
 
 def _discovery_routing() -> dict[str, Any]:
-    from workstation.discovery_routing_bridge import install_discovery_routing_bridge
-    return install_discovery_routing_bridge()
+    """Read governed discovery-routing state from the authoritative scanner."""
+
+    from workstation.trading_decision_mesh import TRADING_DECISION_MESH, _loopback_json
+
+    scanner = _loopback_json("/api/scanner/multi", timeout=4.0)
+    return TRADING_DECISION_MESH._routing_runtime(scanner)
 
 
 def _v11_providers() -> dict[str, Callable[[], Any]]:
@@ -66,6 +78,7 @@ def overview_payload() -> dict[str, Any]:
         "derived_10m_completed_bars": True,
         "discovery_execution_score_separation": True,
         "why_not_trade_diagnostics": True,
+        "quant_runtime_authoritative": True,
     })
     payload.setdefault("safety", {}).update({
         "paper_only": True,
@@ -132,6 +145,7 @@ class CompletionHandlerV11(v10.CompletionHandlerV10):
                     "why_not_trade_diagnostics": True,
                     "portfolio_horizon_discovery_routing": True,
                     "derived_10m_completed_bars": True,
+                    "quant_runtime_authoritative": True,
                     "governed_engineering": True,
                     "system_diagnostics": True,
                 },
@@ -162,10 +176,9 @@ class CompletionHandlerV11(v10.CompletionHandlerV10):
 
 
 def main() -> int:
-    # Install only bounded research/paper compatibility bridges before serving.
-    # They do not expose broker-order or production-write APIs.
-    _derived_timeframe()
-    _discovery_routing()
+    # Do not install scanner/controller bridges in the Completion process.
+    # Quant on 8787 owns the live paper/scanner singletons; V11 reads that state
+    # via bounded loopback endpoints and leaves process ownership explicit.
     server = exclusive_server(HOST, PORT, CompletionHandlerV11)
     print("=" * 72)
     print("JARVIS V11 COGNITIVE EXECUTION / MARKET DECISION CENTER")
@@ -173,6 +186,7 @@ def main() -> int:
     print(f"Console: http://{HOST}:{PORT}")
     print("Governed Execution Mesh: ENABLED / SYSTEM PLANE")
     print("Trading Decision Mesh: ENABLED / WHY-NOT-TRADE")
+    print("Quant runtime source: http://127.0.0.1:8787")
     print("Discovery Routing: PORTFOLIO HORIZON CONTROLLER")
     print("10m Research Bars: 2x COMPLETED 5m PROVIDER BARS ONLY")
     print("External actions: APPROVAL GATED")
