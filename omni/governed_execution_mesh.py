@@ -123,7 +123,11 @@ class GovernedExecutionMesh:
             raise ValueError("Execution objective is too short.")
 
         from omni.autonomy_orchestrator import AUTONOMY_ORCHESTRATOR
-        autonomy = AUTONOMY_ORCHESTRATOR.plan(clean, enqueue_mission=enqueue_mission)
+        # V11 always builds and critic-checks the execution packet before any
+        # mission is enqueued. This closes the gap where a request containing a
+        # locked live-broker step could otherwise reach the local mission queue
+        # before V11's stricter classification ran.
+        autonomy = AUTONOMY_ORCHESTRATOR.plan(clean, enqueue_mission=False)
         domain = str(autonomy.get("domain") or "GENERAL").upper()
         executive = dict(autonomy.get("executive") or {})
         surface = self._domain_surface(domain)
@@ -184,6 +188,35 @@ class GovernedExecutionMesh:
             else "READY" if critic.get("progression_allowed")
             else "CRITIC_BLOCKED"
         )
+
+        queued = None
+        if enqueue_mission:
+            if blocked_steps:
+                raise PermissionError("Live broker/order steps are locked and cannot be queued as a V11 mission.")
+            if not critic.get("progression_allowed"):
+                raise RuntimeError("V11 critic did not verify the execution packet; mission queueing is blocked.")
+            from omni.mission_worker import MISSION_WORKER
+            queued = MISSION_WORKER.enqueue(clean, title=f"V11 Execution · {domain}", priority=75)
+            try:
+                from omni.cognitive_event_bus import COGNITIVE_EVENT_BUS, CognitiveEventType
+                COGNITIVE_EVENT_BUS.publish(
+                    CognitiveEventType.MISSION_CREATED,
+                    source="governed_execution_mesh",
+                    subject=str(queued.get("queue_id") or "mission"),
+                    payload={
+                        "objective": clean[:1000],
+                        "domain": domain,
+                        "packet_state": packet_state,
+                        "status": queued.get("status"),
+                    },
+                    provenance={
+                        "critic_verification_id": critic.get("verification_id"),
+                        "local_queue_only": True,
+                    },
+                )
+            except Exception:
+                pass
+
         result = {
             "success": True,
             "version": "11.0",
@@ -199,7 +232,7 @@ class GovernedExecutionMesh:
             "approval_required_steps": approval_steps,
             "locked_steps": blocked_steps,
             "critic": critic,
-            "mission_queued": autonomy.get("mission_queued"),
+            "mission_queued": queued,
             "automatic_mission_start": False,
             "automatic_external_action": False,
             "automatic_merge": False,
@@ -223,6 +256,7 @@ class GovernedExecutionMesh:
                 state=packet_state,
                 confidence=float(critic.get("confidence") or 0.5),
                 evidence={
+                    "mission_queued": bool(queued),
                     "local_steps": len(local_steps),
                     "approval_steps": len(approval_steps),
                     "locked_steps": len(blocked_steps),
@@ -253,6 +287,7 @@ class GovernedExecutionMesh:
                 "market_decision_mesh": True,
                 "approval_classification": True,
                 "mission_queueing_explicit": True,
+                "mission_queueing_after_v11_critic": True,
                 "automatic_mission_start": False,
             },
             "external_actions": "APPROVAL_GATED",
