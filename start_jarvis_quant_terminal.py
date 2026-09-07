@@ -3,9 +3,9 @@ from __future__ import annotations
 import os
 import socket
 
-# Canonical V12 runtime disables the legacy singleton auto-starter before the
-# Quant module is imported. The portfolio controller below owns adaptive
-# INTRADAY/SWING/INVESTMENT execution instead.
+# Canonical V12 disables the legacy static-score singleton before Quant import.
+# The portfolio controller below owns adaptive INTRADAY/SWING/INVESTMENT paper
+# execution; legacy HTTP names are rebound process-locally for compatibility.
 os.environ["JARVIS_AUTO_PAPER_START"] = "0"
 
 from workstation import quant_terminal_v2 as trading_app
@@ -21,7 +21,7 @@ def port_open(host: str, port: int) -> bool:
 
 
 def install_v11_quant_bridges() -> dict[str, object]:
-    """Install bounded completed-bar/routing adapters in the Quant owner process."""
+    """Preserve verified completed-bar and discovery-routing adapters."""
 
     from workstation.derived_timeframe_bridge import install_derived_timeframe_bridge
     from workstation.discovery_routing_bridge import install_discovery_routing_bridge
@@ -39,16 +39,9 @@ def install_v11_quant_bridges() -> dict[str, object]:
 
 
 def install_v12_adaptive_bridges() -> dict[str, object]:
-    from workstation.adaptive_direct_trade_bridge import install_adaptive_direct_trade_bridge
+    from workstation.v12_runtime_bridges import install_v12_runtime_bridges
 
-    direct = install_adaptive_direct_trade_bridge()
-    return {
-        "success": bool(direct.get("success")),
-        "adaptive_direct_trade": direct,
-        "paper_only": True,
-        "live_execution": False,
-        "automatic_broker_order": False,
-    }
+    return dict(install_v12_runtime_bridges())
 
 
 def start_v12_adaptive_paper() -> dict[str, object]:
@@ -60,9 +53,12 @@ def start_v12_adaptive_paper() -> dict[str, object]:
             "success": True,
             "running": False,
             "reason": "V12_ADAPTIVE_AUTO_START_DISABLED",
+            "decision_authority": "ADAPTIVE_EXPECTED_VALUE_NOT_STATIC_SCORE",
             "paper_only": True,
             "live_execution": False,
+            "automatic_broker_order": False,
         }
+
     from workstation.paper_portfolio_controller import paper_portfolio_controller
 
     result = paper_portfolio_controller.start(intraday_profile="adaptive_intraday")
@@ -86,12 +82,15 @@ def main():
 
     bridges = install_v11_quant_bridges()
     adaptive_bridges = install_v12_adaptive_bridges()
-    # Bring up the read-only market bridge before the first adaptive scan so
-    # boot-time BTC/India samples have the same provider surface as later loops.
+
+    # Bring up read-only provider state before the first adaptive scan. Failures
+    # remain visible as data hard-blockers instead of being converted into fake
+    # candles or forced trades.
     try:
         trading_app.start_live_bridge()
     except Exception:
         pass
+
     adaptive = start_v12_adaptive_paper()
     print("=" * 72)
     print("JARVIS QUANT TRADING INTELLIGENCE V12 ADAPTIVE RUNTIME")
@@ -101,10 +100,11 @@ def main():
     print("Data: FYERS read-only + public crypto market data")
     print("10m bars: derived from 2x contiguous COMPLETED 5m provider bars only")
     print("Discovery routing: portfolio horizon controller")
-    print("Decision authority: adaptive expected value + uncertainty + learning")
-    print("Static 67/68/70 score boundary: NOT EXECUTION AUTHORITY")
+    print("Decision authority: adaptive expected value + uncertainty + outcome learning")
+    print("Static 67/68/70 score boundary: OBSERVABILITY ONLY")
+    print("Static live R:R threshold: NOT V12 EXECUTION AUTHORITY")
     print(f"V11 bridge state: {bool(bridges.get('success'))}")
-    print(f"V12 direct bridge state: {bool(adaptive_bridges.get('success'))}")
+    print(f"V12 runtime bridge state: {bool(adaptive_bridges.get('success'))}")
     print(f"V12 adaptive paper state: {bool(adaptive.get('running'))}")
     print("Mode: PAPER / RESEARCH")
     print("Live broker execution: LOCKED")
