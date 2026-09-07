@@ -1,0 +1,46 @@
+{
+  "version": "13.0",
+  "release": "JARVIS_ADAPTIVE_INTELLIGENCE_OPERATING_SYSTEM",
+  "base": "5f4f40f056609342fc12ec14055292f8dbd926c6",
+  "decision_authority": "CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE",
+  "pipeline": [
+    "VERIFIED_MARKET_DATA",
+    "CONTINUOUS_TOP_N_DISCOVERY",
+    "V12_BASE_EXPECTED_VALUE",
+    "CONTEXTUAL_CLOSED_PAPER_OUTCOMES",
+    "DYNAMIC_UNCERTAINTY",
+    "COMPLETED_BAR_PORTFOLIO_CORRELATION",
+    "PRIMARY_PROBE_WAIT",
+    "PAPER_DESK_FINAL_RISK"
+  ],
+  "features": {
+    "contextual_outcome_memory": true,
+    "dynamic_completed_bar_correlation": true,
+    "decision_forensics": true,
+    "continuous_top_n_discovery": true,
+    "verified_options_volatility_synthesis": true,
+    "strategy_governance_pipeline": true,
+    "protected_v8_master_identity": true,
+    "v13_master_authority_endpoint": true,
+    "quant_runtime_authoritative": true
+  },
+  "strategy_lifecycle": [
+    "RESEARCH_CANDIDATE",
+    "VALIDATED",
+    "CHALLENGER",
+    "PAPER_SHADOW",
+    "REVIEW",
+    "CHAMPION"
+  ],
+  "safety": {
+    "permanent_agents": 29,
+    "legacy_critic_specialist_preserved": true,
+    "paper_only": true,
+    "live_execution": false,
+    "automatic_broker_order": false,
+    "automatic_production_strategy_rewrite": false,
+    "external_actions": "APPROVAL_GATED",
+    "dealer_positioning_without_verified_inventory": "UNAVAILABLE",
+    "missing_correlation_data": "UNKNOWN_NOT_FABRICATED"
+  }
+}
