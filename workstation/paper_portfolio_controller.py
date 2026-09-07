@@ -17,15 +17,24 @@ PROFILE_BY_BUCKET = {
     "INVESTMENT": "investment",
 }
 
+CONTROL_PROFILE_TOKENS = {
+    "intraday_only": ("START", "INTRADAY"),
+    "swing_only": ("START", "SWING"),
+    "investment_only": ("START", "INVESTMENT"),
+    "stop_intraday": ("STOP", "INTRADAY"),
+    "stop_swing": ("STOP", "SWING"),
+    "stop_investment": ("STOP", "INVESTMENT"),
+}
+
 
 class PaperPortfolioController:
-    """Starts independent, risk-bounded paper mandates for three horizons.
+    """Own independent, risk-bounded paper mandates for three horizons.
 
-    V8.1 keeps the externally stable three-bucket contract while replacing the
-    default intraday engine with a lane group that owns MTF, 5m-only and 15m-only
-    paper execution. Daily discovery candidates are also routed into the swing
-    and long-only investment watchlists instead of being enrolled only into the
-    intraday singleton.
+    INTRADAY, SWING and INVESTMENT are first-class controls. V8.1 keeps the
+    legacy all-day start API for compatibility, but each horizon can now be
+    started or stopped independently. The default intraday engine is a lane
+    group containing conservative MTF plus independent 5m and 15m breakout
+    evaluators.
     """
 
     def __init__(self, *, engines: Mapping[str, Any] | None = None) -> None:
@@ -77,7 +86,61 @@ class PaperPortfolioController:
             self.allocations = normalized
         return self.status()
 
+    def _start_candidate_router(self) -> None:
+        try:
+            from workstation.candidate_horizon_router import candidate_horizon_router
+
+            candidate_horizon_router.start()
+        except Exception:
+            pass
+
+    def start_bucket(self, bucket: str, *, scan_now: bool = True) -> dict[str, Any]:
+        normalized = str(bucket or "").strip().upper()
+        if normalized not in PROFILE_BY_BUCKET:
+            raise ValueError("bucket must be INTRADAY, SWING or INVESTMENT")
+        with self._lock:
+            engine = self.engines.get(normalized)
+            allocation = self.allocations[normalized]
+        if engine is None:
+            raise RuntimeError(f"{normalized} paper engine is unavailable")
+        sides = ("LONG",) if normalized == "INVESTMENT" else ("LONG", "SHORT")
+        engine.configure_mandate(normalized, allocation, sides)
+        profile = (
+            "adaptive_intraday"
+            if normalized == "INTRADAY"
+            else PROFILE_BY_BUCKET[normalized]
+        )
+        engine.start(profile=profile, scan_now=scan_now)
+        self._start_candidate_router()
+        return self.status()
+
+    def stop_bucket(self, bucket: str) -> dict[str, Any]:
+        normalized = str(bucket or "").strip().upper()
+        if normalized not in PROFILE_BY_BUCKET:
+            raise ValueError("bucket must be INTRADAY, SWING or INVESTMENT")
+        with self._lock:
+            engine = self.engines.get(normalized)
+        if engine is None:
+            raise RuntimeError(f"{normalized} paper engine is unavailable")
+        engine.stop()
+        return self.status()
+
     def start(self, *, intraday_profile: str = "adaptive_intraday") -> dict[str, Any]:
+        """Start all mandates, or one mandate through the V8.1 compatibility token.
+
+        The Quant server already exposes one portfolio-controller start endpoint.
+        Until the wider HTTP surface is versioned, the UI uses exact profile
+        tokens (``intraday_only``, ``swing_only``, ``investment_only`` and their
+        ``stop_*`` counterparts) to reach independent horizon controls without
+        changing the verified V8 server routing contract.
+        """
+
+        token = str(intraday_profile or "adaptive_intraday").strip().lower()
+        control = CONTROL_PROFILE_TOKENS.get(token)
+        if control is not None:
+            action, bucket = control
+            return self.start_bucket(bucket) if action == "START" else self.stop_bucket(bucket)
+
         statuses: dict[str, Any] = {}
         with self._lock:
             allocations = dict(self.allocations)
@@ -90,6 +153,7 @@ class PaperPortfolioController:
             engine.configure_mandate(bucket, allocations[bucket], sides)
             selected_profile = intraday_profile if bucket == "INTRADAY" else profile
             statuses[bucket] = engine.start(profile=selected_profile, scan_now=True)
+        self._start_candidate_router()
         return self._payload(statuses)
 
     def stop(self) -> dict[str, Any]:
@@ -120,10 +184,9 @@ class PaperPortfolioController:
     ) -> dict[str, Any]:
         """Route discovery candidates into the appropriate paper horizons.
 
-        The discovery score is intentionally *not* treated as an execution score.
-        It only determines which names deserve horizon-specific evaluation. Each
-        target engine recomputes its own completed-bar execution decision and can
-        still reject the setup for score, R:R, freshness, pattern, session or risk.
+        Discovery score is never treated as execution score. It determines only
+        which names deserve horizon-specific evaluation. Every target engine
+        recomputes completed-bar execution evidence and can still reject a setup.
         """
 
         rows = [
@@ -149,24 +212,26 @@ class PaperPortfolioController:
         with self._lock:
             engines = dict(self.engines)
 
-        intraday = engines.get("INTRADAY")
-        if intraday is not None and intraday_symbols and hasattr(intraday, "add_symbols"):
-            intraday.add_symbols(intraday_symbols, cap=16)
-            trigger = getattr(intraday, "trigger_candidate_scan", None) or getattr(intraday, "trigger_scan", None)
-            if callable(trigger):
-                trigger()
-
-        swing = engines.get("SWING")
-        if swing is not None and swing_symbols and hasattr(swing, "add_symbols"):
-            swing.add_symbols(swing_symbols, cap=24)
-            trigger = getattr(swing, "trigger_scan", None)
-            if callable(trigger):
-                trigger()
-
-        investment = engines.get("INVESTMENT")
-        if investment is not None and investment_symbols and hasattr(investment, "add_symbols"):
-            investment.add_symbols(investment_symbols, cap=24)
-            trigger = getattr(investment, "trigger_scan", None)
+        routing_plan = {
+            "INTRADAY": intraday_symbols,
+            "SWING": swing_symbols,
+            "INVESTMENT": investment_symbols,
+        }
+        for bucket, symbols in routing_plan.items():
+            engine = engines.get(bucket)
+            if engine is None or not symbols or not hasattr(engine, "add_symbols"):
+                continue
+            engine.add_symbols(symbols, cap=24 if bucket != "INTRADAY" else 16)
+            try:
+                running = bool(engine.status().get("running"))
+            except Exception:
+                running = False
+            if not running:
+                continue
+            trigger = (
+                getattr(engine, "trigger_candidate_scan", None)
+                or getattr(engine, "trigger_scan", None)
+            )
             if callable(trigger):
                 trigger()
 
@@ -198,19 +263,26 @@ class PaperPortfolioController:
         })
 
     def _payload(self, statuses: Mapping[str, Any]) -> dict[str, Any]:
-        running = bool(statuses) and all(bool(status.get("running")) for status in statuses.values())
+        active = {
+            bucket: bool(status.get("running"))
+            for bucket, status in statuses.items()
+        }
+        running = any(active.values())
+        all_running = bool(active) and all(active.values())
         with self._lock:
             routing = dict(self._last_candidate_routing)
         return {
             "success": True,
             "running": running,
+            "all_running": all_running,
+            "active_mandates": [bucket for bucket, is_running in active.items() if is_running],
             "allocations": dict(self.allocations),
             "mandates": dict(statuses),
             "candidate_routing": routing,
             "message": (
-                "All-day paper portfolio is running across intraday execution lanes, swing and investment mandates."
+                "Paper mandates active: " + ", ".join(bucket for bucket, is_running in active.items() if is_running)
                 if running
-                else "All-day paper portfolio is stopped or partially available."
+                else "Intraday, swing and investment paper mandates are stopped."
             ),
             "paper_only": True,
             "live_execution": False,
