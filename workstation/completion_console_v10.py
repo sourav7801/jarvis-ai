@@ -163,6 +163,17 @@ class CompletionHandlerV10(v93.CompletionHandlerV93):
     def do_POST(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+        v10_paths = {
+            "/api/autonomy/plan",
+            "/api/critic/verify",
+            "/api/engineering/plan",
+            "/api/engineering/review",
+            "/api/system/recover",
+        }
+        if path not in v10_paths:
+            # Important: do not consume the request body before delegating to the
+            # V9.3/V9.2 handler, which owns mission and approval POST routes.
+            return super().do_POST()
         body = self._body()
         try:
             if path == "/api/autonomy/plan":
@@ -207,7 +218,7 @@ class CompletionHandlerV10(v93.CompletionHandlerV93):
                 return self.send_json(SYSTEM_DIAGNOSTICS.apply_safe_recovery(str(body.get("action") or "")))
         except (ValueError, KeyError, RuntimeError, PermissionError) as exc:
             return self.send_json({"success": False, "message": sanitize_error(exc)[:500]}, 409)
-        return super().do_POST()
+        self.send_error(404)
 
 
 def main() -> int:
