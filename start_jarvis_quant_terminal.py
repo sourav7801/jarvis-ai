@@ -3,9 +3,9 @@ from __future__ import annotations
 import os
 import socket
 
-# Canonical V12 disables the legacy static-score singleton before Quant import.
-# The portfolio controller below owns adaptive INTRADAY/SWING/INVESTMENT paper
-# execution; legacy HTTP names are rebound process-locally for compatibility.
+# Canonical V12/V13 disables the legacy static-score singleton before Quant
+# import. The portfolio controller owns INTRADAY/SWING/INVESTMENT paper
+# execution; compatibility names are rebound process-locally.
 os.environ["JARVIS_AUTO_PAPER_START"] = "0"
 
 from workstation import quant_terminal_v2 as trading_app
@@ -39,6 +39,7 @@ def install_v11_quant_bridges() -> dict[str, object]:
 
 
 def install_v12_adaptive_bridges() -> dict[str, object]:
+    # Protected V12 compatibility lineage retained for cross-generation tests.
     from workstation.v12_runtime_bridges import install_v12_runtime_bridges
     from workstation.adaptive_discovery_bridge import install_adaptive_discovery_bridge
 
@@ -54,7 +55,15 @@ def install_v12_adaptive_bridges() -> dict[str, object]:
     }
 
 
+def install_v13_intelligence_bridges() -> dict[str, object]:
+    from workstation.v13_runtime_bridges import install_v13_runtime_bridges
+
+    return dict(install_v13_runtime_bridges())
+
+
 def start_v12_adaptive_paper() -> dict[str, object]:
+    # Function name preserved for V12 launcher compatibility. When V13 bridges
+    # are installed first, these engines execute V13 contextual authority.
     enabled = os.getenv("JARVIS_V12_AUTO_PAPER_START", "1").strip().lower() not in {
         "0", "false", "no", "off"
     }
@@ -63,7 +72,7 @@ def start_v12_adaptive_paper() -> dict[str, object]:
             "success": True,
             "running": False,
             "reason": "V12_ADAPTIVE_AUTO_START_DISABLED",
-            "decision_authority": "ADAPTIVE_EXPECTED_VALUE_NOT_STATIC_SCORE",
+            "decision_authority": "CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE",
             "paper_only": True,
             "live_execution": False,
             "automatic_broker_order": False,
@@ -74,7 +83,7 @@ def start_v12_adaptive_paper() -> dict[str, object]:
     result = paper_portfolio_controller.start(intraday_profile="adaptive_intraday")
     return {
         **dict(result),
-        "decision_authority": "ADAPTIVE_EXPECTED_VALUE_NOT_STATIC_SCORE",
+        "decision_authority": "CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE",
         "legacy_singleton_auto_start": False,
         "paper_only": True,
         "live_execution": False,
@@ -92,10 +101,10 @@ def main():
 
     bridges = install_v11_quant_bridges()
     adaptive_bridges = install_v12_adaptive_bridges()
+    v13_bridges = install_v13_intelligence_bridges()
 
     # Bring up read-only provider state before the first adaptive scan. Failures
-    # remain visible as data hard-blockers instead of being converted into fake
-    # candles or forced trades.
+    # remain explicit hard data blockers rather than fake candles/forced trades.
     try:
         trading_app.start_live_bridge()
     except Exception:
@@ -103,19 +112,21 @@ def main():
 
     adaptive = start_v12_adaptive_paper()
     print("=" * 72)
-    print("JARVIS QUANT TRADING INTELLIGENCE V12 ADAPTIVE RUNTIME")
+    print("JARVIS QUANT TRADING INTELLIGENCE V13 CONTEXTUAL RUNTIME")
     print("=" * 72)
     print(f"Terminal: http://{trading_app.HOST}:{trading_app.PORT}")
     print("Charts: professional interactive financial charts")
     print("Data: FYERS read-only + public crypto market data")
     print("10m bars: derived from 2x contiguous COMPLETED 5m provider bars only")
-    print("Discovery routing: bounded continuous top-N priority; no fixed discovery score cutoff")
-    print("Decision authority: adaptive expected value + uncertainty + outcome learning")
+    print("Discovery: bounded continuous top-N; no fixed discovery score cutoff")
+    print("Decision authority: contextual EV + closed-paper outcomes + uncertainty")
+    print("Portfolio correlation: completed-bar evidence; can only reduce paper risk")
     print("Static 67/68/70 score boundary: OBSERVABILITY ONLY")
-    print("Static live R:R threshold: NOT V12 EXECUTION AUTHORITY")
+    print("Static live R:R threshold: NOT EXECUTION AUTHORITY")
     print(f"V11 bridge state: {bool(bridges.get('success'))}")
-    print(f"V12 runtime/discovery bridge state: {bool(adaptive_bridges.get('success'))}")
-    print(f"V12 adaptive paper state: {bool(adaptive.get('running'))}")
+    print(f"V12 compatibility bridge state: {bool(adaptive_bridges.get('success'))}")
+    print(f"V13 intelligence bridge state: {bool(v13_bridges.get('installed'))}")
+    print(f"V13 contextual paper state: {bool(adaptive.get('running'))}")
     print("Mode: PAPER / RESEARCH")
     print("Live broker execution: LOCKED")
     trading_app.main()
