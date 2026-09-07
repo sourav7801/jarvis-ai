@@ -242,10 +242,16 @@ try {
     & $Python -c $ExactApps
     if ($LASTEXITCODE -ne 0) { throw "Exact Apps workspace command contract failed." }
 
-    Write-Host "TARGETED REGRESSION > V8 unified intelligence + V7 + V6.3 advanced baseline" -ForegroundColor Cyan
+    Write-Host "TARGETED REGRESSION > V8 unified intelligence + cross-generation compatibility" -ForegroundColor Cyan
     & $Python -m unittest `
         tests.test_v8_unified_intelligence_os `
         tests.test_v7_project_completion `
+        tests.test_agent_registry `
+        tests.test_brain `
+        tests.test_meta_agents `
+        tests.test_universal_learning_v5 `
+        tests.test_jarvis_conversation_research_startup_v1 `
+        tests.test_quant_v5_nautilus_integration `
         tests.test_quant_v63_full_advanced `
         tests.test_quant_v6_adaptive_integration `
         tests.test_quant_v6_chart_runtime `
@@ -271,7 +277,7 @@ try {
     }
 
     Write-Host "PROTECTED CORE + V8 SAFETY" -ForegroundColor Cyan
-    & $Python -c "import main; from omni.executive_control_plane import EXECUTIVE_CONTROL_PLANE; from omni.project_completion import snapshot; from omni.unified_intent_router import route_intent; s=snapshot(); d=route_intent('open apps workspace'); p=EXECUTIVE_CONTROL_PLANE.plan('open apps workspace', include_context=False); assert s['paper_only'] is True; assert s['live_execution'] is False; assert s['automatic_broker_order'] is False; assert d.deterministic is True; assert p['safety']['live_execution'] is False; assert p['safety']['automatic_broker_order'] is False; print('Protected Core import: PASS'); print('V8 deterministic intent: PASS'); print('V8 safety contract: PASS')"
+    & $Python -c "import main; from omni.agent_registry import default_agent_specs; from omni.executive_control_plane import EXECUTIVE_CONTROL_PLANE; from omni.project_completion import snapshot; from omni.unified_intent_router import route_intent; s=snapshot(); d=route_intent('open apps workspace'); p=EXECUTIVE_CONTROL_PLANE.plan('open apps workspace', include_context=False); assert len(default_agent_specs()) == 29; assert s['paper_only'] is True; assert s['live_execution'] is False; assert s['automatic_broker_order'] is False; assert d.deterministic is True; assert p['safety']['live_execution'] is False; assert p['safety']['automatic_broker_order'] is False; print('Protected Core import: PASS'); print('Permanent agent contract (29): PASS'); print('V8 deterministic intent: PASS'); print('V8 safety contract: PASS')"
     if ($LASTEXITCODE -ne 0) { throw "Protected Core or V8 safety validation failed." }
 
     Invoke-Git @("diff", "--check")
@@ -293,10 +299,11 @@ try {
     Write-Host "Branch              : $TargetBranch"
     Write-Host "Backup              : $BackupBranch"
     Write-Host "V7 verified baseline : PRESERVED"
+    Write-Host "Permanent agents     : 29 PRESERVED"
     Write-Host "Apps workspace       : DETERMINISTIC ROUTING FIXED"
     Write-Host "Unified Intent Router: ENABLED"
     Write-Host "Context Fabric       : ENABLED / READ-ONLY SYNTHESIS"
-    Write-Host "Executive Control    : ENABLED"
+    Write-Host "Executive Control    : SYSTEM PLANE / ENABLED"
     Write-Host "Master V8            : http://127.0.0.1:8797"
     Write-Host "Quant Advanced       : PRESERVED"
     Write-Host "Completion Executive : http://127.0.0.1:8799/?section=executive"
