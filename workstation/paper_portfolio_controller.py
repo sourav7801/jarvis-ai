@@ -40,6 +40,7 @@ class PaperPortfolioController:
     def __init__(self, *, engines: Mapping[str, Any] | None = None) -> None:
         self._lock = threading.RLock()
         self.allocations = dict(DEFAULT_ALLOCATIONS)
+        self._owns_runtime_router = engines is None
         self.engines = dict(engines) if engines is not None else self._default_engines()
         self._last_candidate_routing: dict[str, Any] = {
             "routed_at": None,
@@ -48,6 +49,7 @@ class PaperPortfolioController:
             "intraday_symbols": [],
             "swing_symbols": [],
             "investment_symbols": [],
+            "discovery_scores": {},
             "paper_only": True,
             "live_execution": False,
         }
@@ -87,6 +89,8 @@ class PaperPortfolioController:
         return self.status()
 
     def _start_candidate_router(self) -> None:
+        if not self._owns_runtime_router:
+            return
         try:
             from workstation.candidate_horizon_router import candidate_horizon_router
 
@@ -256,6 +260,68 @@ class PaperPortfolioController:
             self._last_candidate_routing = routing
         return dict(routing)
 
+    @staticmethod
+    def _rows_for_status(status: Mapping[str, Any]) -> list[dict[str, Any]]:
+        rows = [
+            dict(row)
+            for row in list(status.get("last_rows_summary") or [])
+            if isinstance(row, dict)
+        ]
+        if rows:
+            return rows
+        lanes = status.get("lanes")
+        if not isinstance(lanes, Mapping):
+            return []
+        combined: list[dict[str, Any]] = []
+        for lane, lane_status in lanes.items():
+            if not isinstance(lane_status, Mapping):
+                continue
+            for row in list(lane_status.get("last_rows_summary") or []):
+                if isinstance(row, dict):
+                    combined.append({**dict(row), "lane": str(lane)})
+        return combined
+
+    def _decision_board(self, statuses: Mapping[str, Any]) -> list[dict[str, Any]]:
+        with self._lock:
+            routing = dict(self._last_candidate_routing)
+        discovery_scores = dict(routing.get("discovery_scores") or {})
+        board: list[dict[str, Any]] = []
+        for bucket, status in statuses.items():
+            if not isinstance(status, Mapping):
+                continue
+            for row in self._rows_for_status(status):
+                symbol = str(row.get("symbol") or "").strip().upper()
+                if not symbol:
+                    continue
+                blockers = [str(item) for item in list(row.get("blockers") or [])]
+                board.append(
+                    {
+                        "symbol": symbol,
+                        "mandate": str(bucket),
+                        "lane": row.get("lane"),
+                        "discovery_score": discovery_scores.get(symbol),
+                        "execution_score": row.get("score"),
+                        "candidate_side": row.get("candidate_side"),
+                        "qualified": bool(row.get("qualified")),
+                        "session_open": row.get("session_open"),
+                        "blockers": blockers,
+                        "primary_blocker": blockers[0] if blockers else None,
+                        "message": row.get("message"),
+                        "decision": "QUALIFIED" if row.get("qualified") else "BLOCKED",
+                        "paper_only": True,
+                        "live_execution": False,
+                    }
+                )
+        board.sort(
+            key=lambda row: (
+                bool(row.get("qualified")),
+                float(row.get("execution_score") or 0.0),
+                float(row.get("discovery_score") or 0.0),
+            ),
+            reverse=True,
+        )
+        return board[:60]
+
     def status(self) -> dict[str, Any]:
         return self._payload({
             bucket: engine.status()
@@ -279,6 +345,11 @@ class PaperPortfolioController:
             "allocations": dict(self.allocations),
             "mandates": dict(statuses),
             "candidate_routing": routing,
+            "decision_board": self._decision_board(statuses),
+            "score_contract": {
+                "discovery_score": "Broad completed-bar candidate ranking only; never entry authority.",
+                "execution_score": "Horizon-specific completed-bar score used with risk and safety gates.",
+            },
             "message": (
                 "Paper mandates active: " + ", ".join(bucket for bucket, is_running in active.items() if is_running)
                 if running
