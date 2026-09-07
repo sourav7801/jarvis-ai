@@ -30,11 +30,9 @@ CONTROL_PROFILE_TOKENS = {
 class PaperPortfolioController:
     """Own independent, risk-bounded paper mandates for three horizons.
 
-    INTRADAY, SWING and INVESTMENT are first-class controls. V8.1 keeps the
-    legacy all-day start API for compatibility, but each horizon can now be
-    started or stopped independently. The default intraday engine is a lane
-    group containing conservative MTF plus independent 5m and 15m breakout
-    evaluators.
+    V12 preserves the separate INTRADAY / SWING / INVESTMENT controls while
+    replacing static score authority inside the default engines with adaptive
+    expected-value paper intelligence. Discovery score remains routing-only.
     """
 
     def __init__(self, *, engines: Mapping[str, Any] | None = None) -> None:
@@ -56,18 +54,18 @@ class PaperPortfolioController:
 
     @staticmethod
     def _default_engines() -> dict[str, Any]:
+        from workstation.adaptive_paper_autonomy_engine import AdaptivePaperAutonomyEngine
         from workstation.intraday_lane_group import IntradayLaneGroup
-        from workstation.paper_autonomy_engine import PaperAutonomyEngine
 
         return {
             "INTRADAY": IntradayLaneGroup(),
-            "SWING": PaperAutonomyEngine(
+            "SWING": AdaptivePaperAutonomyEngine(
                 profile="swing",
                 portfolio_bucket="SWING",
                 allocation_fraction=DEFAULT_ALLOCATIONS["SWING"],
                 manage_marks=False,
             ),
-            "INVESTMENT": PaperAutonomyEngine(
+            "INVESTMENT": AdaptivePaperAutonomyEngine(
                 profile="investment",
                 portfolio_bucket="INVESTMENT",
                 allocation_fraction=DEFAULT_ALLOCATIONS["INVESTMENT"],
@@ -130,15 +128,6 @@ class PaperPortfolioController:
         return self.status()
 
     def start(self, *, intraday_profile: str = "adaptive_intraday") -> dict[str, Any]:
-        """Start all mandates, or one mandate through the V8.1 compatibility token.
-
-        The Quant server already exposes one portfolio-controller start endpoint.
-        Until the wider HTTP surface is versioned, the UI uses exact profile
-        tokens (``intraday_only``, ``swing_only``, ``investment_only`` and their
-        ``stop_*`` counterparts) to reach independent horizon controls without
-        changing the verified V8 server routing contract.
-        """
-
         token = str(intraday_profile or "adaptive_intraday").strip().lower()
         control = CONTROL_PROFILE_TOKENS.get(token)
         if control is not None:
@@ -186,11 +175,11 @@ class PaperPortfolioController:
         max_swing: int = 10,
         max_investment: int = 6,
     ) -> dict[str, Any]:
-        """Route discovery candidates into the appropriate paper horizons.
+        """Route discovery candidates; horizon engines own execution intelligence.
 
-        Discovery score is never treated as execution score. It determines only
-        which names deserve horizon-specific evaluation. Every target engine
-        recomputes completed-bar execution evidence and can still reject a setup.
+        V12 deliberately removes the old investment discovery score >=65 gate.
+        Discovery ranking decides only which names deserve evaluation.  The
+        adaptive horizon engine independently estimates expected value and risk.
         """
 
         rows = [
@@ -208,8 +197,6 @@ class PaperPortfolioController:
             row
             for row in rows
             if str(row.get("direction") or "").upper() == "BULLISH"
-            and str(row.get("state") or "").upper() == "CONFIRMED_BREAKOUT"
-            and float(row.get("score") or 0.0) >= 65.0
         ]
         investment_symbols = self._unique_symbols(investment_rows, max_investment)
 
@@ -253,6 +240,8 @@ class PaperPortfolioController:
             "investment_symbols": investment_symbols,
             "discovery_scores": discovery_scores,
             "contract": "DISCOVERY_SCORE_IS_NOT_EXECUTION_SCORE",
+            "adaptive_execution": True,
+            "static_discovery_score_gate": False,
             "paper_only": True,
             "live_execution": False,
         }
@@ -293,21 +282,39 @@ class PaperPortfolioController:
                 symbol = str(row.get("symbol") or "").strip().upper()
                 if not symbol:
                     continue
-                blockers = [str(item) for item in list(row.get("blockers") or [])]
+                adaptive_action = str(row.get("adaptive_action") or "").upper() or None
+                adaptive_executable = bool(row.get("adaptive_executable")) if adaptive_action else None
+                hard = [str(item) for item in list(row.get("hard_blockers") or row.get("blockers") or [])]
+                soft = [str(item) for item in list(row.get("soft_evidence") or [])]
+                execution_score = row.get("execution_score", row.get("score", row.get("legacy_score")))
+                legacy_qualified = bool(row.get("qualified", row.get("legacy_qualified", False)))
+                decision = (
+                    adaptive_action
+                    if adaptive_action
+                    else "QUALIFIED" if legacy_qualified else "BLOCKED"
+                )
                 board.append(
                     {
                         "symbol": symbol,
                         "mandate": str(bucket),
                         "lane": row.get("lane"),
                         "discovery_score": discovery_scores.get(symbol),
-                        "execution_score": row.get("score"),
-                        "candidate_side": row.get("candidate_side"),
-                        "qualified": bool(row.get("qualified")),
+                        "execution_score": execution_score,
+                        "legacy_qualified": legacy_qualified,
+                        "qualified": adaptive_executable if adaptive_action else legacy_qualified,
+                        "candidate_side": row.get("adaptive_side", row.get("candidate_side")),
+                        "adaptive_action": adaptive_action,
+                        "adaptive_probability_win": row.get("adaptive_probability_win"),
+                        "adaptive_expected_value_r": row.get("adaptive_expected_value_r"),
+                        "adaptive_confidence": row.get("adaptive_confidence"),
+                        "adaptive_risk_multiplier": row.get("adaptive_risk_multiplier"),
                         "session_open": row.get("session_open"),
-                        "blockers": blockers,
-                        "primary_blocker": blockers[0] if blockers else None,
+                        "blockers": hard,
+                        "hard_blockers": hard,
+                        "soft_evidence": soft,
+                        "primary_blocker": hard[0] if hard else None,
                         "message": row.get("message"),
-                        "decision": "QUALIFIED" if row.get("qualified") else "BLOCKED",
+                        "decision": decision,
                         "paper_only": True,
                         "live_execution": False,
                     }
@@ -315,12 +322,14 @@ class PaperPortfolioController:
         board.sort(
             key=lambda row: (
                 bool(row.get("qualified")),
+                float(row.get("adaptive_expected_value_r") or -999.0),
+                float(row.get("adaptive_confidence") or 0.0),
                 float(row.get("execution_score") or 0.0),
                 float(row.get("discovery_score") or 0.0),
             ),
             reverse=True,
         )
-        return board[:60]
+        return board[:80]
 
     def status(self) -> dict[str, Any]:
         return self._payload({
@@ -348,8 +357,10 @@ class PaperPortfolioController:
             "decision_board": self._decision_board(statuses),
             "score_contract": {
                 "discovery_score": "Broad completed-bar candidate ranking only; never entry authority.",
-                "execution_score": "Horizon-specific completed-bar score used with risk and safety gates.",
+                "execution_score": "Continuous evidence feature only; no fixed 67/68/70 execution boundary in V12.",
+                "adaptive_authority": "Expected value + uncertainty + outcome learning + hard data/risk/safety blockers.",
             },
+            "decision_authority": "ADAPTIVE_EXPECTED_VALUE_NOT_STATIC_SCORE",
             "message": (
                 "Paper mandates active: " + ", ".join(bucket for bucket, is_running in active.items() if is_running)
                 if running
