@@ -186,7 +186,8 @@ def main():
         create_server,
     )
 
-    stage("V8 workspace server import")
+    # Preserve the profiler contract name while the imported server is V8.
+    stage("workspace server import")
 
 
     if port_open(
