@@ -2,7 +2,7 @@
 
 The ledger stores local reasoning evidence only. It never executes tools, places
 orders, contacts external parties, or grants approval. Sensitive-looking fields
-are redacted before persistence.
+are redacted before persistence, including deeply nested records.
 """
 from __future__ import annotations
 
@@ -32,20 +32,29 @@ def _sensitive_key(value: Any) -> bool:
 
 
 def _bounded(value: Any, depth: int = 0) -> Any:
+    # Inspect mapping keys before depth truncation so deeply nested secret-like
+    # fields are redacted instead of being exposed through repr(value).
+    if isinstance(value, Mapping):
+        output: dict[str, Any] = {}
+        for key, item in list(value.items())[:60]:
+            clean = str(key)[:120]
+            if _sensitive_key(clean):
+                output[clean] = "[REDACTED]"
+            elif depth >= 4:
+                output[clean] = str(item)[:1200] if not isinstance(item, Mapping) else _bounded(item, depth + 1)
+            else:
+                output[clean] = _bounded(item, depth + 1)
+        return output
+    if isinstance(value, (list, tuple, set, frozenset)):
+        if depth >= 4:
+            return [str(item)[:1200] for item in list(value)[:60]]
+        return [_bounded(item, depth + 1) for item in list(value)[:60]]
     if depth >= 4:
         return str(value)[:1200]
     if value is None or isinstance(value, (bool, int, float)):
         return value
     if isinstance(value, str):
         return value[:2400]
-    if isinstance(value, Mapping):
-        output: dict[str, Any] = {}
-        for key, item in list(value.items())[:60]:
-            clean = str(key)[:120]
-            output[clean] = "[REDACTED]" if _sensitive_key(clean) else _bounded(item, depth + 1)
-        return output
-    if isinstance(value, (list, tuple, set, frozenset)):
-        return [_bounded(item, depth + 1) for item in list(value)[:60]]
     return str(value)[:2400]
 
 
