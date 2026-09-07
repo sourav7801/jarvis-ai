@@ -121,11 +121,14 @@ class V8ExecutiveControlTests(unittest.TestCase):
         self.assertTrue({"PERCEPTION", "CONTEXT", "REASON", "RISK", "VERIFY"} <= phases)
         self.assertEqual(plan["domain"], "MARKETS")
 
-    def test_executive_agent_is_registered(self):
+    def test_executive_control_plane_stays_outside_permanent_agent_registry(self):
         specs = {spec.name: spec for spec in default_agent_specs()}
-        self.assertIn("executive", specs)
-        self.assertIn("workspace.control", specs["executive"].capabilities)
-        self.assertIn("goal.plan", specs["executive"].capabilities)
+        self.assertEqual(len(specs), 29)
+        self.assertNotIn("executive", specs)
+        status = EXECUTIVE_CONTROL_PLANE.status()
+        self.assertEqual(status["service"], "JARVIS_EXECUTIVE_CONTROL_PLANE")
+        self.assertFalse(status["live_execution"])
+        self.assertFalse(status["automatic_broker_order"])
 
 
 class V8RuntimeContractTests(unittest.TestCase):
