@@ -27,8 +27,9 @@ class ContextualDecisionEngineV13:
     """Second-stage paper decision intelligence built above the verified V12 policy.
 
     V12 remains the base evidence model. V13 adds context-conditioned realized
-    paper outcomes and dynamic uncertainty. It does not promote a legacy score,
-    alignment number or static R:R threshold back into execution authority.
+    paper outcomes, dynamic uncertainty and an evidence-only portfolio
+    correlation overlay. It never restores legacy score/alignment/R:R thresholds
+    as binary paper-entry authority.
     """
 
     def evaluate(
@@ -78,6 +79,40 @@ class ContextualDecisionEngineV13:
         if action == "PROBE":
             risk_multiplier = min(risk_multiplier, 0.22)
 
+        correlation: dict[str, Any] = {
+            "success": True,
+            "version": "13.0",
+            "state": "NOT_REQUIRED_FOR_WAIT",
+            "risk_multiplier": 1.0,
+            "hard_blocker": None,
+            "paper_only": True,
+            "live_execution": False,
+        }
+        if executable:
+            try:
+                from workstation.dynamic_correlation_risk_v13 import DYNAMIC_CORRELATION_RISK_V13
+
+                correlation = DYNAMIC_CORRELATION_RISK_V13.assess(
+                    symbol=str(row.get("symbol") or ""),
+                    side=str(base.get("side") or row.get("candidate_side") or ""),
+                    profile=str(row.get("profile") or ""),
+                    timeframe=str(row.get("timeframe") or ""),
+                )
+                risk_multiplier *= min(1.0, max(0.0, _f(correlation.get("risk_multiplier"), 1.0)))
+            except Exception as exc:
+                correlation = {
+                    "success": False,
+                    "version": "13.0",
+                    "state": "UNKNOWN_CORRELATION_ENGINE_ERROR",
+                    "error": f"{type(exc).__name__}: {exc}"[:300],
+                    "risk_multiplier": 1.0,
+                    "hard_blocker": None,
+                    "data_fabricated": False,
+                    "paper_only": True,
+                    "live_execution": False,
+                }
+        risk_multiplier = min(1.0, max(0.0, risk_multiplier)) if executable else 0.0
+
         reasons = [
             f"V12 base EV {float(base.get('expected_value_r') or 0.0):+.3f}R",
             f"context posterior edge {posterior_edge_r:+.3f}R",
@@ -86,6 +121,11 @@ class ContextualDecisionEngineV13:
         ]
         if not memory.get("evidence_available"):
             reasons.append("No matched closed-paper cohort; V13 did not invent historical evidence.")
+        if correlation.get("state") not in {"NOT_REQUIRED_FOR_WAIT", "NO_OPEN_PEERS", "LOW_SAME_DIRECTION_CORRELATION"}:
+            reasons.append(
+                "portfolio correlation state " + str(correlation.get("state") or "UNKNOWN")
+                + f"; risk multiplier {float(correlation.get('risk_multiplier') or 1.0):.2f}x"
+            )
         if hard:
             reasons.append("Hard data/accounting/safety blocker overrides opportunity evidence.")
 
@@ -106,6 +146,7 @@ class ContextualDecisionEngineV13:
             "reasons": reasons,
             "base_v12_decision": deepcopy(base),
             "contextual_memory": memory,
+            "portfolio_correlation": correlation,
             "decision_authority": "CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE",
             "legacy_static_score_gate": False,
             "legacy_static_alignment_gate": False,
@@ -127,6 +168,31 @@ class ContextualDecisionEngineV13:
             row["adaptive_decision"] = self.evaluate(row, allowed_sides=allowed_sides)
             row["contextual_decision"] = row["adaptive_decision"]
             result.append(row)
+
+        # Persist a bounded, high-information sample instead of every row in
+        # every scan. This keeps forensic evidence useful without turning the
+        # scanner into a disk-write loop.
+        ranked = sorted(
+            result,
+            key=lambda item: (
+                bool((item.get("adaptive_decision") or {}).get("executable")),
+                _f((item.get("adaptive_decision") or {}).get("utility"), -999.0),
+            ),
+            reverse=True,
+        )[:16]
+        try:
+            from omni.trading_intelligence.decision_forensics_v13 import DECISION_FORENSICS_V13
+
+            for row in ranked:
+                decision = row.get("adaptive_decision") or {}
+                DECISION_FORENSICS_V13.record(
+                    row=row,
+                    decision=decision,
+                    correlation=decision.get("portfolio_correlation") or {},
+                    phase="ADAPTIVE_SCAN",
+                )
+        except Exception:
+            pass
         return result
 
     def status(self) -> dict[str, Any]:
@@ -143,6 +209,9 @@ class ContextualDecisionEngineV13:
                 "source": memory.get("source"),
                 "synthetic_history": False,
             },
+            "dynamic_portfolio_correlation": True,
+            "correlation_can_only_reduce_risk": True,
+            "decision_forensics": True,
             "dynamic_uncertainty_hurdle": True,
             "supports_primary": True,
             "supports_low_risk_probe": True,
