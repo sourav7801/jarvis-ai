@@ -102,10 +102,7 @@ def _evidence_context() -> dict[str, Any]:
 
 def _engineering_context() -> dict[str, Any]:
     from omni.engineering_governance import ENGINEERING_GOVERNANCE
-    return {
-        "status": ENGINEERING_GOVERNANCE.status(),
-        "repository": ENGINEERING_GOVERNANCE.inspect(),
-    }
+    return {"status": ENGINEERING_GOVERNANCE.status(), "repository": ENGINEERING_GOVERNANCE.inspect()}
 
 
 def _system_context() -> dict[str, Any]:
@@ -119,8 +116,12 @@ def _trading_governance_context() -> dict[str, Any]:
 
 
 def snapshot(query: str = "", *, include_market_context: bool | None = None) -> dict[str, Any]:
-    """Return bounded current context for executive planning."""
+    """Return bounded current context for executive planning.
 
+    The historical `version=8.0` field is intentionally preserved for V8/V9
+    compatibility tests. V10 capabilities are exposed through
+    `advanced_version=10.0`.
+    """
     from omni.workspace_command_center import snapshot as workspace_snapshot
     from omni.mission_queue import MISSION_QUEUE
 
@@ -143,7 +144,8 @@ def snapshot(query: str = "", *, include_market_context: bool | None = None) -> 
     recent = conversation_turns.history(limit=3, useful_only=True)
     payload: dict[str, Any] = {
         "success": True,
-        "version": "10.0",
+        "version": "8.0",
+        "advanced_version": "10.0",
         "world_model_version": "9.3",
         "query": str(query or "")[:1000],
         "conversation": {
