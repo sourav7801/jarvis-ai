@@ -170,8 +170,15 @@ class MissionQueue:
             self._save()
             return dict(item)
 
-    def snapshot(self) -> dict[str, Any]:
+    def snapshot(self, limit: int = 100) -> dict[str, Any]:
+        """Return a bounded read-only queue view.
+
+        ``limit`` is optional for backwards compatibility. V8's context fabric
+        requests a smaller slice so executive planning does not copy the full
+        durable queue into every command context.
+        """
         self.recover_expired_leases()
+        limit_value = max(1, min(int(limit), MAX_ITEMS))
         with self._lock:
             items = [dict(item) for item in self._state.get("items") or []]
             updated = self._state.get("updated_at")
@@ -184,7 +191,7 @@ class MissionQueue:
             "version": "7.0",
             "updated_at": updated,
             "counts": counts,
-            "items": items[-100:],
+            "items": items[-limit_value:],
             "resumable": True,
             "external_actions": "APPROVAL_GATED",
             "live_execution": False,
