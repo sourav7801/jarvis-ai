@@ -21,6 +21,10 @@ from uuid import uuid4
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PATH = ROOT / "data" / "state" / "cognitive_events.json"
 MAX_PERSISTED = 1000
+_SENSITIVE_KEY_PARTS = (
+    "authorization", "api_key", "apikey", "token", "secret", "password",
+    "passwd", "cookie", "credential", "access_key", "refresh_key",
+)
 
 
 class CognitiveEventType(str, Enum):
@@ -57,6 +61,11 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _sensitive_key(key: Any) -> bool:
+    normalized = str(key or "").strip().lower().replace("-", "_")
+    return any(part in normalized for part in _SENSITIVE_KEY_PARTS)
+
+
 def _bounded(
     value: Any,
     *,
@@ -76,7 +85,8 @@ def _bounded(
         for index, (key, item) in enumerate(value.items()):
             if index >= max_items:
                 break
-            result[str(key)[:120]] = _bounded(
+            clean_key = str(key)[:120]
+            result[clean_key] = "[REDACTED]" if _sensitive_key(clean_key) else _bounded(
                 item,
                 max_depth=max_depth,
                 max_items=max_items,
@@ -278,6 +288,7 @@ class CognitiveEventBus:
             "subscribers": subscribers,
             "events": events[-limit:],
             "persistent": self.persist,
+            "redacts_sensitive_fields": True,
             "external_actions": "APPROVAL_GATED",
             "paper_only": True,
             "live_execution": False,
