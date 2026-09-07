@@ -21,7 +21,7 @@ def port_open(host: str, port: int) -> bool:
 
 
 def install_v11_quant_bridges() -> dict[str, object]:
-    """Preserve verified completed-bar and discovery-routing adapters."""
+    """Preserve verified completed-bar and portfolio-routing adapters."""
 
     from workstation.derived_timeframe_bridge import install_derived_timeframe_bridge
     from workstation.discovery_routing_bridge import install_discovery_routing_bridge
@@ -40,8 +40,18 @@ def install_v11_quant_bridges() -> dict[str, object]:
 
 def install_v12_adaptive_bridges() -> dict[str, object]:
     from workstation.v12_runtime_bridges import install_v12_runtime_bridges
+    from workstation.adaptive_discovery_bridge import install_adaptive_discovery_bridge
 
-    return dict(install_v12_runtime_bridges())
+    runtime = install_v12_runtime_bridges()
+    discovery = install_adaptive_discovery_bridge()
+    return {
+        "success": bool(runtime.get("success") and discovery.get("success")),
+        "runtime": dict(runtime),
+        "adaptive_discovery": dict(discovery),
+        "paper_only": True,
+        "live_execution": False,
+        "automatic_broker_order": False,
+    }
 
 
 def start_v12_adaptive_paper() -> dict[str, object]:
@@ -99,12 +109,12 @@ def main():
     print("Charts: professional interactive financial charts")
     print("Data: FYERS read-only + public crypto market data")
     print("10m bars: derived from 2x contiguous COMPLETED 5m provider bars only")
-    print("Discovery routing: portfolio horizon controller")
+    print("Discovery routing: bounded continuous top-N priority; no fixed discovery score cutoff")
     print("Decision authority: adaptive expected value + uncertainty + outcome learning")
     print("Static 67/68/70 score boundary: OBSERVABILITY ONLY")
     print("Static live R:R threshold: NOT V12 EXECUTION AUTHORITY")
     print(f"V11 bridge state: {bool(bridges.get('success'))}")
-    print(f"V12 runtime bridge state: {bool(adaptive_bridges.get('success'))}")
+    print(f"V12 runtime/discovery bridge state: {bool(adaptive_bridges.get('success'))}")
     print(f"V12 adaptive paper state: {bool(adaptive.get('running'))}")
     print("Mode: PAPER / RESEARCH")
     print("Live broker execution: LOCKED")
