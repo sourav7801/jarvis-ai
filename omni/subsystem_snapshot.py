@@ -1,6 +1,6 @@
 """Bounded, fault-isolated subsystem snapshots for JARVIS operator surfaces.
 
-The collector deliberately keeps provider execution local and read-only.  A slow
+The collector deliberately keeps provider execution local and read-only. A slow
 or broken subsystem must not make the aggregate Completion Center unavailable.
 """
 
@@ -36,7 +36,7 @@ def sanitize_error(error: BaseException | str, *, limit: int = 500) -> str:
 class SubsystemSnapshotCollector:
     """Collect subsystem payloads with bounded concurrency and timeout isolation.
 
-    At most one in-flight call per subsystem name is retained.  Repeated overview
+    At most one in-flight call per subsystem name is retained. Repeated overview
     requests therefore reuse a timed-out call instead of spawning an unbounded
     number of background threads while a dependency is hung.
     """
@@ -73,7 +73,9 @@ class SubsystemSnapshotCollector:
     def _future_for(self, name: str, provider: Callable[[], Any]) -> tuple[Future[Any], float]:
         with self._lock:
             existing = self._inflight.get(name)
-            if existing is not None and not existing[0].done():
+            if existing is not None:
+                # Consume the existing result (finished or still running) before
+                # allowing another call for the same subsystem name.
                 return existing
 
             started = time.monotonic()
@@ -93,8 +95,9 @@ class SubsystemSnapshotCollector:
         for raw_name, provider in providers.items():
             name = str(raw_name)
             if not callable(provider):
-                active[name] = (Future(), time.monotonic())
-                active[name][0].set_exception(TypeError("subsystem provider is not callable"))
+                future: Future[Any] = Future()
+                future.set_exception(TypeError("subsystem provider is not callable"))
+                active[name] = (future, time.monotonic())
                 continue
             active[name] = self._future_for(name, provider)
 
