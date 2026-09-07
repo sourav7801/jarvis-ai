@@ -38,6 +38,19 @@ def install_v11_quant_bridges() -> dict[str, object]:
     }
 
 
+def install_v12_adaptive_bridges() -> dict[str, object]:
+    from workstation.adaptive_direct_trade_bridge import install_adaptive_direct_trade_bridge
+
+    direct = install_adaptive_direct_trade_bridge()
+    return {
+        "success": bool(direct.get("success")),
+        "adaptive_direct_trade": direct,
+        "paper_only": True,
+        "live_execution": False,
+        "automatic_broker_order": False,
+    }
+
+
 def start_v12_adaptive_paper() -> dict[str, object]:
     enabled = os.getenv("JARVIS_V12_AUTO_PAPER_START", "1").strip().lower() not in {
         "0", "false", "no", "off"
@@ -72,6 +85,13 @@ def main():
         return
 
     bridges = install_v11_quant_bridges()
+    adaptive_bridges = install_v12_adaptive_bridges()
+    # Bring up the read-only market bridge before the first adaptive scan so
+    # boot-time BTC/India samples have the same provider surface as later loops.
+    try:
+        trading_app.start_live_bridge()
+    except Exception:
+        pass
     adaptive = start_v12_adaptive_paper()
     print("=" * 72)
     print("JARVIS QUANT TRADING INTELLIGENCE V12 ADAPTIVE RUNTIME")
@@ -84,6 +104,7 @@ def main():
     print("Decision authority: adaptive expected value + uncertainty + learning")
     print("Static 67/68/70 score boundary: NOT EXECUTION AUTHORITY")
     print(f"V11 bridge state: {bool(bridges.get('success'))}")
+    print(f"V12 direct bridge state: {bool(adaptive_bridges.get('success'))}")
     print(f"V12 adaptive paper state: {bool(adaptive.get('running'))}")
     print("Mode: PAPER / RESEARCH")
     print("Live broker execution: LOCKED")
