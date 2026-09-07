@@ -128,6 +128,27 @@ class MissionWorkerTests(unittest.TestCase):
             self.assertEqual(result["external_actions"], "APPROVAL_GATED")
             self.assertEqual(graphs.graph(graph["graph_id"])["mission_id"], "mission-test-001")
 
+    def test_checkpoint_resume_skips_already_verified_planning_and_mission(self):
+        with tempfile.TemporaryDirectory() as folder:
+            worker, queue, graphs, mission_control = self.make_worker(folder)
+            item = worker.enqueue("Resume verification from a persisted mission checkpoint safely.")
+            graph = graphs.ensure_for_queue(item)
+            graph_id = graph["graph_id"]
+            graphs.update_task(graph_id, "T00", "RUNNING")
+            graphs.update_task(graph_id, "T00", "VERIFIED")
+            mission = mission_control.create_mission(item["objective"])
+            graphs.attach_mission(graph_id, mission)
+            graphs.update_task(graph_id, "T10", "RUNNING")
+            graphs.update_task(graph_id, "T10", "VERIFIED")
+            mission_control.calls.clear()
+
+            result = worker.run_once()
+            self.assertTrue(result["success"])
+            self.assertEqual(result["state"], "LOCAL_WORK_COMPLETED")
+            self.assertEqual(mission_control.calls, [])
+            self.assertGreaterEqual(worker.status()["resumed_from_checkpoint"], 2)
+            self.assertEqual(queue.get(item["queue_id"])["status"], "SUCCEEDED")
+
     def test_unverified_packet_stops_at_quality_gate(self):
         with tempfile.TemporaryDirectory() as folder:
             worker, queue, _graphs, _mission_control = self.make_worker(folder, verified=False)
@@ -147,6 +168,7 @@ class MissionWorkerTests(unittest.TestCase):
             self.assertEqual(result["state"], "IDLE")
             status = worker.status()
             self.assertEqual(status["bounded_concurrency"], 1)
+            self.assertTrue(status["checkpoint_resume"])
             self.assertEqual(status["external_actions"], "APPROVAL_GATED")
             self.assertFalse(status["live_execution"])
             self.assertFalse(status["automatic_broker_order"])
