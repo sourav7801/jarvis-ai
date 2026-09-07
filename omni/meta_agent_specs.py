@@ -5,21 +5,12 @@ from omni.agent_registry import AgentSpec
 
 def meta_agent_specs():
 
+    # The V8 Executive Control Plane is a system-level orchestration service,
+    # not a 30th permanent specialist agent. Keeping it outside the registry
+    # preserves the long-standing 29-agent contract while still allowing every
+    # request to pass through executive intent/context/planning before specialist
+    # delegation.
     return (
-
-        AgentSpec(
-            name="executive",
-            module="omni.executive_control_plane",
-            entrypoint="executive",
-            label="JARVIS Executive Control Agent",
-            capabilities=frozenset({
-                "intent.route",
-                "context.synthesize",
-                "goal.plan",
-                "workspace.control",
-                "agent.coordinate",
-            }),
-        ),
 
         AgentSpec(
             name="learning",
