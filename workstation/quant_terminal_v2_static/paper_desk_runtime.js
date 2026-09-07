@@ -32,6 +32,13 @@
       #paperDeskV4 .mandate-stats{font-size:9px;color:#7fa1af;line-height:1.4;margin-top:6px;min-height:39px}
       #paperDeskV4 .mandate-actions{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px}
       #paperDeskV4 .mandate-actions button{min-height:28px;font-size:9px}
+      #paperDeskV4 .decision-wrap{border:1px solid #173849;border-radius:7px;background:#061018;margin-top:9px;padding:8px}
+      #paperDeskV4 .decision-head{display:flex;justify-content:space-between;gap:8px;align-items:center}
+      #paperDeskV4 .decision-head b{font-size:10px;color:#dff8ff;letter-spacing:.08em}
+      #paperDeskV4 .decision-head span{font-size:9px;color:#668b9a}
+      #paperDeskV4 .decision-list{display:grid;gap:4px;margin-top:7px;max-height:190px;overflow:auto}
+      #paperDeskV4 .decision-row{display:grid;grid-template-columns:1.15fr .8fr .7fr .7fr 2fr;gap:6px;align-items:center;border-top:1px solid #112b38;padding:5px 2px;font-size:9px;color:#8eb3c2}
+      #paperDeskV4 .decision-row strong{color:#d7f3ff}.decision-ok{color:#78f2aa}.decision-blocked{color:#ffcc66}
       #paperDeskV4 .paper-controls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:9px}
       #paperDeskV4 .paper-controls button{min-height:30px;font-size:10px}
       #paperDeskV4 .paper-position-list{max-height:170px;overflow:auto;margin-top:8px;display:grid;gap:5px}
@@ -39,7 +46,7 @@
       #paperDeskV4 .paper-position strong{display:flex;justify-content:space-between;color:#dff8ff}
       #paperDeskV4 .paper-position p{margin:3px 0 0;color:#86a5b2;line-height:1.35}
       #paperDeskV4 .auto-running{color:#78f2aa}.auto-stopped{color:#ffcc66}.auto-partial{color:#72cfff}
-      @media(max-width:1050px){#paperDeskV4 .mandate-grid{grid-template-columns:1fr}}
+      @media(max-width:1050px){#paperDeskV4 .mandate-grid{grid-template-columns:1fr}#paperDeskV4 .decision-row{grid-template-columns:1fr 1fr 1fr}#paperDeskV4 .decision-row span:last-child{grid-column:1/-1}}
     `;
     document.head.appendChild(node);
   }
@@ -76,6 +83,10 @@
         <div class="paper-metric"><span>RISK AT STOPS</span><b id="paperDeskRisk">—</b></div>
       </div>
       <div class="mandate-grid">${Object.entries(MANDATES).map(([key,config])=>mandateMarkup(key,config)).join("")}</div>
+      <div class="decision-wrap">
+        <div class="decision-head"><b>WHY / WHY NOT TRADE</b><span>DISCOVERY SCORE ≠ EXECUTION SCORE</span></div>
+        <div id="paperDecisionBoard" class="decision-list"><div class="decision-row"><span>No routed candidates yet.</span></div></div>
+      </div>
       <div class="paper-controls">
         <button id="paperAutoStart">START ALL</button>
         <button id="paperAutoStop">STOP ALL</button>
@@ -127,10 +138,26 @@
     stats.innerHTML=`score ≥ ${Number(status?.min_score||0).toFixed(0)} · R:R ≥ ${Number(status?.min_risk_reward||0).toFixed(1)}<br>scanned ${Number(funnel.scanned||0)} · qualified ${Number(funnel.qualified||0)} · opened ${Number(status?.positions_opened||0)}${laneNames?`<br>lanes ${esc(laneNames)}`:""}${routed?` · watch ${routed}`:""}`;
   }
 
+  function renderDecisionBoard(controller){
+    const host=document.getElementById("paperDecisionBoard");if(!host)return;
+    const rows=Array.isArray(controller?.decision_board)?controller.decision_board:[];
+    if(!rows.length){host.innerHTML='<div class="decision-row"><span>No routed execution diagnostics yet.</span></div>';return}
+    host.innerHTML=rows.slice(0,18).map(row=>{
+      const discovery=Number(row.discovery_score);
+      const execution=Number(row.execution_score);
+      const discoveryText=Number.isFinite(discovery)?discovery.toFixed(1):"—";
+      const executionText=Number.isFinite(execution)?execution.toFixed(1):"—";
+      const lane=row.lane?`/${row.lane}`:"";
+      const blocker=row.qualified?"ENTRY GATES PASSED":(row.primary_blocker||row.message||"NO QUALIFIED SETUP");
+      return `<div class="decision-row"><strong>${esc(row.symbol)}</strong><span>${esc(row.mandate||"")}${esc(lane)}</span><span>D ${discoveryText}</span><span>E ${executionText}</span><span class="${row.qualified?"decision-ok":"decision-blocked"}">${esc(row.decision||"BLOCKED")} · ${esc(blocker)}</span></div>`;
+    }).join("");
+  }
+
   function renderController(controller){
     if(!controller)return;
     const mandates=controller.mandates||{};
     Object.keys(MANDATES).forEach(key=>renderMandate(key,mandates[key]||{}));
+    renderDecisionBoard(controller);
     const state=document.getElementById("paperAutoState");
     if(!state)return;
     const active=Object.entries(mandates).filter(([,value])=>value?.running).map(([name])=>name);
