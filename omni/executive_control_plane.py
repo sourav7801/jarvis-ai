@@ -1,11 +1,10 @@
-"""Executive control plane for JARVIS V8.
+"""Executive control plane for JARVIS V8/V10.
 
-This module plans how JARVIS should handle a request using existing deterministic
-intent routing, bounded context, specialist capability selection, verification,
-and explicit safety policy.  It is an orchestration/planning layer, not a live
-broker or unrestricted external-action executor.
+This module plans how JARVIS should handle a request using deterministic intent
+routing, bounded context, specialist capability selection, system-level critic
+verification and explicit safety policy. It is an orchestration/planning layer,
+not a live broker or unrestricted external-action executor.
 """
-
 from __future__ import annotations
 
 import re
@@ -45,22 +44,14 @@ class ExecutiveControlPlane:
     @staticmethod
     def _domain(text: str, intent: IntentDecision) -> str:
         lowered = " ".join(str(text or "").lower().split())
-        if intent.kind == "WORKSPACE_CONTROL":
-            return "OPERATING_SYSTEM"
-        if intent.kind == "MARKETS":
-            return "MARKETS"
-        if intent.kind == "ENGINEERING":
-            return "ENGINEERING"
-        if intent.kind == "SYSTEM":
-            return "SYSTEM"
-        if intent.kind == "MISSION":
-            return "MISSION"
-        if any(word in lowered for word in ("company", "startup", "business", "venture", "product", "customer")):
-            return "COMPANY"
-        if any(word in lowered for word in ("research", "news", "source", "web", "latest")):
-            return "RESEARCH"
-        if any(word in lowered for word in ("memory", "remember", "recall", "forget")):
-            return "MEMORY"
+        if intent.kind == "WORKSPACE_CONTROL": return "OPERATING_SYSTEM"
+        if intent.kind == "MARKETS": return "MARKETS"
+        if intent.kind == "ENGINEERING": return "ENGINEERING"
+        if intent.kind == "SYSTEM": return "SYSTEM"
+        if intent.kind == "MISSION": return "MISSION"
+        if any(word in lowered for word in ("company", "startup", "business", "venture", "product", "customer")): return "COMPANY"
+        if any(word in lowered for word in ("research", "news", "source", "web", "latest")): return "RESEARCH"
+        if any(word in lowered for word in ("memory", "remember", "recall", "forget")): return "MEMORY"
         return "GENERAL"
 
     @staticmethod
@@ -78,16 +69,12 @@ class ExecutiveControlPlane:
             "GENERAL": ("chat",),
         }.get(domain, ("chat",))
         extras: list[str] = []
-        if any(word in lowered for word in ("legal", "compliance", "regulation")):
-            extras.append("legal")
-        if any(word in lowered for word in ("security", "privacy", "threat")):
-            extras.append("security")
-        if any(word in lowered for word in ("design", "ui", "ux")):
-            extras.append("design")
+        if any(word in lowered for word in ("legal", "compliance", "regulation")): extras.append("legal")
+        if any(word in lowered for word in ("security", "privacy", "threat")): extras.append("security")
+        if any(word in lowered for word in ("design", "ui", "ux")): extras.append("design")
         result: list[str] = []
         for name in (*base, *extras):
-            if name not in result:
-                result.append(name)
+            if name not in result: result.append(name)
         return tuple(result[:8])
 
     @staticmethod
@@ -97,24 +84,21 @@ class ExecutiveControlPlane:
                 PlanStep(1, "ACT", "workspace.control", "operator", "Apply the deterministic workspace action."),
                 PlanStep(2, "VERIFY", "workspace.verify", "operator", "Return the exact workspace action and preserve UI state."),
             )
-
         if domain == "MARKETS":
             return (
                 PlanStep(1, "PERCEPTION", "market.read", "data_ai", "Acquire verified, fresh market evidence; reject stale or unverified inputs."),
                 PlanStep(2, "CONTEXT", "market.structure", "trading", "Build structure, regime, volatility and multi-timeframe context."),
                 PlanStep(3, "REASON", "trading.research", "trading", "Evaluate strategy evidence, contradictions and reasons not to trade."),
                 PlanStep(4, "RISK", "paper.risk", "finance", "Apply portfolio/risk gates and paper-only execution boundaries."),
-                PlanStep(5, "VERIFY", "quality.analyze", "quality", "Verify data provenance, decision evidence and safety before returning."),
+                PlanStep(5, "VERIFY", "quality.analyze", "quality", "System Critic verifies provenance, freshness, contradictions and safety before progression."),
             )
-
         if domain == "ENGINEERING":
             return (
                 PlanStep(1, "PERCEPTION", "code.index", "coding", "Inspect repository symbols and dependencies through read-only Code Intelligence."),
                 PlanStep(2, "PLAN", "code.analyze", "engineering", "Produce an architecture-aware change plan that preserves protected contracts."),
-                PlanStep(3, "IMPLEMENT", "code.generate", "coding", "Generate bounded code changes; repository writes remain governed."),
-                PlanStep(4, "VERIFY", "quality.analyze", "quality", "Compile, test, regress and verify safety invariants before promotion."),
+                PlanStep(3, "IMPLEMENT", "code.generate", "coding", "Generate bounded code changes through governed editing; automatic production rewrite remains disabled."),
+                PlanStep(4, "VERIFY", "quality.analyze", "quality", "Compile, test, regress, critic-review and materialize a review packet before promotion."),
             )
-
         if domain == "MISSION":
             return (
                 PlanStep(1, "PLAN", "goal.plan", "operator", "Convert the outcome into a bounded, resumable mission graph."),
@@ -122,7 +106,6 @@ class ExecutiveControlPlane:
                 PlanStep(3, "VERIFY", "quality.analyze", "quality", "Critic-review the combined evidence and identify unresolved gaps."),
                 PlanStep(4, "GOVERN", "approval.request", "operator", "Gate consequential external actions behind explicit approval.", True),
             )
-
         if domain == "COMPANY":
             return (
                 PlanStep(1, "CONTEXT", "company.plan", "strategy", "Load venture state, evidence gaps, decisions and current workboard."),
@@ -130,21 +113,18 @@ class ExecutiveControlPlane:
                 PlanStep(3, "VERIFY", "quality.analyze", "quality", "Separate evidence, hypotheses, local artifacts and actions not yet executed."),
                 PlanStep(4, "GOVERN", "approval.request", "operator", "Require approval for outreach, spending, deployment, legal or production actions.", True),
             )
-
         if domain == "RESEARCH":
             return (
                 PlanStep(1, "SEARCH", "web.search", "web_intelligence", "Discover relevant evidence sources."),
                 PlanStep(2, "READ", "research.read", "research", "Read and compare sources without fabricating unavailable evidence."),
                 PlanStep(3, "VERIFY", "research.cite", "quality", "Synthesize claims with provenance and expose uncertainty."),
             )
-
         if domain == "SYSTEM":
             return (
                 PlanStep(1, "OBSERVE", "system.health", "health", "Read current service, protected-core and runtime ownership state."),
                 PlanStep(2, "DIAGNOSE", "architecture.analyze", "engineering", "Trace the smallest architectural cause rather than masking symptoms."),
-                PlanStep(3, "VERIFY", "quality.analyze", "quality", "Validate repair boundaries, tests and rollback before declaring recovery."),
+                PlanStep(3, "VERIFY", "quality.analyze", "quality", "Critic-verify repair boundaries, tests and rollback before declaring recovery."),
             )
-
         return (
             PlanStep(1, "UNDERSTAND", "conversation", agent_hints[0] if agent_hints else "chat", "Resolve the request and relevant recent context."),
             PlanStep(2, "ANSWER", "conversation", agent_hints[0] if agent_hints else "chat", "Return one synthesized response rather than conflicting agent outputs."),
@@ -160,6 +140,7 @@ class ExecutiveControlPlane:
         result = {
             "success": True,
             "version": "8.0",
+            "advanced_version": "10.0",
             "created_at": _now(),
             "request": clean[:2000],
             "intent": intent.to_dict(),
@@ -173,6 +154,7 @@ class ExecutiveControlPlane:
                 "critic_required": not intent.deterministic,
                 "provenance_required": domain in {"MARKETS", "RESEARCH", "COMPANY"},
                 "tests_required_for_code_change": domain == "ENGINEERING",
+                "system_critic": True,
             },
             "safety": {
                 "paper_only": True,
@@ -182,6 +164,37 @@ class ExecutiveControlPlane:
                 "automatic_production_rewrite": False,
             },
         }
+        try:
+            from omni.critic_verifier import CRITIC_VERIFIER
+            evidence = [{
+                "source": "unified_intent_router",
+                "freshness": "FRESH",
+                "provenance": {"intent_kind": intent.kind, "deterministic": intent.deterministic},
+                "claim": "Intent and domain route resolved",
+            }]
+            if context and isinstance(context, dict):
+                evidence.append({
+                    "source": "context_fabric",
+                    "freshness": "FRESH",
+                    "provenance": {"version": context.get("version")},
+                    "claim": "Bounded executive context assembled",
+                })
+            result["critic"] = CRITIC_VERIFIER.verify(
+                subject=f"executive-plan:{domain}:{clean[:120]}",
+                domain=domain,
+                evidence=evidence,
+                required_evidence=1,
+                require_fresh=True,
+                require_provenance=True,
+                policy=result["safety"],
+            )
+        except Exception as exc:
+            result["critic"] = {
+                "success": False,
+                "verdict": "FAILED",
+                "reason": f"{type(exc).__name__}: critic unavailable"[:200],
+                "progression_allowed": False,
+            }
         with self._lock:
             self._last_plan = result
         return result
@@ -192,12 +205,15 @@ class ExecutiveControlPlane:
         return {
             "success": True,
             "version": "8.0",
+            "advanced_version": "10.0",
             "service": "JARVIS_EXECUTIVE_CONTROL_PLANE",
             "last_plan": last,
             "pipeline": [
                 "PERCEPTION", "CONTEXT", "INTENT", "PLAN", "DELEGATE",
                 "EXECUTE_GOVERNED", "VERIFY", "MEMORY", "EVALUATE",
             ],
+            "system_critic": True,
+            "evidence_ledger": True,
             "paper_only": True,
             "live_execution": False,
             "automatic_broker_order": False,
