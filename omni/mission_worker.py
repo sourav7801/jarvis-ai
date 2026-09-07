@@ -10,7 +10,6 @@ from __future__ import annotations
 import os
 import socket
 import threading
-import time
 from typing import Any
 from uuid import uuid4
 
@@ -18,6 +17,9 @@ from .agent_registry import AgentRegistry, default_agent_specs
 from .goal_task_graph import GOAL_TASK_GRAPHS, GoalTaskGraphStore
 from .mission_control import MissionControl
 from .mission_queue import MISSION_QUEUE, MissionQueue
+
+
+_VERIFIED_STATES = {"VERIFIED", "COMPLETED"}
 
 
 class MissionWorker:
@@ -39,6 +41,7 @@ class MissionWorker:
         self.poll_seconds = max(0.25, min(float(poll_seconds), 60.0))
         self.max_attempts = max(1, min(int(max_attempts), 10))
         self._lock = threading.RLock()
+        self._run_lock = threading.Lock()
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._active_queue_id: str | None = None
@@ -48,6 +51,7 @@ class MissionWorker:
         self._cycles = 0
         self._completed = 0
         self._failed = 0
+        self._resumed_from_checkpoint = 0
 
     def _heartbeat_loop(self, queue_id: str, stop: threading.Event) -> None:
         interval = max(10.0, min(float(self.queue.lease_seconds) / 3.0, 60.0))
@@ -60,16 +64,25 @@ class MissionWorker:
     def enqueue(self, objective: str, *, title: str = "", priority: int = 50) -> dict[str, Any]:
         return self.queue.enqueue(objective, title=title, priority=priority)
 
+    @staticmethod
+    def _task_map(graph: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        return {str(row.get("task_id")): row for row in graph.get("tasks") or []}
+
     def run_once(self) -> dict[str, Any]:
-        with self._lock:
-            if self._active_queue_id is not None:
-                return {
-                    "success": False,
-                    "state": "BUSY",
-                    "queue_id": self._active_queue_id,
-                    "paper_only": True,
-                    "live_execution": False,
-                }
+        if not self._run_lock.acquire(blocking=False):
+            return {
+                "success": False,
+                "state": "BUSY",
+                "queue_id": self._active_queue_id,
+                "paper_only": True,
+                "live_execution": False,
+            }
+        try:
+            return self._run_once_locked()
+        finally:
+            self._run_lock.release()
+
+    def _run_once_locked(self) -> dict[str, Any]:
         item = self.queue.lease_next(self.worker_id)
         self._cycles += 1
         if item is None:
@@ -89,6 +102,7 @@ class MissionWorker:
         with self._lock:
             self._active_queue_id = queue_id
             self._active_graph_id = graph_id
+
         heartbeat_stop = threading.Event()
         heartbeat = threading.Thread(
             target=self._heartbeat_loop,
@@ -105,92 +119,111 @@ class MissionWorker:
                 graph_id=graph_id,
                 checkpoint={"phase": "GRAPH_READY", "task_id": "T00"},
             )
-            self.graphs.update_task(graph_id, "T00", "RUNNING", checkpoint={"phase": "PLANNING"})
-            self.graphs.update_task(
-                graph_id,
-                "T00",
-                "VERIFIED",
-                evidence={"kind": "queue_lease", "queue_id": queue_id, "worker_id": self.worker_id},
-                checkpoint={"phase": "PLAN_VERIFIED"},
-            )
+
+            graph = self.graphs.graph(graph_id)
+            tasks = self._task_map(graph)
+
+            if tasks.get("T00", {}).get("status") not in _VERIFIED_STATES:
+                self.graphs.update_task(graph_id, "T00", "RUNNING", checkpoint={"phase": "PLANNING"})
+                self.graphs.update_task(
+                    graph_id,
+                    "T00",
+                    "VERIFIED",
+                    evidence={"kind": "queue_lease", "queue_id": queue_id, "worker_id": self.worker_id},
+                    checkpoint={"phase": "PLAN_VERIFIED"},
+                )
+            else:
+                self._resumed_from_checkpoint += 1
 
             current_task = "T10"
-            self.queue.heartbeat(queue_id, worker_id=self.worker_id)
-            self.graphs.update_task(graph_id, "T10", "RUNNING", checkpoint={"phase": "MISSION_CONTROL"})
-            mission = self.mission_control.create_mission(
-                str(item.get("objective") or ""),
-                title=str(item.get("title") or "") or None,
-            )
-            self.graphs.attach_mission(graph_id, mission)
-            self.queue.checkpoint(
-                queue_id,
-                worker_id=self.worker_id,
-                graph_id=graph_id,
-                mission_id=str(mission.get("id") or ""),
-                checkpoint={"phase": "MISSION_PACKET_CREATED", "task_id": "T10"},
-            )
-            self.graphs.update_task(
-                graph_id,
-                "T10",
-                "VERIFIED",
-                evidence={
-                    "kind": "mission_packet",
-                    "mission_id": mission.get("id"),
-                    "status": mission.get("status"),
-                    "specialists": len(mission.get("selected_agents") or []),
-                },
-                artifact={"kind": "mission_workspace", "artifacts": mission.get("artifacts") or []},
-                checkpoint={"phase": "MISSION_PACKET_VERIFIED"},
-            )
+            graph = self.graphs.graph(graph_id)
+            tasks = self._task_map(graph)
+            mission = dict(graph.get("mission_snapshot") or {})
+            if tasks.get("T10", {}).get("status") not in _VERIFIED_STATES or not mission.get("id"):
+                self.queue.heartbeat(queue_id, worker_id=self.worker_id)
+                self.graphs.update_task(graph_id, "T10", "RUNNING", checkpoint={"phase": "MISSION_CONTROL"})
+                mission = self.mission_control.create_mission(
+                    str(item.get("objective") or ""),
+                    title=str(item.get("title") or "") or None,
+                )
+                self.graphs.attach_mission(graph_id, mission)
+                self.queue.checkpoint(
+                    queue_id,
+                    worker_id=self.worker_id,
+                    graph_id=graph_id,
+                    mission_id=str(mission.get("id") or ""),
+                    checkpoint={"phase": "MISSION_PACKET_CREATED", "task_id": "T10"},
+                )
+                self.graphs.update_task(
+                    graph_id,
+                    "T10",
+                    "VERIFIED",
+                    evidence={
+                        "kind": "mission_packet",
+                        "mission_id": mission.get("id"),
+                        "status": mission.get("status"),
+                        "specialists": len(mission.get("selected_agents") or []),
+                    },
+                    artifact={"kind": "mission_workspace", "artifacts": mission.get("artifacts") or []},
+                    checkpoint={"phase": "MISSION_PACKET_VERIFIED"},
+                )
+            else:
+                self._resumed_from_checkpoint += 1
 
             current_task = "T20"
-            self.queue.heartbeat(queue_id, worker_id=self.worker_id)
-            self.graphs.update_task(graph_id, "T20", "RUNNING", checkpoint={"phase": "VERIFY"})
-            critic = dict(mission.get("critic") or {})
-            verified = critic.get("verdict") == "VERIFIED_LOCAL_PACKET"
-            if not verified:
+            graph = self.graphs.graph(graph_id)
+            tasks = self._task_map(graph)
+            if tasks.get("T20", {}).get("status") not in _VERIFIED_STATES:
+                self.queue.heartbeat(queue_id, worker_id=self.worker_id)
+                self.graphs.update_task(graph_id, "T20", "RUNNING", checkpoint={"phase": "VERIFY"})
+                critic = dict(mission.get("critic") or {})
+                verified = critic.get("verdict") == "VERIFIED_LOCAL_PACKET"
+                if not verified:
+                    self.graphs.update_task(
+                        graph_id,
+                        "T20",
+                        "BLOCKED",
+                        evidence={"kind": "critic", "verdict": critic.get("verdict"), "confidence": critic.get("confidence")},
+                        failure_reason="Mission packet requires human review before further progression.",
+                    )
+                    finished = self.queue.fail(
+                        queue_id,
+                        worker_id=self.worker_id,
+                        error="Mission packet requires human review.",
+                        retry=False,
+                    )
+                    self._failed += 1
+                    result = {
+                        "success": False,
+                        "state": "REVIEW_REQUIRED",
+                        "queue": finished,
+                        "graph": self.graphs.graph(graph_id),
+                        "mission_id": mission.get("id"),
+                        "paper_only": True,
+                        "live_execution": False,
+                        "external_actions": "APPROVAL_GATED",
+                    }
+                    self._last_result = result
+                    return result
+
                 self.graphs.update_task(
                     graph_id,
                     "T20",
-                    "BLOCKED",
-                    evidence={"kind": "critic", "verdict": critic.get("verdict"), "confidence": critic.get("confidence")},
-                    failure_reason="Mission packet requires human review before further progression.",
+                    "VERIFIED",
+                    evidence={
+                        "kind": "critic",
+                        "verdict": critic.get("verdict"),
+                        "confidence": critic.get("confidence"),
+                        "checks": critic.get("checks") or {},
+                    },
+                    checkpoint={"phase": "LOCAL_WORK_VERIFIED"},
                 )
-                finished = self.queue.fail(
-                    queue_id,
-                    worker_id=self.worker_id,
-                    error="Mission packet requires human review.",
-                    retry=False,
-                )
-                self._failed += 1
-                result = {
-                    "success": False,
-                    "state": "REVIEW_REQUIRED",
-                    "queue": finished,
-                    "graph": self.graphs.graph(graph_id),
-                    "mission_id": mission.get("id"),
-                    "paper_only": True,
-                    "live_execution": False,
-                    "external_actions": "APPROVAL_GATED",
-                }
-                self._last_result = result
-                return result
+            else:
+                self._resumed_from_checkpoint += 1
 
-            self.graphs.update_task(
-                graph_id,
-                "T20",
-                "VERIFIED",
-                evidence={
-                    "kind": "critic",
-                    "verdict": critic.get("verdict"),
-                    "confidence": critic.get("confidence"),
-                    "checks": critic.get("checks") or {},
-                },
-                checkpoint={"phase": "LOCAL_WORK_VERIFIED"},
-            )
             finished = self.queue.complete(
                 queue_id,
-                mission_id=str(mission.get("id") or ""),
+                mission_id=str(mission.get("id") or item.get("mission_id") or ""),
                 worker_id=self.worker_id,
             )
             self._completed += 1
@@ -292,17 +325,20 @@ class MissionWorker:
             "version": "9.2",
             "worker_id": self.worker_id,
             "running": bool(thread is not None and thread.is_alive() and not self._stop.is_set()),
+            "draining": bool(self._stop.is_set() and self._active_queue_id is not None),
             "stop_requested": self._stop.is_set(),
             "active_queue_id": self._active_queue_id,
             "active_graph_id": self._active_graph_id,
             "cycles": self._cycles,
             "completed": self._completed,
             "failed": self._failed,
+            "resumed_from_checkpoint": self._resumed_from_checkpoint,
             "last_error": self._last_error,
             "last_result": self._last_result,
             "queue": self.queue.snapshot(limit=30),
             "graphs": self.graphs.snapshot(limit=20),
             "bounded_concurrency": 1,
+            "checkpoint_resume": True,
             "external_actions": "APPROVAL_GATED",
             "automatic_production_rewrite": False,
             "paper_only": True,
