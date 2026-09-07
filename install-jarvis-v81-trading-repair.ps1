@@ -175,6 +175,8 @@ try {
         "workstation\trading_timeframe_profiles.py",
         "workstation\quant_terminal_v2.py",
         "workstation\quant_terminal_v2_static\paper_desk_runtime.js",
+        "start_jarvis_native_voice.ps1",
+        "tests\test_jarvis_v32_hybrid_voice.py",
         "tests\test_v81_trading_decision_execution_repair.py",
         "tests\test_v8_unified_intelligence_os.py"
     )
@@ -239,6 +241,13 @@ print('Candidate horizon router safety: PASS')
     & $Python -c $ControlContract
     if ($LASTEXITCODE -ne 0) { throw "V8.1 independent horizon contract failed." }
 
+    Write-Host "NATIVE VOICE COMPILE REGRESSION > deterministic Windows compiler invocation" -ForegroundColor Cyan
+    & $Python -m unittest `
+        tests.test_jarvis_v32_hybrid_voice.VoiceV32HybridTests.test_native_service_compiles `
+        -q
+    if ($LASTEXITCODE -ne 0) { throw "Native voice compile regression failed." }
+    Write-Host "Native voice compile regression: PASS" -ForegroundColor Green
+
     Write-Host "TARGETED REGRESSION > V8.1 trading repair + V8 baseline" -ForegroundColor Cyan
     & $Python -m unittest `
         tests.test_v81_trading_decision_execution_repair `
@@ -256,6 +265,7 @@ print('Candidate horizon router safety: PASS')
         tests.test_universal_learning_v5 `
         tests.test_jarvis_runtime_supervisor `
         tests.test_runtime_supervisor_v62 `
+        tests.test_jarvis_v32_hybrid_voice `
         -q
     if ($LASTEXITCODE -ne 0) { throw "Targeted V8.1 regression failed." }
     Write-Host "Targeted regression: PASS" -ForegroundColor Green
@@ -296,6 +306,7 @@ print('Candidate horizon router safety: PASS')
     Write-Host "Candidate routing    : INTRADAY + SWING + INVESTMENT"
     Write-Host "Score contract       : DISCOVERY != EXECUTION"
     Write-Host "Why-not-trade board  : ENABLED"
+    Write-Host "Native voice compile : DETERMINISTIC ARGUMENT VECTOR"
     Write-Host "Real execution       : LOCKED"
 }
 catch {
