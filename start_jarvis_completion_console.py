@@ -3,10 +3,10 @@ from __future__ import annotations
 import socket
 
 # Protected cross-generation launcher lineage retained for regression contracts:
-# completion_console_v11 -> completion_console_v12
-# V12 is the active Completion implementation; the V11 marker is compatibility
-# metadata only and does not launch a second or stale Completion service.
-from workstation import completion_console_v12 as completion_console
+# completion_console_v11 -> completion_console_v12 -> completion_console_v13
+# V13 is the active Completion implementation; older markers are compatibility
+# metadata only and do not launch duplicate/stale Completion services.
+from workstation import completion_console_v13 as completion_console
 
 
 def port_open(host: str, port: int) -> bool:
