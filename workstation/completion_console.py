@@ -5,7 +5,6 @@ approvals, mission queue, executive planning, code intelligence, memory, model
 telemetry, market events and governed strategy research. It contains no
 broker-order surface.
 """
-
 from __future__ import annotations
 
 import json
@@ -22,36 +21,29 @@ from omni.loopback_http import exclusive_server
 from omni.service_health_contract import ServiceHealthClock
 from omni.subsystem_snapshot import SubsystemSnapshotCollector, sanitize_error
 
-
 ROOT = Path(__file__).resolve().parents[1]
 STATIC = ROOT / "workstation" / "completion_console_static"
 HOST = os.getenv("JARVIS_COMPLETION_HOST", "127.0.0.1").strip()
 PORT = int(os.getenv("JARVIS_COMPLETION_PORT", "8799"))
-HEALTH = ServiceHealthClock("JARVIS_COMPLETION_CENTER", "8.0")
+HEALTH = ServiceHealthClock("JARVIS_COMPLETION_CENTER", "9.2")
 SNAPSHOTS = SubsystemSnapshotCollector(max_inflight=8)
 _APPROVAL_ID = re.compile(r"^approval-[0-9a-f]{16}$")
+_QUEUE_ID = re.compile(r"^queue-[0-9a-f]{16}$")
+_GOAL_ID = re.compile(r"^goal-[0-9a-f]{16}$")
 
 
 def _safe_call(name: str, function: Callable[[], Any]) -> dict[str, Any]:
-    """Compatibility helper used by older Completion Center consumers."""
-
     try:
         value = function()
         return {"success": True, "name": name, "data": value}
     except Exception as exc:
-        return {
-            "success": False,
-            "name": name,
-            "error": f"{type(exc).__name__}: {sanitize_error(exc)}"[:500],
-        }
+        return {"success": False, "name": name, "error": f"{type(exc).__name__}: {sanitize_error(exc)}"[:500]}
 
 
 def _memory_snapshot() -> dict[str, Any]:
     path = Path(HYBRID_MEMORY_DB)
     result = {
-        "exists": path.exists(),
-        "database": str(path),
-        "records": 0,
+        "exists": path.exists(), "database": str(path), "records": 0,
         "bytes": path.stat().st_size if path.exists() else 0,
         "read_only_snapshot": True,
     }
@@ -89,9 +81,6 @@ def _mission_state() -> dict[str, Any]:
     return {"mission_count": 0, "latest_id": None, "latest_status": "READY"}
 
 
-# Overview providers are deliberately lazy.  Import or runtime failure in one
-# subsystem is captured by SubsystemSnapshotCollector instead of preventing the
-# rest of the Completion Center from rendering.
 def _completion_provider() -> Any:
     from omni.project_completion import snapshot
     return snapshot()
@@ -109,15 +98,22 @@ def _executive_provider() -> Any:
 
 def _approvals_provider() -> Any:
     from omni.approval_queue import approval_queue
-    return {
-        "pending": list(approval_queue.pending()),
-        "external_actions": "APPROVAL_GATED",
-    }
+    return {"pending": list(approval_queue.pending()), "external_actions": "APPROVAL_GATED"}
 
 
 def _mission_queue_provider() -> Any:
     from omni.mission_queue import MISSION_QUEUE
     return MISSION_QUEUE.snapshot()
+
+
+def _goal_graph_provider() -> Any:
+    from omni.goal_task_graph import GOAL_TASK_GRAPHS
+    return GOAL_TASK_GRAPHS.snapshot(limit=20)
+
+
+def _mission_worker_provider() -> Any:
+    from omni.mission_worker import MISSION_WORKER
+    return MISSION_WORKER.status()
 
 
 def _code_provider() -> Any:
@@ -148,6 +144,8 @@ def _overview_providers() -> dict[str, Callable[[], Any]]:
         "approvals": _approvals_provider,
         "missions": _mission_state,
         "mission_queue": _mission_queue_provider,
+        "goal_graphs": _goal_graph_provider,
+        "mission_worker": _mission_worker_provider,
         "code_intelligence": _code_provider,
         "memory": _memory_snapshot,
         "model_router": _model_router_provider,
@@ -164,14 +162,10 @@ def _subsystem_data(subsystems: dict[str, dict[str, Any]], name: str) -> Any:
 def overview_payload() -> dict[str, Any]:
     subsystems = SNAPSHOTS.collect(_overview_providers(), timeout=2.0)
     overall = "READY" if subsystems and all(row.get("healthy") for row in subsystems.values()) else "DEGRADED"
-
-    # Preserve the historical top-level fields while adding per-subsystem health.
-    # Memory historically returned a safe-call envelope, so expose the new richer
-    # envelope there while the other fields keep their raw-data shape.
     return {
         "success": True,
         "service": "JARVIS_COMPLETION_CENTER",
-        "version": "8.0",
+        "version": "9.2",
         "overall": overall,
         "subsystems": subsystems,
         "completion": _subsystem_data(subsystems, "completion"),
@@ -180,6 +174,8 @@ def overview_payload() -> dict[str, Any]:
         "approvals": _subsystem_data(subsystems, "approvals"),
         "missions": _subsystem_data(subsystems, "missions"),
         "mission_queue": _subsystem_data(subsystems, "mission_queue"),
+        "goal_graphs": _subsystem_data(subsystems, "goal_graphs"),
+        "mission_worker": _subsystem_data(subsystems, "mission_worker"),
         "code_intelligence": _subsystem_data(subsystems, "code_intelligence"),
         "memory": subsystems.get("memory"),
         "model_router": _subsystem_data(subsystems, "model_router"),
@@ -196,7 +192,7 @@ def overview_payload() -> dict[str, Any]:
 
 
 class CompletionHandler(BaseHTTPRequestHandler):
-    server_version = "JARVISCompletion/8.0"
+    server_version = "JARVISCompletion/9.2"
 
     def log_message(self, _format: str, *_args: Any) -> None:
         return
@@ -245,16 +241,11 @@ class CompletionHandler(BaseHTTPRequestHandler):
             return self.send_file(STATIC / "style.css", "text/css; charset=utf-8")
         if path == "/api/health":
             HEALTH.mark_success()
-            return self.send_json(
-                HEALTH.payload(
-                    status="READY",
-                    healthy=True,
-                    dependencies={"repository": "READY", "executive_control_plane": "READY"},
-                    completion_center=True,
-                    executive_control_plane=True,
-                    engine_ready=True,
-                )
-            )
+            return self.send_json(HEALTH.payload(
+                status="READY", healthy=True,
+                dependencies={"repository": "READY", "executive_control_plane": "READY"},
+                completion_center=True, executive_control_plane=True, engine_ready=True,
+            ))
         if path == "/api/overview":
             try:
                 payload = overview_payload()
@@ -262,18 +253,13 @@ class CompletionHandler(BaseHTTPRequestHandler):
                     HEALTH.mark_success()
                 return self.send_json(payload)
             except Exception as exc:
-                # This is reserved for failure of the aggregation boundary itself;
-                # individual subsystem failures are already isolated and remain 200.
                 HEALTH.mark_error(exc)
-                return self.send_json(
-                    {
-                        "success": False,
-                        "message": f"{type(exc).__name__}: {sanitize_error(exc)}"[:500],
-                        "paper_only": True,
-                        "live_execution": False,
-                    },
-                    500,
-                )
+                return self.send_json({
+                    "success": False,
+                    "message": f"{type(exc).__name__}: {sanitize_error(exc)}"[:500],
+                    "paper_only": True,
+                    "live_execution": False,
+                }, 500)
         if path == "/api/completion":
             from omni.project_completion import snapshot
             return self.send_json(snapshot())
@@ -298,6 +284,21 @@ class CompletionHandler(BaseHTTPRequestHandler):
         if path == "/api/mission-queue":
             from omni.mission_queue import MISSION_QUEUE
             return self.send_json(MISSION_QUEUE.snapshot())
+        if path == "/api/missions":
+            from omni.mission_worker import MISSION_WORKER
+            return self.send_json(MISSION_WORKER.status())
+        if path == "/api/missions/graphs":
+            from omni.goal_task_graph import GOAL_TASK_GRAPHS
+            return self.send_json(GOAL_TASK_GRAPHS.snapshot(limit=30))
+        if path == "/api/missions/graph":
+            from omni.goal_task_graph import GOAL_TASK_GRAPHS
+            graph_id = str((params.get("id") or [""])[0]).strip()
+            if not _GOAL_ID.fullmatch(graph_id):
+                return self.send_json({"success": False, "message": "valid graph id required"}, 400)
+            try:
+                return self.send_json({"success": True, "graph": GOAL_TASK_GRAPHS.graph(graph_id)})
+            except KeyError as exc:
+                return self.send_json({"success": False, "message": sanitize_error(exc)}, 404)
         if path == "/api/market-events":
             from workstation.market_event_bus import MARKET_EVENT_BUS
             return self.send_json(MARKET_EVENT_BUS.snapshot(limit=100))
@@ -306,14 +307,10 @@ class CompletionHandler(BaseHTTPRequestHandler):
             return self.send_json(CHAMPION_CHALLENGER.snapshot())
         if path == "/api/approvals":
             from omni.approval_queue import approval_queue
-            return self.send_json(
-                {
-                    "success": True,
-                    "pending": list(approval_queue.pending()),
-                    "automatic_approval": False,
-                    "external_execution": False,
-                }
-            )
+            return self.send_json({
+                "success": True, "pending": list(approval_queue.pending()),
+                "automatic_approval": False, "external_execution": False,
+            })
         if path == "/api/memory":
             return self.send_json(_memory_snapshot())
         self.send_error(404)
@@ -328,31 +325,48 @@ class CompletionHandler(BaseHTTPRequestHandler):
             if not _APPROVAL_ID.fullmatch(approval_id):
                 return self.send_json({"success": False, "message": "Invalid approval ID."}, 400)
             try:
-                record = (
-                    approval_queue.approve(approval_id)
-                    if path.endswith("/approve")
-                    else approval_queue.reject(approval_id)
-                )
-                return self.send_json(
-                    {
-                        "success": True,
-                        "record": record,
-                        "consumed": False,
-                        "external_action_executed": False,
-                    }
-                )
+                record = approval_queue.approve(approval_id) if path.endswith("/approve") else approval_queue.reject(approval_id)
+                return self.send_json({
+                    "success": True, "record": record, "consumed": False,
+                    "external_action_executed": False,
+                })
             except (KeyError, RuntimeError, PermissionError) as exc:
                 return self.send_json({"success": False, "message": sanitize_error(exc)[:400]}, 409)
+
+        if path.startswith("/api/missions"):
+            from omni.mission_worker import MISSION_WORKER
+            try:
+                if path == "/api/missions/enqueue":
+                    objective = str(body.get("objective") or "").strip()
+                    title = str(body.get("title") or "").strip()
+                    priority = int(body.get("priority") or 50)
+                    return self.send_json({"success": True, "item": MISSION_WORKER.enqueue(objective, title=title, priority=priority)})
+                if path == "/api/missions/start":
+                    return self.send_json(MISSION_WORKER.start())
+                if path == "/api/missions/stop":
+                    return self.send_json(MISSION_WORKER.stop(wait_seconds=0.0))
+                if path == "/api/missions/run-once":
+                    return self.send_json(MISSION_WORKER.run_once())
+                if path in {"/api/missions/pause", "/api/missions/resume"}:
+                    queue_id = str(body.get("queue_id") or "").strip()
+                    if not _QUEUE_ID.fullmatch(queue_id):
+                        return self.send_json({"success": False, "message": "valid queue id required"}, 400)
+                    item = MISSION_WORKER.pause_item(queue_id) if path.endswith("/pause") else MISSION_WORKER.resume_item(queue_id)
+                    return self.send_json({"success": True, "item": item})
+            except (ValueError, KeyError, RuntimeError, PermissionError) as exc:
+                return self.send_json({"success": False, "message": sanitize_error(exc)[:400]}, 409)
+
         self.send_error(404)
 
 
 def main() -> int:
     server = exclusive_server(HOST, PORT, CompletionHandler)
     print("=" * 72)
-    print("JARVIS V8/V9 PROJECT COMPLETION / EXECUTIVE CENTER")
+    print("JARVIS V9 COMPLETION / EXECUTIVE / MISSION CENTER")
     print("=" * 72)
     print(f"Console: http://{HOST}:{PORT}")
     print("Mode: LOCAL / GOVERNED / PAPER-RESEARCH")
+    print("Mission worker: SUPERVISED / EXPLICIT START")
     print("Live broker execution: LOCKED")
     try:
         server.serve_forever(poll_interval=0.5)
