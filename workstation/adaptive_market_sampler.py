@@ -4,7 +4,7 @@ import json
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 from omni.trading_intelligence.adaptive_opportunity_policy import ADAPTIVE_OPPORTUNITY_POLICY
 
@@ -17,12 +17,22 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _learning_state() -> dict[str, Any]:
+    try:
+        from omni.trading_intelligence.trade_learning_engine import learning_engine
+
+        value = learning_engine.status()
+        return dict(value) if isinstance(value, dict) else {}
+    except Exception:
+        return {}
+
+
 def _quant_json(path: str, params: dict[str, Any] | None = None, *, timeout: float = 15.0) -> dict[str, Any]:
     query = urllib.parse.urlencode(params or {})
     url = QUANT_BASE + path + ("?" + query if query else "")
     request = urllib.request.Request(
         url,
-        headers={"Accept": "application/json", "User-Agent": "JARVIS-V12-Adaptive-Sampler/1.0"},
+        headers={"Accept": "application/json", "User-Agent": "JARVIS-V12-Adaptive-Sampler/1.1"},
     )
     with urllib.request.urlopen(request, timeout=timeout) as response:
         payload = json.loads(response.read(1_000_000).decode("utf-8", errors="replace"))
@@ -31,10 +41,19 @@ def _quant_json(path: str, params: dict[str, Any] | None = None, *, timeout: flo
     return payload
 
 
-def _sample_profile(symbol: str, profile: str) -> dict[str, Any]:
+def _sample_profile(
+    symbol: str,
+    profile: str,
+    *,
+    learning_state: Mapping[str, Any],
+) -> dict[str, Any]:
     try:
         scan = _quant_json("/api/scan", {"symbol": symbol, "profile": profile}, timeout=25.0)
-        adaptive = ADAPTIVE_OPPORTUNITY_POLICY.evaluate(scan)
+        adaptive = ADAPTIVE_OPPORTUNITY_POLICY.evaluate(
+            scan,
+            learning_state=learning_state,
+            allowed_sides=("LONG",) if profile == "investment" else ("LONG", "SHORT"),
+        )
         return {
             "success": bool(scan.get("success")),
             "symbol": scan.get("symbol") or symbol,
@@ -73,17 +92,20 @@ def sample_market(
     profiles: Iterable[str] = DEFAULT_PROFILES,
 ) -> dict[str, Any]:
     normalized = str(symbol or "BTC").strip().upper() or "BTC"
-    selected = []
+    selected: list[str] = []
     for raw in profiles:
         token = str(raw or "").strip()
         if token and token not in selected:
             selected.append(token)
     selected = selected[:8] or list(DEFAULT_PROFILES)
 
-    rows = [_sample_profile(normalized, profile) for profile in selected]
+    learning = _learning_state()
+    rows = [
+        _sample_profile(normalized, profile, learning_state=learning)
+        for profile in selected
+    ]
     actionable = [
-        row
-        for row in rows
+        row for row in rows
         if row.get("success")
         and isinstance(row.get("adaptive"), dict)
         and row["adaptive"].get("executable") is True
@@ -92,6 +114,7 @@ def sample_market(
         key=lambda row: (
             float((row.get("adaptive") or {}).get("utility") or -999.0),
             float((row.get("adaptive") or {}).get("expected_value_r") or -999.0),
+            float((row.get("adaptive") or {}).get("confidence") or 0.0),
         ),
         reverse=True,
     )
@@ -99,11 +122,9 @@ def sample_market(
     try:
         controller = _quant_json("/api/paper/portfolio-controller", timeout=15.0)
     except Exception as exc:
-        controller = {
-            "success": False,
-            "error": f"{type(exc).__name__}: {exc}"[:500],
-        }
+        controller = {"success": False, "error": f"{type(exc).__name__}: {exc}"[:500]}
 
+    recent_outcomes = list(learning.get("recent_outcomes") or [])
     best = actionable[0] if actionable else None
     return {
         "success": any(row.get("success") for row in rows),
@@ -115,6 +136,14 @@ def sample_market(
         "samples": rows,
         "actionable_count": len(actionable),
         "best_adaptive_sample": best,
+        "learning_context": {
+            "recent_outcomes": len(recent_outcomes),
+            "family_buckets": len(learning.get("families") or {}),
+            "strategy_buckets": len(learning.get("strategies") or {}),
+            "regime_buckets": len(learning.get("regimes") or {}),
+            "symbol_buckets": len(learning.get("symbols") or {}),
+            "automatic_strategy_code_rewrite": False,
+        },
         "portfolio_controller": {
             "success": controller.get("success"),
             "running": controller.get("running"),
@@ -123,7 +152,7 @@ def sample_market(
             "score_contract": controller.get("score_contract") or {},
         },
         "interpretation": (
-            "PRIMARY/PROBE is determined from expected value, uncertainty, learning and hard safety/data blockers. "
+            "PRIMARY/PROBE/WAIT is determined from expected value, uncertainty, verified market evidence and bounded paper-outcome priors. "
             "A legacy score below 67/68/70 is not, by itself, a V12 reason to refuse a paper trade."
         ),
         "paper_only": True,
@@ -144,6 +173,7 @@ class AdaptiveMarketSampler:
             "quant_source": QUANT_BASE,
             "profiles": list(DEFAULT_PROFILES),
             "read_only": True,
+            "outcome_learning_calibration": True,
             "paper_only": True,
             "live_execution": False,
             "automatic_broker_order": False,
