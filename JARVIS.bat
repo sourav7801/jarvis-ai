@@ -31,6 +31,8 @@ if errorlevel 1 set "JARVIS_NAUTILUS_PY=%JARVIS_PY%"
 REM JARVIS_RUNTIME_SUPERVISOR_V11
 REM Compatibility lineage: scripts.jarvis_runtime_supervisor_v62
 REM Compatibility lineage: scripts.jarvis_runtime_supervisor_v8
+REM Historical protected launcher contract retained for cross-generation tests:
+REM "%JARVIS_PY%" -m scripts.jarvis_runtime_supervisor_v8
 REM Preserves V6.2 stale-Quant ownership checks and V8 stale-Master identity checks.
 REM V11 additionally refuses to adopt an obsolete Completion Center on port 8799.
 REM Master remains the protected V8 Unified Intelligence runtime on port 8797.
