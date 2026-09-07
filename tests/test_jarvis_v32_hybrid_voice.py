@@ -369,33 +369,50 @@ class VoiceV32HybridTests(unittest.TestCase):
             dir=build_root,
         ) as temporary:
             output = Path(temporary) / "JarvisVoiceService.test.exe"
-            output_ps = str(output).replace("'", "''")
-            service_ps = str(SERVICE).replace("'", "''")
-            ps_source = (
-                "$ErrorActionPreference='Stop';"
-                "Add-Type -AssemblyName System.Speech;"
-                "$speech=([System.Speech.Recognition.SpeechRecognitionEngine]).Assembly.Location;"
-                "$candidates=@("
-                "(Join-Path $env:WINDIR 'Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe'),"
-                "(Join-Path $env:WINDIR 'Microsoft.NET\\Framework\\v4.0.30319\\csc.exe')"
-                ");"
-                "$csc=$candidates | Where-Object { Test-Path $_ } | Select-Object -First 1;"
-                "if(-not $csc){ throw 'C# compiler not found' };"
-                "& $csc /nologo /target:exe /optimize+ "
-                f"'/out:{output_ps}' "
-                "('/reference:' + $speech) "
-                f"'{service_ps}';"
-                "exit $LASTEXITCODE"
-            )
 
-            result = subprocess.run(
+            windir = Path(os.environ.get("WINDIR", r"C:\Windows"))
+            candidates = (
+                windir / "Microsoft.NET" / "Framework64" / "v4.0.30319" / "csc.exe",
+                windir / "Microsoft.NET" / "Framework" / "v4.0.30319" / "csc.exe",
+            )
+            csc = next((candidate for candidate in candidates if candidate.exists()), None)
+            self.assertIsNotNone(csc, "C# compiler not found")
+
+            speech_probe = subprocess.run(
                 [
                     "powershell.exe",
                     "-NoProfile",
                     "-ExecutionPolicy",
                     "Bypass",
                     "-Command",
-                    ps_source,
+                    "Add-Type -AssemblyName System.Speech; "
+                    "[System.Speech.Recognition.SpeechRecognitionEngine].Assembly.Location",
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(
+                speech_probe.returncode,
+                0,
+                msg=speech_probe.stdout + speech_probe.stderr,
+            )
+            speech_lines = [line.strip() for line in speech_probe.stdout.splitlines() if line.strip()]
+            self.assertTrue(speech_lines, "System.Speech assembly location was not returned")
+            speech = speech_lines[-1]
+
+            # Invoke csc directly with one Python argument per compiler token.
+            # This avoids PowerShell external-command re-tokenization that can
+            # intermittently turn a single-output build into CS2020.
+            result = subprocess.run(
+                [
+                    str(csc),
+                    "/nologo",
+                    "/target:exe",
+                    "/optimize+",
+                    f"/out:{output}",
+                    f"/reference:{speech}",
+                    str(SERVICE),
                 ],
                 cwd=ROOT,
                 capture_output=True,
