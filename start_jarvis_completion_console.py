@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import socket
 
-from workstation import completion_console
+from workstation import completion_console_v93 as completion_console
 
 
 def port_open(host: str, port: int) -> bool:
