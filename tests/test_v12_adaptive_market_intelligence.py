@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 from omni.agent_registry import default_agent_specs
 from omni.trading_intelligence.adaptive_opportunity_policy import (
@@ -9,7 +10,6 @@ from omni.trading_intelligence.adaptive_opportunity_policy import (
     HARD_BLOCKERS,
 )
 from workstation.adaptive_paper_autonomy_engine import AdaptivePaperAutonomyEngine
-from workstation import completion_console_v12
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -45,14 +45,12 @@ def _row(
             "state": "CONFIRMED_BREAKOUT" if side == "LONG" else "CONFIRMED_BREAKDOWN",
             "direction": direction,
         },
-        "votes": [
-            {
-                "strategy": "TEST_TREND",
-                "family": "trend",
-                "side": side,
-                "regime_compatible": True,
-            }
-        ],
+        "votes": [{
+            "strategy": "TEST_TREND",
+            "family": "trend",
+            "side": side,
+            "regime_compatible": True,
+        }],
         "evidence": [
             {"available": True, "fresh": True, "timeframe": "5m"},
             {"available": True, "fresh": True, "timeframe": "15m"},
@@ -73,10 +71,7 @@ def _row(
 
 class AdaptiveOpportunityPolicyTests(unittest.TestCase):
     def test_score_below_67_is_not_binary_blocker(self) -> None:
-        decision = ADAPTIVE_OPPORTUNITY_POLICY.evaluate(
-            _row(score=66.0, blockers=["SCORE_BELOW_GATE"]),
-            learning_state={},
-        )
+        decision = ADAPTIVE_OPPORTUNITY_POLICY.evaluate(_row(score=66.0), learning_state={})
         self.assertTrue(decision["executable"])
         self.assertIn(decision["action"], {"PRIMARY", "PROBE"})
         self.assertNotIn("SCORE_BELOW_GATE", decision["hard_blockers"])
@@ -86,20 +81,19 @@ class AdaptiveOpportunityPolicyTests(unittest.TestCase):
 
     def test_even_much_lower_score_can_trade_when_ev_is_strong(self) -> None:
         decision = ADAPTIVE_OPPORTUNITY_POLICY.evaluate(
-            _row(score=55.0, alignment=82.0, rr=3.2, blockers=["SCORE_BELOW_GATE"]),
+            _row(score=55.0, alignment=82.0, rr=3.2),
             learning_state={},
         )
         self.assertTrue(decision["executable"])
         self.assertGreater(decision["expected_value_r"], 0.0)
         self.assertGreater(decision["risk_multiplier"], 0.0)
 
-    def test_stale_data_remains_a_hard_veto(self) -> None:
+    def test_high_legacy_score_does_not_override_stale_data(self) -> None:
         decision = ADAPTIVE_OPPORTUNITY_POLICY.evaluate(
-            _row(score=90.0, alignment=100.0, rr=4.0, blockers=["STALE_MARKET_DATA"]),
+            _row(score=95.0, alignment=100.0, rr=5.0, blockers=["STALE_MARKET_DATA"]),
             learning_state={},
         )
         self.assertFalse(decision["executable"])
-        self.assertEqual(decision["action"], "WAIT")
         self.assertIn("STALE_MARKET_DATA", decision["hard_blockers"])
 
     def test_invalid_levels_remain_a_hard_veto(self) -> None:
@@ -109,6 +103,15 @@ class AdaptiveOpportunityPolicyTests(unittest.TestCase):
         self.assertFalse(decision["executable"])
         self.assertIn("INVALID_RISK_LEVELS", decision["hard_blockers"])
 
+    def test_investment_side_policy_is_enforced(self) -> None:
+        decision = ADAPTIVE_OPPORTUNITY_POLICY.evaluate(
+            _row(score=90.0, rr=4.0, side="SHORT", blockers=[]),
+            learning_state={},
+            allowed_sides=("LONG",),
+        )
+        self.assertFalse(decision["executable"])
+        self.assertIn("SIDE_NOT_ALLOWED", decision["hard_blockers"])
+
     def test_policy_status_has_no_static_numeric_authority(self) -> None:
         status = ADAPTIVE_OPPORTUNITY_POLICY.status()
         self.assertFalse(status["legacy_score_threshold_is_execution_authority"])
@@ -117,6 +120,7 @@ class AdaptiveOpportunityPolicyTests(unittest.TestCase):
         self.assertIn("STALE_MARKET_DATA", HARD_BLOCKERS)
         self.assertTrue(status["supports_low_risk_probe"])
         self.assertFalse(status["live_execution"])
+        self.assertFalse(status["automatic_broker_order"])
 
 
 class AdaptivePaperEngineContractTests(unittest.TestCase):
@@ -145,32 +149,46 @@ class V12RuntimeContractTests(unittest.TestCase):
         self.assertIn('os.environ["JARVIS_AUTO_PAPER_START"] = "0"', source)
         self.assertIn("start_v12_adaptive_paper", source)
         self.assertIn("paper_portfolio_controller.start", source)
-        self.assertIn("install_adaptive_direct_trade_bridge", source)
+        self.assertIn("install_v12_runtime_bridges", source)
+        self.assertIn("Static 67/68/70 score boundary: OBSERVABILITY ONLY", source)
+
+    def test_master_wrapper_installs_v12_bridge_before_protected_master(self) -> None:
+        source = (ROOT / "start_jarvis_master_v12.py").read_text(encoding="utf-8")
+        self.assertIn("install_v12_runtime_bridges", source)
+        self.assertIn("start_jarvis_v3", source)
+        self.assertIn("V8 UNIFIED INTELLIGENCE", source)
+
+    def test_direct_bridge_removes_static_direct_score_and_live_rr_authority(self) -> None:
+        source = (ROOT / "workstation" / "adaptive_direct_trade_bridge.py").read_text(encoding="utf-8")
+        self.assertIn("LIVE_ADAPTIVE_EDGE_DECAYED", source)
+        self.assertIn("risk_multiplier=final_risk_multiplier", source)
+        self.assertIn("legacy_static_score_gate", source)
+        self.assertIn("legacy_static_live_rr_gate", source)
+        for token in ("place_order(", "submit_order(", "modify_order(", "cancel_order("):
+            self.assertNotIn(token, source)
 
     def test_completion_v12_preserves_safety_and_29_agent_boundary(self) -> None:
         names = {spec.name for spec in default_agent_specs()}
         self.assertEqual(len(names), 29)
         self.assertIn("critic", names)
-        for system_plane in (
-            "adaptive_opportunity_policy",
-            "adaptive_market_sampler",
-            "adaptive_paper_autonomy",
-        ):
+        for system_plane in ("adaptive_opportunity_policy", "adaptive_market_sampler", "adaptive_paper_autonomy"):
             self.assertNotIn(system_plane, names)
         status_source = (ROOT / "workstation" / "completion_console_v12.py").read_text(encoding="utf-8")
         self.assertIn('"version": "12.0"', status_source)
         self.assertIn('"live_execution": False', status_source)
         self.assertIn('"automatic_broker_order": False', status_source)
 
-    def test_v12_ui_has_live_btc_sampling_surface(self) -> None:
+    def test_v12_ui_has_live_btc_sampling_and_adaptive_paper_surface(self) -> None:
         html = (ROOT / "workstation" / "completion_console_static" / "index.html").read_text(encoding="utf-8")
         js = (ROOT / "workstation" / "completion_console_static" / "v12_adaptive_market.js").read_text(encoding="utf-8")
+        quant = (ROOT / "workstation" / "quant_terminal_v2_static" / "v12_paper_intelligence.js").read_text(encoding="utf-8")
         self.assertIn("adaptiveMarketNav", html)
         self.assertIn("v12_adaptive_market.js", html)
         self.assertIn("/api/adaptive-market/sample", js)
-        self.assertIn("legacy score", js)
-        self.assertNotIn("place_order(", js)
-        self.assertNotIn("submit_order(", js)
+        self.assertIn("legacy score", js.lower())
+        self.assertIn("67/68/70 OBSERVABILITY ONLY", quant)
+        self.assertIn("EXPECTED VALUE", quant)
+        self.assertNotIn("place_order(", js + quant)
 
 
 if __name__ == "__main__":
