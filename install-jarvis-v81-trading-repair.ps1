@@ -218,9 +218,8 @@ required = [
     'INTRADAY', 'SWING', 'INVESTMENT',
     'intraday_only', 'swing_only', 'investment_only',
     'stop_intraday', 'stop_swing', 'stop_investment',
-    'WHY / WHY NOT TRADE', 'mandateStartINTRADAY', 'mandateStartSWING',
-    'mandateStartINVESTMENT', 'mandateStopINTRADAY', 'mandateStopSWING',
-    'mandateStopINVESTMENT'
+    'WHY / WHY NOT TRADE', 'mandateStart${key}', 'mandateStop${key}',
+    'config.startToken', 'config.stopToken', 'controlMandate'
 ]
 missing = [item for item in required if item not in p]
 assert not missing, 'missing independent-horizon markers: ' + ', '.join(missing)
