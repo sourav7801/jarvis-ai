@@ -11,16 +11,24 @@ def main() -> int:
 
     from workstation.v12_runtime_bridges import install_v12_runtime_bridges
     from workstation.v13_runtime_bridges import install_v13_runtime_bridges
-    from workstation.jarvis_os_v12_bridge import install_master_v12_bridge
 
     v12 = install_v12_runtime_bridges()
     v13 = install_v13_runtime_bridges()
-    master_bridge = install_master_v12_bridge()
+
+    # start_jarvis_v3 imports create_server from jarvis_os_v8 inside main().
+    # Rebind that factory to a handler which subclasses V12BridgeHandler, thereby
+    # preserving both /api/v12/paper-authority and protected V8 command behavior.
+    from workstation import jarvis_os_v8
+    from workstation.jarvis_os_v13_bridge import create_server as create_v13_bridge_server
+
+    jarvis_os_v8.create_server = create_v13_bridge_server
+
     print("JARVIS V13 Master contextual bridge:", "READY" if v13.get("installed") else "DEGRADED")
     print("V12 compatibility bridge:", "READY" if v12.get("installed") else "DEGRADED")
-    print("V12 Master authority endpoint:", "READY" if master_bridge.get("installed") else "DEGRADED")
     print("Paper decision authority: CONTEXTUAL EXPECTED VALUE / OUTCOME MEMORY")
     print("Protected Master identity: V8 UNIFIED INTELLIGENCE")
+    print("V12 authority endpoint: /api/v12/paper-authority")
+    print("V13 authority endpoint: /api/v13/paper-authority")
     print("Live broker execution: LOCKED")
 
     # start_jarvis_v3 remains the protected V8 Master launcher contract.
