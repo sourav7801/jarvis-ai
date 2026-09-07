@@ -1,0 +1,15 @@
+(()=>{
+  "use strict";
+  const $=id=>document.getElementById(id);
+  const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const n=(v,d=3)=>Number.isFinite(Number(v))?Number(v).toFixed(d):"—";
+  const pct=v=>Number.isFinite(Number(v))?(Number(v)*100).toFixed(0)+"%":"—";
+
+  function style(){if($("v13QuantStyle"))return;const s=document.createElement("style");s.id="v13QuantStyle";s.textContent=`
+    #v13ContextStrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:5px;margin:7px 0}#v13ContextStrip div{border:1px solid #173c4c;background:#06141c;border-radius:5px;padding:6px;font-size:8px}#v13ContextStrip span{display:block;color:#769aa8}#v13ContextStrip b{display:block;color:#d9f4ff;margin-top:2px}.v13-on{color:#78f2aa!important}
+  `;document.head.appendChild(s)}
+
+  async function read(){try{const r=await fetch('/api/paper/portfolio-controller',{cache:'no-store'});const p=await r.json();if(r.ok&&p?.success)apply(p)}catch{}}
+  function apply(p){style();const desk=$("paperDeskV4");if(!desk)return;const eyebrow=desk.querySelector(':scope > .eyebrow');if(eyebrow)eyebrow.textContent='JARVIS PAPER PORTFOLIO · V13 CONTEXTUAL EXPECTED VALUE';const head=desk.querySelector('.decision-head span');if(head)head.textContent='SCORES = FEATURES · CONTEXT + OUTCOME MEMORY + UNCERTAINTY + CORRELATION = AUTHORITY';let strip=$("v13ContextStrip");if(!strip){strip=document.createElement('div');strip.id='v13ContextStrip';const target=desk.querySelector('.decision-wrap');if(target)target.prepend(strip)}const intraday=p?.mandates?.INTRADAY||{};const lane=intraday?.lanes?.['5M']||{};const intel=lane?.adaptive_intelligence||intraday?.adaptive_intelligence||{};const board=Array.isArray(p.decision_board)?p.decision_board:[];const primary=board.filter(r=>String(r.adaptive_action||'').toUpperCase()==='PRIMARY').length;const probe=board.filter(r=>String(r.adaptive_action||'').toUpperCase()==='PROBE').length;const best=board.slice().sort((a,b)=>Number(b.adaptive_expected_value_r??-999)-Number(a.adaptive_expected_value_r??-999))[0]||{};if(strip)strip.innerHTML=`<div><span>AUTHORITY</span><b class="v13-on">${esc(intel.decision_authority||'CONTEXTUAL EV')}</b></div><div><span>PRIMARY / PROBE</span><b>${primary} / ${probe}</b></div><div><span>BEST EV</span><b>${n(best.adaptive_expected_value_r)}R</b></div><div><span>CONFIDENCE</span><b>${pct(best.adaptive_confidence)}</b></div><div><span>LEGACY SCORE</span><b>${esc(best.execution_score??'—')} OBS</b></div><div><span>LIVE EXECUTION</span><b class="v13-on">LOCKED</b></div>`}
+  function boot(){read();setInterval(read,3000)}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+})();
