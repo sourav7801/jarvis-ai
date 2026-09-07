@@ -4,7 +4,6 @@ The queue owns scheduling state only.  It never executes external actions and
 never bypasses Mission Control approval locks.  A worker must explicitly lease
 a queued item and provide the mission executor.
 """
-
 from __future__ import annotations
 
 import json
@@ -14,7 +13,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
-
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PATH = ROOT / "data" / "state" / "mission_queue.json"
@@ -40,7 +38,7 @@ class MissionQueue:
                 return value
         except (FileNotFoundError, OSError, ValueError):
             pass
-        return {"version": 1, "items": [], "updated_at": None}
+        return {"version": 2, "items": [], "updated_at": None}
 
     def _save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -67,6 +65,8 @@ class MissionQueue:
             "lease_owner": None,
             "lease_expires_at": None,
             "mission_id": None,
+            "graph_id": None,
+            "checkpoint": None,
             "error": None,
             "approval_boundary": "Mission execution remains supervised; consequential external actions stay locked.",
         }
@@ -74,8 +74,9 @@ class MissionQueue:
             items = list(self._state.get("items") or [])
             items.append(item)
             items.sort(key=lambda row: (-int(row.get("priority") or 0), str(row.get("created_at") or "")))
-            self._state["items"] = items[-MAX_ITEMS:]
+            self._state["items"] = items[:MAX_ITEMS]
             self._state["updated_at"] = item["updated_at"]
+            self._state["version"] = 2
             self._save()
         return dict(item)
 
@@ -120,6 +121,67 @@ class MissionQueue:
             self._save()
             return dict(item)
 
+    def heartbeat(self, queue_id: str, *, worker_id: str) -> dict[str, Any]:
+        worker = str(worker_id or "").strip()
+        with self._lock:
+            item = self._find(queue_id)
+            if item.get("status") != "LEASED" or item.get("lease_owner") != worker:
+                raise PermissionError("Only the active lease owner may renew this item.")
+            item["lease_expires_at"] = time.time() + self.lease_seconds
+            item["updated_at"] = _now()
+            self._state["updated_at"] = item["updated_at"]
+            self._save()
+            return dict(item)
+
+    def checkpoint(
+        self,
+        queue_id: str,
+        *,
+        worker_id: str,
+        checkpoint: dict[str, Any],
+        graph_id: str | None = None,
+        mission_id: str | None = None,
+    ) -> dict[str, Any]:
+        worker = str(worker_id or "").strip()
+        with self._lock:
+            item = self._find(queue_id)
+            if item.get("status") != "LEASED" or item.get("lease_owner") != worker:
+                raise PermissionError("Only the active lease owner may checkpoint this item.")
+            item["checkpoint"] = dict(checkpoint or {})
+            if graph_id:
+                item["graph_id"] = str(graph_id)[:120]
+            if mission_id:
+                item["mission_id"] = str(mission_id)[:120]
+            item["updated_at"] = _now()
+            self._state["updated_at"] = item["updated_at"]
+            self._save()
+            return dict(item)
+
+    def pause(self, queue_id: str) -> dict[str, Any]:
+        with self._lock:
+            item = self._find(queue_id)
+            if item.get("status") == "LEASED":
+                raise RuntimeError("Cannot pause an actively leased mission; pause the worker first.")
+            if item.get("status") in {"SUCCEEDED", "FAILED", "CANCELLED"}:
+                return dict(item)
+            item["status"] = "PAUSED"
+            item["updated_at"] = _now()
+            self._state["updated_at"] = item["updated_at"]
+            self._save()
+            return dict(item)
+
+    def resume(self, queue_id: str) -> dict[str, Any]:
+        with self._lock:
+            item = self._find(queue_id)
+            if item.get("status") != "PAUSED":
+                return dict(item)
+            item["status"] = "QUEUED"
+            item["updated_at"] = _now()
+            item["error"] = None
+            self._state["updated_at"] = item["updated_at"]
+            self._save()
+            return dict(item)
+
     def complete(self, queue_id: str, *, mission_id: str, worker_id: str) -> dict[str, Any]:
         return self._finish(queue_id, "SUCCEEDED", worker_id, mission_id=mission_id)
 
@@ -131,6 +193,8 @@ class MissionQueue:
             item = self._find(queue_id)
             if item.get("status") in {"SUCCEEDED", "CANCELLED"}:
                 return dict(item)
+            if item.get("status") == "LEASED":
+                raise RuntimeError("Cannot cancel an actively leased mission; stop the worker first.")
             item["status"] = "CANCELLED"
             item["lease_owner"] = None
             item["lease_expires_at"] = None
@@ -138,6 +202,10 @@ class MissionQueue:
             self._state["updated_at"] = item["updated_at"]
             self._save()
             return dict(item)
+
+    def get(self, queue_id: str) -> dict[str, Any]:
+        with self._lock:
+            return dict(self._find(queue_id))
 
     def _find(self, queue_id: str) -> dict[str, Any]:
         value = str(queue_id or "").strip()
@@ -171,12 +239,6 @@ class MissionQueue:
             return dict(item)
 
     def snapshot(self, limit: int = 100) -> dict[str, Any]:
-        """Return a bounded read-only queue view.
-
-        ``limit`` is optional for backwards compatibility. V8's context fabric
-        requests a smaller slice so executive planning does not copy the full
-        durable queue into every command context.
-        """
         self.recover_expired_leases()
         limit_value = max(1, min(int(limit), MAX_ITEMS))
         with self._lock:
@@ -188,17 +250,18 @@ class MissionQueue:
             counts[status] = counts.get(status, 0) + 1
         return {
             "success": True,
-            "version": "7.0",
+            "version": "9.2",
             "updated_at": updated,
             "counts": counts,
-            "items": items[-limit_value:],
+            "items": items[:limit_value],
             "resumable": True,
+            "heartbeat": True,
+            "pause_resume": True,
             "external_actions": "APPROVAL_GATED",
             "live_execution": False,
         }
 
 
 MISSION_QUEUE = MissionQueue()
-
 
 __all__ = ["MISSION_QUEUE", "MissionQueue"]
