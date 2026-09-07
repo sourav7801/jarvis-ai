@@ -174,6 +174,11 @@ class V8Handler(v3.Handler):
             with v3.COMMAND_LOCK:
                 v3.COMMAND_CACHE[key] = (time.monotonic(), payload)
             return self.send_json(payload)
+        except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
+            # The browser/test client may disappear after submitting a command.
+            # Never recursively attempt to write an error response to a socket
+            # that is already gone; command state is cleaned up in `finally`.
+            return None
         except Exception as exc:
             traceback.print_exc()
             return self.send_json(
