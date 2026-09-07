@@ -26,19 +26,17 @@ def _clamp(value: float, low: float = 0.0, high: float = 1.0) -> float:
 class ContextualDecisionEngineV13:
     """Second-stage paper decision intelligence built above the verified V12 policy.
 
-    V12 remains the base evidence model. V13 adds context-conditioned realized
-    paper outcomes, dynamic uncertainty and an evidence-only portfolio
-    correlation overlay. It never restores legacy score/alignment/R:R thresholds
-    as binary paper-entry authority.
+    V12 still computes its learned/calibrated base EV. V13 then adds more
+    specific closed-paper context, dynamic uncertainty and an evidence-only
+    portfolio correlation overlay. Legacy score/alignment/R:R thresholds never
+    regain binary execution authority.
     """
 
-    def evaluate(
+    def _contextualize(
         self,
         row: Mapping[str, Any],
-        *,
-        allowed_sides: Iterable[str] = ("LONG", "SHORT"),
+        base: Mapping[str, Any],
     ) -> dict[str, Any]:
-        base = ADAPTIVE_OPPORTUNITY_POLICY.evaluate(row, allowed_sides=allowed_sides)
         memory = CONTEXTUAL_OUTCOME_MEMORY.lookup(row, action=str(base.get("action") or "WAIT"))
         hard = list(base.get("hard_blockers") or [])
         soft = list(base.get("soft_evidence") or [])
@@ -49,8 +47,8 @@ class ContextualDecisionEngineV13:
         posterior_win = _clamp(_f(memory.get("posterior_win_rate"), 0.5), 0.05, 0.95)
         posterior_edge_r = _f(memory.get("posterior_edge_r"))
 
-        # Context is intentionally bounded: it can refine a V12 estimate but a
-        # small historical cohort cannot overwhelm fresh market evidence.
+        # Context can refine a V12 estimate but cannot let a tiny cohort
+        # overwhelm fresh evidence. This is a bounded second-stage adjustment.
         win_adjustment = (posterior_win - 0.5) * 0.16 * memory_confidence
         edge_adjustment = math.tanh(posterior_edge_r) * 0.08 * memory_confidence
         probability = _clamp(base_probability + win_adjustment + edge_adjustment, 0.05, 0.90)
@@ -60,7 +58,6 @@ class ContextualDecisionEngineV13:
         confidence = _clamp(base_confidence * (0.82 + 0.08 * memory_confidence) + 0.10 * memory_confidence)
         uncertainty = 1.0 - confidence
 
-        # The hurdle moves continuously with uncertainty and contradiction load.
         contradiction_load = min(1.0, len(soft) / 6.0)
         required_edge_r = 0.015 + 0.17 * uncertainty + 0.035 * contradiction_load
         action = "WAIT"
@@ -114,7 +111,7 @@ class ContextualDecisionEngineV13:
         risk_multiplier = min(1.0, max(0.0, risk_multiplier)) if executable else 0.0
 
         reasons = [
-            f"V12 base EV {float(base.get('expected_value_r') or 0.0):+.3f}R",
+            f"V12 learned base EV {float(base.get('expected_value_r') or 0.0):+.3f}R",
             f"context posterior edge {posterior_edge_r:+.3f}R",
             f"context posterior win {posterior_win:.1%}",
             f"final EV {expected_value_r:+.3f}R vs dynamic hurdle {required_edge_r:+.3f}R",
@@ -144,7 +141,7 @@ class ContextualDecisionEngineV13:
             "hard_blockers": hard,
             "soft_evidence": soft,
             "reasons": reasons,
-            "base_v12_decision": deepcopy(base),
+            "base_v12_decision": deepcopy(dict(base)),
             "contextual_memory": memory,
             "portfolio_correlation": correlation,
             "decision_authority": "CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE",
@@ -156,22 +153,35 @@ class ContextualDecisionEngineV13:
             "automatic_broker_order": False,
         }
 
+    def evaluate(
+        self,
+        row: Mapping[str, Any],
+        *,
+        allowed_sides: Iterable[str] = ("LONG", "SHORT"),
+    ) -> dict[str, Any]:
+        base_rows = ADAPTIVE_OPPORTUNITY_POLICY.evaluate_many([row], allowed_sides=allowed_sides)
+        base_row = base_rows[0] if base_rows else dict(row)
+        base = base_row.get("adaptive_decision") if isinstance(base_row.get("adaptive_decision"), Mapping) else {}
+        return self._contextualize(row, base)
+
     def evaluate_many(
         self,
         rows: Iterable[Mapping[str, Any]],
         *,
         allowed_sides: Iterable[str] = ("LONG", "SHORT"),
     ) -> list[dict[str, Any]]:
+        source_rows = [dict(raw) for raw in rows]
+        # V12 computes its learned calibration once for the batch. This preserves
+        # all existing V12 paper learning before V13 adds finer context.
+        base_rows = ADAPTIVE_OPPORTUNITY_POLICY.evaluate_many(source_rows, allowed_sides=allowed_sides)
         result: list[dict[str, Any]] = []
-        for raw in rows:
-            row = dict(raw)
-            row["adaptive_decision"] = self.evaluate(row, allowed_sides=allowed_sides)
-            row["contextual_decision"] = row["adaptive_decision"]
-            result.append(row)
+        for source, base_row in zip(source_rows, base_rows):
+            base = base_row.get("adaptive_decision") if isinstance(base_row.get("adaptive_decision"), Mapping) else {}
+            source["adaptive_decision"] = self._contextualize(source, base)
+            source["contextual_decision"] = source["adaptive_decision"]
+            result.append(source)
 
-        # Persist a bounded, high-information sample instead of every row in
-        # every scan. This keeps forensic evidence useful without turning the
-        # scanner into a disk-write loop.
+        # Persist a bounded high-information sample rather than every scan row.
         ranked = sorted(
             result,
             key=lambda item: (
@@ -183,10 +193,10 @@ class ContextualDecisionEngineV13:
         try:
             from omni.trading_intelligence.decision_forensics_v13 import DECISION_FORENSICS_V13
 
-            for row in ranked:
-                decision = row.get("adaptive_decision") or {}
+            for selected in ranked:
+                decision = selected.get("adaptive_decision") or {}
                 DECISION_FORENSICS_V13.record(
-                    row=row,
+                    row=selected,
                     decision=decision,
                     correlation=decision.get("portfolio_correlation") or {},
                     phase="ADAPTIVE_SCAN",
@@ -202,6 +212,7 @@ class ContextualDecisionEngineV13:
             "version": "13.0",
             "decision_version": DECISION_VERSION,
             "base_policy": "ADAPTIVE_OPPORTUNITY_POLICY_V12",
+            "base_v12_learning_preserved": True,
             "decision_authority": "CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE",
             "contextual_outcome_memory": {
                 "usable_r_count": memory.get("usable_r_count"),
