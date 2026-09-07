@@ -1,0 +1,83 @@
+{
+  "version": "11.0",
+  "release": "JARVIS V11 Cognitive Execution Convergence",
+  "status": "CANDIDATE_REQUIRES_LOCAL_RELEASE_GATE",
+  "parent_checkpoint": "61feea6f310a70adffd75b71696e1d7084d18f0c",
+  "architecture": {
+    "permanent_specialist_agents": 29,
+    "legacy_critic_specialist_preserved": true,
+    "system_planes": [
+      "Executive Control Plane",
+      "Autonomy Orchestrator",
+      "Governed Execution Mesh",
+      "Critic Verifier",
+      "Evidence Ledger",
+      "World Model",
+      "Cognitive Event Bus",
+      "Engineering Governance",
+      "System Diagnostics",
+      "Trading Decision Mesh"
+    ],
+    "system_planes_count_as_permanent_agents": false
+  },
+  "execution_convergence": {
+    "governed_execution_mesh": true,
+    "mission_queueing_after_v11_critic": true,
+    "automatic_mission_start": false,
+    "external_consequential_actions": "APPROVAL_GATED",
+    "automatic_merge": false,
+    "automatic_deploy": false,
+    "automatic_production_strategy_rewrite": false
+  },
+  "trading_convergence": {
+    "authoritative_runtime": "http://127.0.0.1:8787",
+    "discovery_score_is_execution_score": false,
+    "why_not_trade_diagnostics": true,
+    "portfolio_horizon_routing": true,
+    "legacy_intraday_only_scanner_enrollment": false,
+    "intraday_lanes": ["MTF", "5M", "10M", "15M"],
+    "ten_minute_lane": {
+      "native_provider_bar_claimed": false,
+      "derived_from": "5m",
+      "bars_required": 2,
+      "contiguous_source_bars_required": true,
+      "completed_source_bars_only": true,
+      "missing_bars_synthesized": false,
+      "forming_bars_used": false,
+      "minimum_score": 69.0,
+      "minimum_risk_reward": 1.8,
+      "confirmed_breakout_or_breakdown_required": true,
+      "risk_multiplier": 0.75
+    }
+  },
+  "runtime": {
+    "master": "http://127.0.0.1:8797",
+    "quant": "http://127.0.0.1:8787",
+    "completion": "http://127.0.0.1:8799",
+    "fyers_bridge": "http://127.0.0.1:8790",
+    "master_runtime_family": "V8 Unified Intelligence",
+    "completion_runtime_family": "V11 Cognitive Execution",
+    "unknown_process_termination": false,
+    "stale_completion_identity_protection": true
+  },
+  "safety": {
+    "paper_only": true,
+    "live_execution": false,
+    "automatic_broker_order": false,
+    "live_orders": false,
+    "external_actions": "APPROVAL_GATED",
+    "automatic_production_strategy_rewrite": false,
+    "fabricated_market_data": false
+  },
+  "release_gate": {
+    "python_compile": "REQUIRED",
+    "javascript_syntax": "REQUIRED_WHEN_NODE_AVAILABLE",
+    "targeted_cross_generation_regression": "REQUIRED",
+    "full_repository_regression": "REQUIRED",
+    "protected_core": "REQUIRED",
+    "git_diff_check": "REQUIRED",
+    "clean_worktree": "REQUIRED",
+    "runtime_http_identity_checks": "REQUIRED",
+    "verified": false
+  }
+}
