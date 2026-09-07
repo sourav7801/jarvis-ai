@@ -26,12 +26,15 @@ class V11CompletionRuntimeTests(unittest.TestCase):
 
     def test_unknown_completion_process_is_never_trusted(self) -> None:
         self.assertFalse(runtime_v11._trusted_completion_process({
-            "ExecutablePath": "C:\\Windows\\System32\\python.exe",
+            "ExecutablePath": str(Path(runtime_v11.ROOT).parent / "unrelated-python.exe"),
             "CommandLine": "python unrelated_server.py",
         }))
+        root = Path(runtime_v11.ROOT)
+        trusted_python = root / ".venv" / "Scripts" / "python.exe"
+        trusted_start = root / "start_jarvis_completion_console.py"
         self.assertTrue(runtime_v11._trusted_completion_process({
-            "ExecutablePath": "C:\\Jarvis\\.venv\\Scripts\\python.exe",
-            "CommandLine": "C:\\Jarvis\\.venv\\Scripts\\python.exe C:\\Jarvis\\start_jarvis_completion_console.py",
+            "ExecutablePath": str(trusted_python),
+            "CommandLine": f'"{trusted_python}" "{trusted_start}"',
         }))
 
     def test_supervised_completion_uses_v11_identity_endpoint(self) -> None:
