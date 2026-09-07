@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from enum import Enum
 import json
 from pathlib import Path
+import re
 from threading import RLock
 from typing import Any, Callable, Iterable, Mapping
 from uuid import uuid4
@@ -24,6 +25,11 @@ MAX_PERSISTED = 1000
 _SENSITIVE_KEY_PARTS = (
     "authorization", "api_key", "apikey", "token", "secret", "password",
     "passwd", "cookie", "credential", "access_key", "refresh_key",
+)
+_SECRET_TEXT_PATTERNS = (
+    re.compile(r"(?i)(authorization\s*[:=]\s*(?:bearer\s+)?)([^\s,;]+)"),
+    re.compile(r"(?i)((?:api[_-]?key|token|secret|password|passwd)\s*[:=]\s*)([^\s,;]+)"),
+    re.compile(r"\bsk-[A-Za-z0-9_-]{12,}\b"),
 )
 
 
@@ -66,6 +72,16 @@ def _sensitive_key(key: Any) -> bool:
     return any(part in normalized for part in _SENSITIVE_KEY_PARTS)
 
 
+def _redact_text(value: Any, limit: int) -> str:
+    text = str(value or "")
+    for pattern in _SECRET_TEXT_PATTERNS:
+        if pattern.groups >= 2:
+            text = pattern.sub(lambda match: match.group(1) + "[REDACTED]", text)
+        else:
+            text = pattern.sub("[REDACTED]", text)
+    return text[:limit]
+
+
 def _bounded(
     value: Any,
     *,
@@ -74,12 +90,14 @@ def _bounded(
     max_text: int = 2000,
     _depth: int = 0,
 ) -> Any:
-    if _depth >= max_depth:
-        return str(value)[:max_text]
     if value is None or isinstance(value, (bool, int, float)):
         return value
     if isinstance(value, str):
-        return value[:max_text]
+        return _redact_text(value, max_text)
+    if _depth >= max_depth:
+        if isinstance(value, (Mapping, list, tuple, set, frozenset)):
+            return "[TRUNCATED]"
+        return _redact_text(value, max_text)
     if isinstance(value, Mapping):
         result: dict[str, Any] = {}
         for index, (key, item) in enumerate(value.items()):
@@ -105,7 +123,7 @@ def _bounded(
             )
             for item in list(value)[:max_items]
         ]
-    return str(value)[:max_text]
+    return _redact_text(value, max_text)
 
 
 @dataclass(frozen=True)
@@ -228,11 +246,11 @@ class CognitiveEventBus:
             event_id="evt-" + uuid4().hex[:20],
             event_type=kind.value,
             timestamp=_now(),
-            source=str(source or "").strip()[:160],
-            subject=str(subject or "").strip()[:240],
+            source=_redact_text(source, 160).strip(),
+            subject=_redact_text(subject, 240).strip(),
             payload=_bounded(dict(payload or {})),
             provenance=_bounded(dict(provenance or {})),
-            correlation_id=(str(correlation_id or "").strip()[:160] or None),
+            correlation_id=(_redact_text(correlation_id, 160).strip() if correlation_id else None),
         )
         with self._lock:
             self._events.append(event.as_dict())
