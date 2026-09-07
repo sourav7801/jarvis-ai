@@ -10,10 +10,10 @@ from pathlib import (
 
 import importlib.util
 import json
-import subprocess
 import tempfile
 
 from omni.runtime_paths import nautilus_python
+from omni.trading_intelligence.nautilus_subprocess import run_nautilus_worker
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -72,23 +72,30 @@ class NautilusResearchBridge:
             }
 
 
-        result = subprocess.run(
-            [
-                str(
-                    NAUTILUS_PY
-                ),
+        try:
+            result = run_nautilus_worker(
+                WORKER,
+                ("--version-json",),
+                cwd=ROOT,
+                timeout=20,
+            )
+        except (OSError, RuntimeError) as exc:
+            return {
+                "available":
+                    False,
 
-                str(
-                    WORKER
-                ),
+                "error":
+                    str(exc),
 
-                "--version-json",
-            ],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            timeout=20,
-        )
+                "paper_only":
+                    True,
+
+                "live_execution":
+                    False,
+
+                "broker_adapter":
+                    False,
+            }
 
 
         if result.returncode:
@@ -344,32 +351,16 @@ class NautilusResearchBridge:
             )
 
 
-            result = subprocess.run(
-                [
-                    str(
-                        NAUTILUS_PY
-                    ),
-
-                    str(
-                        WORKER
-                    ),
-
+            result = run_nautilus_worker(
+                WORKER,
+                (
                     "--input",
-                    str(
-                        input_path
-                    ),
-
+                    str(input_path),
                     "--output",
-                    str(
-                        output_path
-                    ),
-                ],
-                cwd=ROOT,
-                capture_output=True,
-                text=True,
-                timeout=float(
-                    timeout
+                    str(output_path),
                 ),
+                cwd=ROOT,
+                timeout=float(timeout),
             )
 
 
