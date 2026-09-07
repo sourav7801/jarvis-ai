@@ -1,8 +1,14 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import json
 from threading import RLock
 from typing import Any, Callable, Mapping
+import urllib.error
+import urllib.request
+
+
+QUANT_BASE = "http://127.0.0.1:8787"
 
 
 def _now() -> str:
@@ -27,6 +33,32 @@ def _safe(provider: Callable[[], Any], *, name: str) -> dict[str, Any]:
         }
 
 
+def _loopback_json(path: str, *, timeout: float = 3.0) -> dict[str, Any]:
+    """Read one bounded JSON surface from the live Quant process.
+
+    Completion Center and Quant are separate supervised processes. Importing
+    scanner/controller singletons in the Completion process would create empty
+    duplicate state, so V11 reads the authoritative 8787 runtime over loopback.
+    """
+
+    route = str(path or "").strip()
+    if not route.startswith("/"):
+        raise ValueError("loopback path must start with /")
+    request = urllib.request.Request(
+        QUANT_BASE + route,
+        headers={"Accept": "application/json", "User-Agent": "JARVIS-V11-Decision-Mesh/1.0"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=max(0.5, float(timeout))) as response:
+            raw = response.read(2_000_000)
+    except (OSError, urllib.error.URLError) as exc:
+        raise RuntimeError(f"Quant loopback unavailable for {route}: {exc}") from exc
+    payload = json.loads(raw.decode("utf-8", errors="replace"))
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"Quant loopback returned a non-object payload for {route}")
+    return payload
+
+
 def _float(value: Any) -> float | None:
     try:
         return float(value) if value is not None else None
@@ -46,10 +78,10 @@ def _unique(values: list[str]) -> list[str]:
 class TradingDecisionMesh:
     """Read-only convergence of discovery, routing and paper execution evidence.
 
-    The mesh deliberately separates broad discovery ranking from execution
-    qualification. It never opens a broker order or bypasses the paper engine;
-    it only explains what each governed horizon saw, where a symbol was routed,
-    which blockers remain and whether a completed-bar execution setup qualified.
+    Discovery and execution state are read from the authoritative Quant process
+    on port 8787. The mesh never opens a broker order or bypasses the paper
+    engine; it explains what each governed horizon saw, where a symbol was
+    routed, which blockers remain and whether completed-bar execution qualified.
     """
 
     def __init__(self) -> None:
@@ -59,36 +91,14 @@ class TradingDecisionMesh:
 
     @staticmethod
     def _providers() -> dict[str, Callable[[], Any]]:
-        def scanner() -> Any:
-            from workstation.multi_market_scanner import multi_market_scanner
-            return multi_market_scanner.status()
-
-        def controller() -> Any:
-            from workstation.paper_portfolio_controller import paper_portfolio_controller
-            return paper_portfolio_controller.status()
-
-        def router() -> Any:
-            from workstation.candidate_horizon_router import candidate_horizon_router
-            return candidate_horizon_router.status()
-
-        def derived() -> Any:
-            from workstation.derived_timeframe_bridge import status
-            return status()
-
-        def routing_bridge() -> Any:
-            from workstation.discovery_routing_bridge import status
-            return status()
-
         def governance() -> Any:
             from omni.trading_intelligence.trading_governance_center import TRADING_GOVERNANCE_CENTER
             return TRADING_GOVERNANCE_CENTER.snapshot(days=31)
 
         return {
-            "scanner": scanner,
-            "portfolio_controller": controller,
-            "candidate_router": router,
-            "derived_timeframe": derived,
-            "discovery_routing_bridge": routing_bridge,
+            "quant_health": lambda: _loopback_json("/api/health", timeout=2.0),
+            "scanner": lambda: _loopback_json("/api/scanner/multi", timeout=4.0),
+            "portfolio_controller": lambda: _loopback_json("/api/paper/portfolio-controller", timeout=4.0),
             "trading_governance": governance,
         }
 
@@ -115,6 +125,47 @@ class TradingDecisionMesh:
         if not isinstance(status, Mapping):
             return None
         return bool(status.get("running"))
+
+    @staticmethod
+    def _derived_10m_runtime(controller: Mapping[str, Any]) -> dict[str, Any]:
+        mandates = controller.get("mandates")
+        intraday = mandates.get("INTRADAY") if isinstance(mandates, Mapping) else None
+        if not isinstance(intraday, Mapping):
+            intraday = {}
+        lanes = intraday.get("lanes") if isinstance(intraday.get("lanes"), Mapping) else {}
+        lane = lanes.get("10M") if isinstance(lanes, Mapping) else None
+        derived = intraday.get("derived_timeframes")
+        contract = derived.get("10M") if isinstance(derived, Mapping) else None
+        return {
+            "success": True,
+            "version": "11.0",
+            "installed": isinstance(lane, Mapping),
+            "running": bool(lane.get("running")) if isinstance(lane, Mapping) else False,
+            "profile": lane.get("profile") if isinstance(lane, Mapping) else None,
+            "timeframe": "10m",
+            "source_timeframe": "5m",
+            "completed_bars_only": True,
+            "synthetic_missing_bars": False,
+            "runtime_contract": dict(contract) if isinstance(contract, Mapping) else {},
+            "source": "QUANT_LOOPBACK_8787",
+            "paper_only": True,
+            "live_execution": False,
+        }
+
+    @staticmethod
+    def _routing_runtime(scanner: Mapping[str, Any]) -> dict[str, Any]:
+        contract = str(scanner.get("routing_contract") or "").strip()
+        return {
+            "success": True,
+            "version": "11.0",
+            "installed": contract == "PORTFOLIO_HORIZON_CONTROLLER_ONLY",
+            "routing_contract": contract or "LEGACY_OR_NOT_INITIALIZED",
+            "governed_auto_routing": dict(scanner.get("governed_auto_routing") or {}),
+            "governed_auto_routing_completed_at": scanner.get("governed_auto_routing_completed_at"),
+            "source": "QUANT_LOOPBACK_8787",
+            "paper_only": True,
+            "live_execution": False,
+        }
 
     @staticmethod
     def _decision_state(
@@ -159,22 +210,12 @@ class TradingDecisionMesh:
         return "OBSERVED", ["NO_DISCOVERY_OR_EXECUTION_EVIDENCE"]
 
     def snapshot(self, *, limit: int = 80) -> dict[str, Any]:
-        try:
-            from workstation.derived_timeframe_bridge import install_derived_timeframe_bridge
-            from workstation.discovery_routing_bridge import install_discovery_routing_bridge
-
-            install_derived_timeframe_bridge()
-            install_discovery_routing_bridge()
-        except Exception:
-            # Snapshot remains fault-isolated and reports subsystem health below.
-            pass
-
         surfaces = {
             name: _safe(provider, name=name)
             for name, provider in self._providers().items()
         }
-        scanner = dict(surfaces["scanner"].get("data") or {})
-        controller = dict(surfaces["portfolio_controller"].get("data") or {})
+        scanner = dict(surfaces.get("scanner", {}).get("data") or {})
+        controller = dict(surfaces.get("portfolio_controller", {}).get("data") or {})
         routing = dict(controller.get("candidate_routing") or {})
         scanner_candidates = [
             dict(row)
@@ -213,7 +254,7 @@ class TradingDecisionMesh:
             rows.append({
                 "symbol": symbol,
                 "state": state,
-                "discovery_timeframe": (discovery or {}).get("discovery_timeframe") or "1d" if discovery else None,
+                "discovery_timeframe": ((discovery or {}).get("discovery_timeframe") or "1d") if discovery else None,
                 "discovery_state": (discovery or {}).get("state"),
                 "discovery_direction": (discovery or {}).get("direction"),
                 "discovery_score": _float((discovery or {}).get("score")),
@@ -230,6 +271,7 @@ class TradingDecisionMesh:
                 "why_not_trade": reasons if state != "EXECUTION_QUALIFIED" else [],
                 "all_execution_observations": execution_rows[:12],
                 "auto_paper_eligible": (discovery or {}).get("auto_paper_eligible"),
+                "runtime_source": "QUANT_LOOPBACK_8787",
                 "paper_only": True,
                 "live_execution": False,
             })
@@ -263,13 +305,17 @@ class TradingDecisionMesh:
             self._last_snapshot_at = created_at
             snapshots = self._snapshots
 
+        derived_10m = self._derived_10m_runtime(controller)
+        routing_runtime = self._routing_runtime(scanner)
+        critical_surfaces = [surfaces.get("quant_health", {}), surfaces.get("scanner", {}), surfaces.get("portfolio_controller", {})]
         return {
             "success": True,
             "version": "11.0",
             "service": "JARVIS_TRADING_DECISION_MESH",
             "created_at": created_at,
             "snapshot_count": snapshots,
-            "overall": "READY" if all(row.get("healthy") for row in surfaces.values()) else "DEGRADED",
+            "overall": "READY" if all(row.get("healthy") for row in critical_surfaces) else "DEGRADED",
+            "runtime_source": "QUANT_LOOPBACK_8787",
             "score_contract": {
                 "discovery_score": "Broad completed-bar ranking only; never entry authority.",
                 "execution_score": "Horizon/lane-specific completed-bar score plus risk, freshness, session and safety gates.",
@@ -288,8 +334,8 @@ class TradingDecisionMesh:
             "active_mandates": list(controller.get("active_mandates") or []),
             "rows": bounded,
             "surfaces": surfaces,
-            "derived_10m": dict(surfaces["derived_timeframe"].get("data") or {}),
-            "routing_bridge": dict(surfaces["discovery_routing_bridge"].get("data") or {}),
+            "derived_10m": derived_10m,
+            "routing_bridge": routing_runtime,
             "paper_only": True,
             "live_execution": False,
             "automatic_broker_order": False,
@@ -308,6 +354,7 @@ class TradingDecisionMesh:
                 "symbol": normalized,
                 "state": "NO_RECENT_EVIDENCE",
                 "why_not_trade": ["SYMBOL_NOT_PRESENT_IN_RECENT_DISCOVERY_OR_EXECUTION_ROWS"],
+                "runtime_source": snapshot.get("runtime_source"),
                 "paper_only": True,
                 "live_execution": False,
             }
@@ -328,6 +375,7 @@ class TradingDecisionMesh:
                 "service": "JARVIS_TRADING_DECISION_MESH",
                 "snapshots": self._snapshots,
                 "last_snapshot_at": self._last_snapshot_at,
+                "runtime_source": "QUANT_LOOPBACK_8787",
                 "read_only": True,
                 "paper_only": True,
                 "live_execution": False,
