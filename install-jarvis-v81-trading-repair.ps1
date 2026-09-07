@@ -208,7 +208,36 @@ try {
     }
 
     Write-Host "V8.1 CONTROL CONTRACT > independent horizons" -ForegroundColor Cyan
-    & $Python -c "from pathlib import Path; p=Path('workstation/quant_terminal_v2_static/paper_desk_runtime.js').read_text(encoding='utf-8'); required=['INTRADAY','SWING','INVESTMENT','intraday_only','swing_only','investment_only','stop_intraday','stop_swing','stop_investment','WHY / WHY NOT TRADE','DISCOVERY SCORE ≠ EXECUTION SCORE']; assert all(x in p for x in required); from workstation.candidate_horizon_router import candidate_horizon_router; assert candidate_horizon_router.live_execution is False; print('Independent horizon controls: PASS'); print('Candidate horizon router safety: PASS')"
+    $ControlContract = @'
+from pathlib import Path
+from workstation.candidate_horizon_router import candidate_horizon_router
+from workstation.paper_portfolio_controller import CONTROL_PROFILE_TOKENS
+
+p = Path('workstation/quant_terminal_v2_static/paper_desk_runtime.js').read_text(encoding='utf-8')
+required = [
+    'INTRADAY', 'SWING', 'INVESTMENT',
+    'intraday_only', 'swing_only', 'investment_only',
+    'stop_intraday', 'stop_swing', 'stop_investment',
+    'WHY / WHY NOT TRADE', 'mandateStartINTRADAY', 'mandateStartSWING',
+    'mandateStartINVESTMENT', 'mandateStopINTRADAY', 'mandateStopSWING',
+    'mandateStopINVESTMENT'
+]
+missing = [item for item in required if item not in p]
+assert not missing, 'missing independent-horizon markers: ' + ', '.join(missing)
+assert ('DISCOVERY SCORE ' + chr(0x2260) + ' EXECUTION SCORE') in p, 'score-separation marker missing'
+assert CONTROL_PROFILE_TOKENS['intraday_only'] == ('START', 'INTRADAY')
+assert CONTROL_PROFILE_TOKENS['swing_only'] == ('START', 'SWING')
+assert CONTROL_PROFILE_TOKENS['investment_only'] == ('START', 'INVESTMENT')
+assert CONTROL_PROFILE_TOKENS['stop_intraday'] == ('STOP', 'INTRADAY')
+assert CONTROL_PROFILE_TOKENS['stop_swing'] == ('STOP', 'SWING')
+assert CONTROL_PROFILE_TOKENS['stop_investment'] == ('STOP', 'INVESTMENT')
+assert candidate_horizon_router.live_execution is False
+print('Independent horizon controls: PASS')
+print('Independent start/stop token routing: PASS')
+print('Discovery/execution score separation: PASS')
+print('Candidate horizon router safety: PASS')
+'@
+    & $Python -c $ControlContract
     if ($LASTEXITCODE -ne 0) { throw "V8.1 independent horizon contract failed." }
 
     Write-Host "TARGETED REGRESSION > V8.1 trading repair + V8 baseline" -ForegroundColor Cyan
