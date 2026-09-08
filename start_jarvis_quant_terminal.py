@@ -60,8 +60,6 @@ def install_v13_intelligence_bridges() -> dict[str, object]:
 
 
 def install_v13_quant_http_bridge() -> dict[str, object]:
-    """Preserve the V13 asset/identity overlay before V14 subclasses it."""
-
     from workstation.quant_terminal_v13_bridge import install_quant_terminal_v13_bridge
 
     return dict(install_quant_terminal_v13_bridge())
@@ -91,10 +89,22 @@ def install_v141_quant_http_bridge() -> dict[str, object]:
     return dict(install_quant_terminal_v141_bridge())
 
 
+def install_v15_reasoning_bridges() -> dict[str, object]:
+    from workstation.v15_runtime_bridges import install_v15_runtime_bridges
+
+    return dict(install_v15_runtime_bridges())
+
+
+def install_v15_quant_http_bridge() -> dict[str, object]:
+    from workstation.quant_terminal_v15_bridge import install_quant_terminal_v15_bridge
+
+    return dict(install_quant_terminal_v15_bridge())
+
+
 def start_v12_adaptive_paper() -> dict[str, object]:
-    # Function name is preserved for protected V12/V13/V14 compatibility. By
-    # V14.1, risk geometry has already been repaired from verified completed-bar
-    # evidence before the V14 positive-EV worker starts.
+    # Function name is preserved for protected V12/V13/V14/V14.1 compatibility.
+    # By V15, verified risk geometry and portfolio-aware autonomous reasoning
+    # have already rebound the canonical policy before paper workers start.
     enabled = os.getenv("JARVIS_V12_AUTO_PAPER_START", "1").strip().lower() not in {
         "0", "false", "no", "off"
     }
@@ -103,7 +113,7 @@ def start_v12_adaptive_paper() -> dict[str, object]:
             "success": True,
             "running": False,
             "reason": "V12_ADAPTIVE_AUTO_START_DISABLED",
-            "decision_authority": "POSITIVE_CONTEXTUAL_EXPECTED_VALUE_CONTINUOUS_RISK",
+            "decision_authority": "PORTFOLIO_ADJUSTED_CONTEXTUAL_UTILITY_CONTINUOUS_RISK",
             "paper_only": True,
             "live_execution": False,
             "automatic_broker_order": False,
@@ -114,7 +124,7 @@ def start_v12_adaptive_paper() -> dict[str, object]:
     result = paper_portfolio_controller.start(intraday_profile="adaptive_intraday")
     return {
         **dict(result),
-        "decision_authority": "POSITIVE_CONTEXTUAL_EXPECTED_VALUE_CONTINUOUS_RISK",
+        "decision_authority": "PORTFOLIO_ADJUSTED_CONTEXTUAL_UTILITY_CONTINUOUS_RISK",
         "legacy_singleton_auto_start": False,
         "paper_only": True,
         "live_execution": False,
@@ -138,6 +148,8 @@ def main():
     v14_http = install_v14_quant_http_bridge()
     v141_bridges = install_v141_risk_geometry_bridges()
     v141_http = install_v141_quant_http_bridge()
+    v15_bridges = install_v15_reasoning_bridges()
+    v15_http = install_v15_quant_http_bridge()
 
     try:
         trading_app.start_live_bridge()
@@ -146,22 +158,21 @@ def main():
 
     adaptive = start_v12_adaptive_paper()
     print("=" * 72)
-    print("JARVIS QUANT TRADING INTELLIGENCE V14.1 RISK-GEOMETRY CONVERGENCE")
+    print("JARVIS QUANT TRADING INTELLIGENCE V15 AUTONOMOUS MARKET REASONING")
     print("=" * 72)
     print(f"Terminal: http://{trading_app.HOST}:{trading_app.PORT}")
     print("Data: FYERS read-only + public crypto market data")
     print("10m bars: derived from 2x contiguous COMPLETED 5m provider bars only")
-    print("Discovery: bounded continuous top-N; no fixed discovery score cutoff")
-    print("Context: V13 closed-paper outcomes + uncertainty + completed-bar correlation")
-    print("Decision authority: POSITIVE CONTEXTUAL EXPECTED VALUE / CONTINUOUS PAPER RISK")
-    print("Risk geometry: VERIFIED COMPLETED-BAR CLOSE + ATR + STRUCTURE; LEGACY QUALIFICATION NOT REQUIRED")
-    print("INVALID_RISK_LEVELS: HARD BLOCKER ONLY WHEN VERIFIED GEOMETRY CANNOT BE BUILT")
+    print("Risk geometry: V14.1 VERIFIED COMPLETED-BAR CLOSE + ATR + STRUCTURE")
+    print("Market reasoning: PERSISTENT BELIEF + COMPETING HYPOTHESES")
+    print("Decision authority: PORTFOLIO-ADJUSTED CONTEXTUAL UTILITY / CONTINUOUS PAPER RISK")
+    print("Opportunity cost: better alternatives can reduce or skip weaker paper risk")
     print("Confidence: SCALES POSITION SIZE ONLY / NOT AN EXECUTION GATE")
     print("Static 67/68/70 score boundary: OBSERVABILITY ONLY")
     print("Static R:R / alignment boundary: NOT EXECUTION AUTHORITY")
-    print("PRIMARY / PROBE labels: INTENSITY LABELS ONLY")
     print("Fractional sizing: CONSTRAINT-AWARE / VERIFIED INSTRUMENT STEP")
-    print("Watching: NOT A TERMINAL STATE; exact lifecycle reason is recorded")
+    print("INVALID_RISK_LEVELS: HARD ONLY WHEN VERIFIED GEOMETRY CANNOT BE BUILT")
+    print("Watching: NOT A TERMINAL STATE; exact pipeline reason is recorded")
     print(f"V11 bridge state: {bool(bridges.get('success'))}")
     print(f"V12 compatibility bridge state: {bool(adaptive_bridges.get('success'))}")
     print(f"V13 contextual bridge state: {bool(v13_bridges.get('installed'))}")
@@ -169,8 +180,10 @@ def main():
     print(f"V14 execution bridge state: {bool(v14_bridges.get('installed'))}")
     print(f"V14 Quant HTTP compatibility state: {bool(v14_http.get('installed'))}")
     print(f"V14.1 risk geometry bridge state: {bool(v141_bridges.get('installed'))}")
-    print(f"V14.1 Quant HTTP bridge state: {bool(v141_http.get('installed'))}")
-    print(f"V14.1 paper workers running: {bool(adaptive.get('running'))}")
+    print(f"V14.1 Quant HTTP compatibility state: {bool(v141_http.get('installed'))}")
+    print(f"V15 reasoning bridge state: {bool(v15_bridges.get('installed'))}")
+    print(f"V15 Quant HTTP bridge state: {bool(v15_http.get('installed'))}")
+    print(f"V15 paper workers running: {bool(adaptive.get('running'))}")
     print("Mode: PAPER / RESEARCH")
     print("Live broker execution: LOCKED")
     trading_app.main()
