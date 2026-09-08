@@ -79,10 +79,22 @@ def install_v14_quant_http_bridge() -> dict[str, object]:
     return dict(install_quant_terminal_v14_bridge())
 
 
+def install_v141_risk_geometry_bridges() -> dict[str, object]:
+    from workstation.v141_runtime_bridges import install_v141_runtime_bridges
+
+    return dict(install_v141_runtime_bridges())
+
+
+def install_v141_quant_http_bridge() -> dict[str, object]:
+    from workstation.quant_terminal_v141_bridge import install_quant_terminal_v141_bridge
+
+    return dict(install_quant_terminal_v141_bridge())
+
+
 def start_v12_adaptive_paper() -> dict[str, object]:
-    # Function name is preserved for protected V12/V13 compatibility. By V14,
-    # policy globals and engine methods have already been rebound to continuous
-    # positive-EV execution authority before this function starts any worker.
+    # Function name is preserved for protected V12/V13/V14 compatibility. By
+    # V14.1, risk geometry has already been repaired from verified completed-bar
+    # evidence before the V14 positive-EV worker starts.
     enabled = os.getenv("JARVIS_V12_AUTO_PAPER_START", "1").strip().lower() not in {
         "0", "false", "no", "off"
     }
@@ -124,6 +136,8 @@ def main():
     v13_http = install_v13_quant_http_bridge()
     v14_bridges = install_v14_execution_bridges()
     v14_http = install_v14_quant_http_bridge()
+    v141_bridges = install_v141_risk_geometry_bridges()
+    v141_http = install_v141_quant_http_bridge()
 
     try:
         trading_app.start_live_bridge()
@@ -132,7 +146,7 @@ def main():
 
     adaptive = start_v12_adaptive_paper()
     print("=" * 72)
-    print("JARVIS QUANT TRADING INTELLIGENCE V14 AUTONOMOUS EXECUTION RUNTIME")
+    print("JARVIS QUANT TRADING INTELLIGENCE V14.1 RISK-GEOMETRY CONVERGENCE")
     print("=" * 72)
     print(f"Terminal: http://{trading_app.HOST}:{trading_app.PORT}")
     print("Data: FYERS read-only + public crypto market data")
@@ -140,6 +154,8 @@ def main():
     print("Discovery: bounded continuous top-N; no fixed discovery score cutoff")
     print("Context: V13 closed-paper outcomes + uncertainty + completed-bar correlation")
     print("Decision authority: POSITIVE CONTEXTUAL EXPECTED VALUE / CONTINUOUS PAPER RISK")
+    print("Risk geometry: VERIFIED COMPLETED-BAR CLOSE + ATR + STRUCTURE; LEGACY QUALIFICATION NOT REQUIRED")
+    print("INVALID_RISK_LEVELS: HARD BLOCKER ONLY WHEN VERIFIED GEOMETRY CANNOT BE BUILT")
     print("Confidence: SCALES POSITION SIZE ONLY / NOT AN EXECUTION GATE")
     print("Static 67/68/70 score boundary: OBSERVABILITY ONLY")
     print("Static R:R / alignment boundary: NOT EXECUTION AUTHORITY")
@@ -151,8 +167,10 @@ def main():
     print(f"V13 contextual bridge state: {bool(v13_bridges.get('installed'))}")
     print(f"V13 Quant HTTP compatibility state: {bool(v13_http.get('installed'))}")
     print(f"V14 execution bridge state: {bool(v14_bridges.get('installed'))}")
-    print(f"V14 Quant HTTP bridge state: {bool(v14_http.get('installed'))}")
-    print(f"V14 paper workers running: {bool(adaptive.get('running'))}")
+    print(f"V14 Quant HTTP compatibility state: {bool(v14_http.get('installed'))}")
+    print(f"V14.1 risk geometry bridge state: {bool(v141_bridges.get('installed'))}")
+    print(f"V14.1 Quant HTTP bridge state: {bool(v141_http.get('installed'))}")
+    print(f"V14.1 paper workers running: {bool(adaptive.get('running'))}")
     print("Mode: PAPER / RESEARCH")
     print("Live broker execution: LOCKED")
     trading_app.main()
