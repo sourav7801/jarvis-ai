@@ -1,0 +1,29 @@
+{
+  "version": "14.1",
+  "name": "JARVIS V14.1 Risk-Geometry Convergence",
+  "base_verified_head": "282d458ca0def949be126fed208afece8dcef5bd",
+  "decision_authority": "POSITIVE_CONTEXTUAL_EXPECTED_VALUE_CONTINUOUS_RISK",
+  "goals": [
+    "decouple executable risk geometry from legacy qualified=true",
+    "preserve INVALID_RISK_LEVELS as a hard blocker when verified geometry cannot be built",
+    "derive entry stop target only from verified completed-bar evidence",
+    "separate BTC data connectivity from execution-pipeline readiness",
+    "preserve V14 continuous paper execution and fractional sizing"
+  ],
+  "safety": {
+    "paper_only": true,
+    "live_execution": false,
+    "automatic_broker_order": false,
+    "automatic_production_strategy_rewrite": false,
+    "permanent_agents": 29,
+    "legacy_critic_preserved": true,
+    "external_actions": "APPROVAL_GATED",
+    "protected_master_identity": "V8_UNIFIED_INTELLIGENCE"
+  },
+  "verification": {
+    "verified": false,
+    "requires_windows_installer_success": true,
+    "requires_full_unittest_discover": true,
+    "requires_runtime_contract": true
+  }
+}
