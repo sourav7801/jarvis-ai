@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import inspect
+import json
+from http.server import ThreadingHTTPServer
 from pathlib import Path
+import threading
 import unittest
+import urllib.request
 from unittest.mock import patch
 
 from omni.trading_intelligence.contextual_decision_engine_v13 import ContextualDecisionEngineV13
@@ -66,6 +70,30 @@ class V13QuantRuntimeAssetBridgeTests(unittest.TestCase):
         for token in ("place_order(", "submit_order(", "modify_order(", "cancel_order("):
             self.assertNotIn(token, source)
 
+    def test_actual_loopback_handler_returns_overlay_assets_and_identity(self) -> None:
+        server = ThreadingHTTPServer(("127.0.0.1", 0), QuantTerminalV13Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base = f"http://127.0.0.1:{server.server_address[1]}"
+        try:
+            for asset in ("v12_paper_intelligence.js", "v13_contextual_paper_runtime.js"):
+                with urllib.request.urlopen(base + "/" + asset, timeout=3.0) as response:
+                    body = response.read()
+                    self.assertEqual(response.status, 200)
+                    self.assertGreater(len(body), 20)
+            with urllib.request.urlopen(base + "/api/v13/runtime-assets", timeout=3.0) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            self.assertEqual(payload["service"], "JARVIS_QUANT_V13_RUNTIME_ASSETS")
+            self.assertTrue(payload["handler_installed"])
+            self.assertTrue(payload["assets"]["v12_paper_intelligence"])
+            self.assertTrue(payload["assets"]["v13_contextual_paper_runtime"])
+            self.assertFalse(payload["live_execution"])
+            self.assertFalse(payload["automatic_broker_order"])
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=3.0)
+
     def test_install_rebinds_only_quant_handler_and_keeps_live_execution_locked(self) -> None:
         original = quant_terminal.Handler
         try:
@@ -86,6 +114,13 @@ class V13QuantRuntimeAssetBridgeTests(unittest.TestCase):
         self.assertLess(install_index, serve_index)
         self.assertIn("CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE", source)
         self.assertNotIn("place_order(", source)
+
+    def test_supervisor_identity_requires_v13_runtime_assets(self) -> None:
+        from scripts import jarvis_runtime_supervisor_v13 as runtime_v13
+
+        services = {service.name: service for service in runtime_v13.v13_services(ROOT)}
+        self.assertTrue(services["quant"].health_url.endswith("/api/v13/runtime-assets"))
+        self.assertEqual(services["quant"].expected_service, "JARVIS_QUANT_V13_RUNTIME_ASSETS")
 
 
 class V13DirectCallerCompatibilityTests(unittest.TestCase):
