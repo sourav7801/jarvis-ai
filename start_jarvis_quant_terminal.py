@@ -128,7 +128,7 @@ def main():
     print("Data: FYERS read-only + public crypto market data")
     print("10m bars: derived from 2x contiguous COMPLETED 5m provider bars only")
     print("Discovery: bounded continuous top-N; no fixed discovery score cutoff")
-    print("Decision authority: contextual EV + closed-paper outcomes + uncertainty")
+    print("Decision authority: CONTEXTUAL EXPECTED VALUE + closed-paper outcomes + uncertainty")
     print("Portfolio correlation: completed-bar evidence; can only reduce paper risk")
     print("V13 Quant overlays: V12 adaptive + V13 contextual assets served by process-local bridge")
     print("Static 67/68/70 score boundary: OBSERVABILITY ONLY")
