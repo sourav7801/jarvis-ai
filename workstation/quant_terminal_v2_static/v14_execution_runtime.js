@@ -55,7 +55,8 @@
     const blocked=Number(states.BLOCKED_SAFETY_OR_DATA||0);
     const negative=Number(states.WAIT_NEGATIVE_OR_ZERO_EV||0);
     const opened=openedCount(controller);
-    const top=(lifecycle?.top_hard_blockers||[])[0]||{};
+    const hard=(lifecycle?.top_hard_blockers||[])[0]||{};
+    const execution=(lifecycle?.top_execution_rejections||[])[0]||{};
     const runtime=authority?.runtime||{};
     const policy=authority?.policy||{};
     const sizing=authority?.sizing||{};
@@ -68,7 +69,8 @@
       <div><span>ACTIONABLE / RECHECK</span><b class="${actionable?'v14-on':''}">${actionable}</b></div>
       <div><span>NON-POSITIVE EV</span><b>${negative}</b></div>
       <div><span>HARD BLOCKED</span><b class="${blocked?'v14-warn':'v14-on'}">${blocked}</b></div>
-      <div><span>TOP HARD BLOCKER</span><b class="${top.reason?'v14-warn':'v14-on'}">${esc(top.reason||'NONE')} ${top.count?('· '+top.count):''}</b></div>
+      <div><span>TOP DATA/SAFETY BLOCKER</span><b class="${hard.reason?'v14-warn':'v14-on'}">${esc(hard.reason||'NONE')} ${hard.count?('· '+hard.count):''}</b></div>
+      <div><span>TOP EXECUTION REJECTION</span><b class="${execution.reason?'v14-warn':'v14-on'}">${esc(execution.reason||'NONE')} ${execution.count?('· '+execution.count):''}</b></div>
       <div><span>POSITIONS OPENED</span><b class="${opened?'v14-on':''}">${opened}</b></div>
       <div><span>CONFIDENCE GATE</span><b class="v14-on">NONE · SIZE ONLY</b></div>
       <div><span>MIN EV</span><b>${n(policy.positive_ev_boundary_r,3)}R ECONOMIC</b></div>
@@ -77,8 +79,6 @@
       <div><span>LIVE BROKER</span><b class="v14-on">LOCKED</b></div>
     `;
 
-    // Expose compact runtime state for existing UI/debug panels without adding
-    // any write/order surface.
     window.JARVIS_V14_EXECUTION_STATE={authority,lifecycle,controller,runtime};
   }
 
