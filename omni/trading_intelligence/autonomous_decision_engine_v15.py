@@ -73,6 +73,7 @@ class AutonomousDecisionEngineV15:
         market_quality = _market_quality(reasoning)
         hypothesis_alignment = _dominant_hypothesis_alignment(reasoning, side)
         raw_utility = max(expected_value, 0.0) * (0.30 + 0.70 * confidence) * market_quality * hypothesis_alignment
+        base_risk = _clamp(_f(base.get("risk_multiplier")))
         return {
             **base,
             "policy_version": POLICY_VERSION,
@@ -83,12 +84,16 @@ class AutonomousDecisionEngineV15:
             "hypothesis_alignment_multiplier": round(hypothesis_alignment, 4),
             "pre_allocation_portfolio_utility": round(raw_utility, 6),
             "portfolio_adjusted_utility": round(raw_utility, 6),
+            # AdaptivePaperAutonomyEngine ranks `utility`; V15 therefore points
+            # that canonical field at portfolio-adjusted utility rather than
+            # leaving the V14 pre-portfolio value authoritative.
+            "utility": round(raw_utility, 6),
             "portfolio_allocation_multiplier": 1.0,
             "opportunity_rank": None,
             "opportunity_count": 1,
             "better_opportunity_available": False,
             "portfolio_allocator_can_only_reduce_risk": True,
-            "risk_multiplier": min(_clamp(_f(base.get("risk_multiplier"))), _clamp(_f(base.get("risk_multiplier")))),
+            "risk_multiplier": base_risk,
             "paper_only": True,
             "live_execution": False,
             "automatic_broker_order": False,
@@ -128,11 +133,13 @@ class AutonomousDecisionEngineV15:
             allocation_multiplier = _clamp((0.45 + 0.55 * relative) * rank_decay, 0.20, 1.0)
             base_risk = _clamp(_f((current.get("v14_base_decision") or {}).get("risk_multiplier")))
             adjusted_risk = min(base_risk, base_risk * allocation_multiplier)
+            adjusted_utility = raw_utility * allocation_multiplier
             share = raw_utility / positive_total if positive_total > 0 else 0.0
             weaker = bool(count >= 3 and rank > 1 and relative < 0.22)
 
             current["portfolio_allocation_multiplier"] = round(allocation_multiplier, 4)
-            current["portfolio_adjusted_utility"] = round(raw_utility * allocation_multiplier, 6)
+            current["portfolio_adjusted_utility"] = round(adjusted_utility, 6)
+            current["utility"] = round(adjusted_utility, 6)
             current["opportunity_rank"] = rank
             current["opportunity_count"] = count
             current["portfolio_utility_share"] = round(share, 4)
@@ -147,6 +154,7 @@ class AutonomousDecisionEngineV15:
                 current["risk_multiplier"] = 0.0
                 current["portfolio_allocation_multiplier"] = 0.0
                 current["portfolio_adjusted_utility"] = 0.0
+                current["utility"] = 0.0
                 current["better_opportunity_available"] = True
                 current.setdefault("reasons", []).append("BETTER_OPPORTUNITY_AVAILABLE")
                 current.setdefault("soft_evidence", []).append("PORTFOLIO_OPPORTUNITY_COST")
@@ -211,6 +219,7 @@ class AutonomousDecisionEngineV15:
             "portfolio_opportunity_cost": True,
             "multi_hypothesis_reasoning": True,
             "market_belief_model": True,
+            "canonical_engine_utility_is_portfolio_adjusted": True,
             "confidence_scales_risk_not_execution": True,
             "legacy_score_execution_authority": False,
             "static_alignment_execution_authority": False,
