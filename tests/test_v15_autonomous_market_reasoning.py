@@ -70,6 +70,16 @@ def _row(**overrides):
         "qualified": False,
         "blockers": ["SCORE_BELOW_GATE", "INVALID_RISK_LEVELS"],
         "reasons_not_to_trade": ["SCORE_BELOW_GATE", "INVALID_RISK_LEVELS"],
+        "pattern_confirmation": {
+            "state": "CONFIRMED_BREAKOUT",
+            "direction": "BULLISH",
+        },
+        "votes": [{
+            "strategy": "TEST_TREND",
+            "family": "trend",
+            "side": "LONG",
+            "regime_compatible": True,
+        }],
         "evidence": [_evidence()],
         "paper_only": True,
         "live_execution": False,
@@ -94,6 +104,7 @@ def _base_decision(ev=0.25, confidence=0.20, risk=0.18, executable=True, side="L
         "hard_blockers": [],
         "soft_evidence": [],
         "reasons": ["TEST"],
+        "portfolio_correlation": {"state": "TEST", "risk_multiplier": 1.0},
         "legacy_static_score_gate": False,
         "arbitrary_confidence_execution_gate": False,
         "paper_only": True,
@@ -148,6 +159,18 @@ class MarketReasoningV15Tests(unittest.TestCase):
         self.assertLessEqual(decisions["A"]["risk_multiplier"], 0.15)
         self.assertLessEqual(decisions["B"]["risk_multiplier"], 0.22)
         self.assertFalse(decisions["B"]["legacy_static_score_gate"])
+
+    def test_completed_bar_correlation_can_only_reduce_portfolio_utility(self):
+        uncorrelated = _base_decision(ev=0.30, confidence=0.70, risk=0.20)
+        correlated = _base_decision(ev=0.30, confidence=0.70, risk=0.12)
+        correlated["portfolio_correlation"] = {"state": "HIGH_CORRELATION", "risk_multiplier": 0.35}
+        with patch.object(CONTINUOUS_EXECUTION_POLICY_V14, "evaluate", side_effect=[uncorrelated, correlated]):
+            a = AUTONOMOUS_DECISION_ENGINE_V15.evaluate(_row(symbol="A"))
+            b = AUTONOMOUS_DECISION_ENGINE_V15.evaluate(_row(symbol="B"))
+        self.assertEqual(a["portfolio_correlation_utility_multiplier"], 1.0)
+        self.assertEqual(b["portfolio_correlation_utility_multiplier"], 0.35)
+        self.assertLess(b["portfolio_adjusted_utility"], a["portfolio_adjusted_utility"])
+        self.assertLessEqual(b["risk_multiplier"], 0.12)
 
     def test_allocator_can_skip_weak_opportunity_when_better_alternatives_exist(self):
         rows = [_row(symbol="A"), _row(symbol="B"), _row(symbol="C")]
@@ -246,11 +269,19 @@ class V15PaperAndLearningTests(unittest.TestCase):
             store = MarketBeliefStoreV15(Path(directory) / "belief.sqlite3")
             first = AUTONOMOUS_MARKET_REASONING_V15.reason(_row(), base_decision=_base_decision())
             one = store.record(first)
-            second_row = _row(evidence=[_evidence(trend="BEARISH", close=79000.0, support=77000.0, resistance=80500.0)], candidate_side="SHORT")
+            duplicate = store.record(first)
+            second_row = _row(
+                evidence=[_evidence(trend="BEARISH", close=79000.0, support=77000.0, resistance=80500.0)],
+                candidate_side="SHORT",
+                pattern_confirmation={"state": "CONFIRMED_BREAKDOWN", "direction": "BEARISH"},
+                votes=[{"strategy": "TEST_TREND", "family": "trend", "side": "SHORT", "regime_compatible": True}],
+            )
             second = AUTONOMOUS_MARKET_REASONING_V15.reason(second_row, base_decision=_base_decision(side="SHORT"))
             two = store.record(second)
             history = store.history("BTC", "5m_only")
         self.assertTrue(one["success"] and two["success"])
+        self.assertFalse(duplicate["record_inserted"])
+        self.assertEqual(duplicate["reason"], "BELIEF_UNCHANGED_COMPLETED_BAR_EVIDENCE")
         self.assertIsNotNone(two["previous_belief"])
         self.assertTrue(two["changes"])
         self.assertEqual(history["count"], 2)
