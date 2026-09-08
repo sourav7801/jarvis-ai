@@ -46,12 +46,26 @@ class V141RuntimeContracts(unittest.TestCase):
 
     def test_quant_http_bridge_preserves_v14_and_adds_trace(self) -> None:
         source = inspect.getsource(QuantTerminalV141Handler.do_GET)
+        self.assertIn("/v141_risk_geometry_runtime.js", source)
         self.assertIn("/api/v14.1/risk-geometry", source)
         self.assertIn("/api/v14.1/execution-trace", source)
         self.assertIn("/api/v14.1/status", source)
         self.assertTrue(issubclass(QuantTerminalV141Handler, __import__("workstation.quant_terminal_v14_bridge", fromlist=["QuantTerminalV14Handler"]).QuantTerminalV14Handler))
         for forbidden in ("place_order(", "submit_order(", "modify_order(", "cancel_order("):
             self.assertNotIn(forbidden, source)
+
+    def test_v141_quant_ui_uses_execution_trace_as_authoritative_visible_state(self) -> None:
+        html = (ROOT / "workstation" / "quant_terminal_v2_static" / "index.html").read_text(encoding="utf-8")
+        js_path = ROOT / "workstation" / "quant_terminal_v2_static" / "v141_risk_geometry_runtime.js"
+        js = js_path.read_text(encoding="utf-8")
+        self.assertTrue(js_path.is_file())
+        self.assertIn('src="/v141_risk_geometry_runtime.js"', html)
+        self.assertIn("/api/v14.1/execution-trace", js)
+        self.assertIn("SCORE OBS", html + js)
+        self.assertIn("pipeline_stop_reason", js)
+        self.assertIn("INVALID_RISK_LEVELS", js)
+        for forbidden in ("place_order(", "submit_order(", "modify_order(", "cancel_order("):
+            self.assertNotIn(forbidden, js)
 
     def test_v141_service_identities(self) -> None:
         services = {service.name: service for service in runtime_v141.v141_services(ROOT)}
