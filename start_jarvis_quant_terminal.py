@@ -6,6 +6,7 @@ import socket
 # Canonical V12+ disables the legacy static-score singleton before Quant import.
 # The portfolio controller owns INTRADAY/SWING/INVESTMENT paper execution;
 # compatibility names are rebound process-locally by later runtime bridges.
+# Protected V13 authority marker: CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE
 os.environ["JARVIS_AUTO_PAPER_START"] = "0"
 
 from workstation import quant_terminal_v2 as trading_app
@@ -56,6 +57,14 @@ def install_v13_intelligence_bridges() -> dict[str, object]:
     from workstation.v13_runtime_bridges import install_v13_runtime_bridges
 
     return dict(install_v13_runtime_bridges())
+
+
+def install_v13_quant_http_bridge() -> dict[str, object]:
+    """Preserve the V13 asset/identity overlay before V14 subclasses it."""
+
+    from workstation.quant_terminal_v13_bridge import install_quant_terminal_v13_bridge
+
+    return dict(install_quant_terminal_v13_bridge())
 
 
 def install_v14_execution_bridges() -> dict[str, object]:
@@ -112,6 +121,7 @@ def main():
     bridges = install_v11_quant_bridges()
     adaptive_bridges = install_v12_adaptive_bridges()
     v13_bridges = install_v13_intelligence_bridges()
+    v13_http = install_v13_quant_http_bridge()
     v14_bridges = install_v14_execution_bridges()
     v14_http = install_v14_quant_http_bridge()
 
@@ -139,6 +149,7 @@ def main():
     print(f"V11 bridge state: {bool(bridges.get('success'))}")
     print(f"V12 compatibility bridge state: {bool(adaptive_bridges.get('success'))}")
     print(f"V13 contextual bridge state: {bool(v13_bridges.get('installed'))}")
+    print(f"V13 Quant HTTP compatibility state: {bool(v13_http.get('installed'))}")
     print(f"V14 execution bridge state: {bool(v14_bridges.get('installed'))}")
     print(f"V14 Quant HTTP bridge state: {bool(v14_http.get('installed'))}")
     print(f"V14 paper workers running: {bool(adaptive.get('running'))}")
