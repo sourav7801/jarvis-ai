@@ -1,0 +1,124 @@
+from __future__ import annotations
+
+import unittest
+
+from omni.trading_intelligence.continuous_execution_policy_v14 import (
+    CONTINUOUS_EXECUTION_POLICY_V14,
+)
+from workstation.risk_geometry_v141 import enrich_scan_row, status
+
+
+def _row(**overrides):
+    payload = {
+        "success": True,
+        "symbol": "BTC",
+        "profile": "5m_only",
+        "timeframe": "5m",
+        "candidate_side": "LONG",
+        "side": "WAIT",
+        "score": 55.0,
+        "alignment": 90.0,
+        "risk_reward": None,
+        "regime": "TRENDING",
+        "qualified": False,
+        "blockers": ["SCORE_BELOW_GATE", "INVALID_RISK_LEVELS"],
+        "reasons_not_to_trade": ["SCORE_BELOW_GATE", "INVALID_RISK_LEVELS"],
+        "pattern_confirmation": {
+            "state": "CONFIRMED_BREAKOUT",
+            "direction": "BULLISH",
+        },
+        "votes": [{
+            "strategy": "TEST_TREND",
+            "family": "trend",
+            "side": "LONG",
+            "regime_compatible": True,
+        }],
+        "evidence": [{
+            "available": True,
+            "fresh": True,
+            "timeframe": "5m",
+            "source": "TEST_VERIFIED_PROVIDER",
+            "data_quality": "VERIFIED",
+            "close": 100.0,
+            "atr14": 2.0,
+            "support": 96.0,
+            "resistance": 108.0,
+            "complete_bars": 120,
+            "last_candle_time": 1234567890,
+        }],
+        "paper_only": True,
+        "live_execution": False,
+    }
+    payload.update(overrides)
+    return payload
+
+
+class RiskGeometryV141Tests(unittest.TestCase):
+    def test_low_legacy_score_no_longer_suppresses_valid_geometry(self) -> None:
+        row = enrich_scan_row(_row())
+        self.assertFalse(row["qualified"])
+        self.assertIn("SCORE_BELOW_GATE", row["blockers"])
+        self.assertNotIn("INVALID_RISK_LEVELS", row["blockers"])
+        self.assertEqual(row["entry"], 100.0)
+        self.assertLess(row["stop"], row["entry"])
+        self.assertGreater(row["target"], row["entry"])
+        self.assertGreater(row["risk_reward"], 0.0)
+        self.assertTrue(row["risk_geometry_repaired"])
+        geometry = row["risk_geometry_v141"]
+        self.assertTrue(geometry["derived_from_verified_completed_bar_evidence"])
+        self.assertFalse(geometry["synthetic_market_data"])
+        self.assertFalse(geometry["data_fabricated"])
+        self.assertFalse(geometry["live_execution"])
+
+    def test_short_geometry_has_correct_directional_order(self) -> None:
+        row = enrich_scan_row(_row(
+            candidate_side="SHORT",
+            pattern_confirmation={"state": "CONFIRMED_BREAKDOWN", "direction": "BEARISH"},
+            votes=[{"strategy": "TEST_TREND", "family": "trend", "side": "SHORT", "regime_compatible": True}],
+        ))
+        self.assertGreater(row["stop"], row["entry"])
+        self.assertLess(row["target"], row["entry"])
+        self.assertNotIn("INVALID_RISK_LEVELS", row["blockers"])
+
+    def test_no_direction_does_not_manufacture_geometry(self) -> None:
+        row = enrich_scan_row(_row(candidate_side="WAIT"))
+        self.assertIsNone(row.get("entry"))
+        self.assertIn("INVALID_RISK_LEVELS", row["blockers"])
+        self.assertEqual(row["risk_geometry_v141"]["state"], "NOT_ATTEMPTED_NO_DIRECTION")
+
+    def test_stale_evidence_does_not_clear_invalid_risk_hard_blocker(self) -> None:
+        source = _row()
+        source["evidence"][0]["fresh"] = False
+        row = enrich_scan_row(source)
+        self.assertIsNone(row.get("entry"))
+        self.assertIn("INVALID_RISK_LEVELS", row["blockers"])
+        self.assertEqual(row["risk_geometry_v141"]["state"], "BLOCKED_VERIFIED_GEOMETRY_INPUT_UNAVAILABLE")
+
+    def test_v14_policy_receives_repaired_geometry_without_static_score_authority(self) -> None:
+        row = enrich_scan_row(_row())
+        decision = CONTINUOUS_EXECUTION_POLICY_V14.evaluate(row, learning_state={})
+        self.assertNotIn("INVALID_RISK_LEVELS", decision["hard_blockers"])
+        self.assertFalse(decision["legacy_static_score_gate"])
+        self.assertFalse(decision["arbitrary_confidence_execution_gate"])
+        self.assertFalse(decision["live_execution"])
+        self.assertFalse(decision["automatic_broker_order"])
+
+    def test_existing_valid_geometry_is_preserved(self) -> None:
+        source = _row(entry=100.0, stop=98.0, target=104.0, risk_reward=2.0, blockers=["SCORE_BELOW_GATE"], reasons_not_to_trade=["SCORE_BELOW_GATE"])
+        row = enrich_scan_row(source)
+        self.assertEqual(row["entry"], 100.0)
+        self.assertEqual(row["stop"], 98.0)
+        self.assertEqual(row["target"], 104.0)
+        self.assertEqual(row["risk_geometry_v141"]["state"], "EXISTING_VALID_GEOMETRY")
+
+    def test_status_preserves_hard_invalid_risk_boundary_and_paper_only(self) -> None:
+        payload = status()
+        self.assertTrue(payload["invalid_risk_levels_remains_hard_blocker_when_geometry_unavailable"])
+        self.assertTrue(payload["verified_completed_bar_evidence_only"])
+        self.assertFalse(payload["data_fabricated"])
+        self.assertFalse(payload["live_execution"])
+        self.assertFalse(payload["automatic_broker_order"])
+
+
+if __name__ == "__main__":
+    unittest.main()
