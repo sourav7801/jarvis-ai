@@ -61,6 +61,14 @@ def install_v13_intelligence_bridges() -> dict[str, object]:
     return dict(install_v13_runtime_bridges())
 
 
+def install_v13_quant_http_bridge() -> dict[str, object]:
+    """Install the V13 Quant asset/identity overlay before the HTTP server binds."""
+
+    from workstation.quant_terminal_v13_bridge import install_quant_terminal_v13_bridge
+
+    return dict(install_quant_terminal_v13_bridge())
+
+
 def start_v12_adaptive_paper() -> dict[str, object]:
     # Function name preserved for V12 launcher compatibility. When V13 bridges
     # are installed first, these engines execute V13 contextual authority.
@@ -102,6 +110,7 @@ def main():
     bridges = install_v11_quant_bridges()
     adaptive_bridges = install_v12_adaptive_bridges()
     v13_bridges = install_v13_intelligence_bridges()
+    v13_http = install_v13_quant_http_bridge()
 
     # Bring up read-only provider state before the first adaptive scan. Failures
     # remain explicit hard data blockers rather than fake candles/forced trades.
@@ -121,11 +130,13 @@ def main():
     print("Discovery: bounded continuous top-N; no fixed discovery score cutoff")
     print("Decision authority: contextual EV + closed-paper outcomes + uncertainty")
     print("Portfolio correlation: completed-bar evidence; can only reduce paper risk")
+    print("V13 Quant overlays: V12 adaptive + V13 contextual assets served by process-local bridge")
     print("Static 67/68/70 score boundary: OBSERVABILITY ONLY")
     print("Static live R:R threshold: NOT EXECUTION AUTHORITY")
     print(f"V11 bridge state: {bool(bridges.get('success'))}")
     print(f"V12 compatibility bridge state: {bool(adaptive_bridges.get('success'))}")
     print(f"V13 intelligence bridge state: {bool(v13_bridges.get('installed'))}")
+    print(f"V13 Quant HTTP bridge state: {bool(v13_http.get('installed'))}")
     print(f"V13 contextual paper state: {bool(adaptive.get('running'))}")
     print("Mode: PAPER / RESEARCH")
     print("Live broker execution: LOCKED")
