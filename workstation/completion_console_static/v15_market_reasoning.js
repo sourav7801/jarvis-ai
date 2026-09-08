@@ -7,13 +7,19 @@
 
   function nav(){
     const aside=document.querySelector(".nav");
-    if(!aside||document.getElementById("marketReasoningV15Nav"))return;
-    const b=document.createElement("button");
-    b.id="marketReasoningV15Nav";
-    b.textContent="MARKET REASONING V15";
-    const anchor=document.getElementById("autonomousExecutionNav");
-    aside.insertBefore(b,anchor||aside.firstChild);
-    b.addEventListener("click",show);
+    if(!aside)return;
+    let b=document.getElementById("marketReasoningV15Nav");
+    if(!b){
+      b=document.createElement("button");
+      b.id="marketReasoningV15Nav";
+      b.textContent="MARKET REASONING V15";
+      const anchor=document.getElementById("autonomousExecutionNav");
+      aside.insertBefore(b,anchor||aside.firstChild);
+    }
+    if(b.dataset.v15Bound!=="1"){
+      b.dataset.v15Bound="1";
+      b.addEventListener("click",show);
+    }
   }
 
   async function show(){
