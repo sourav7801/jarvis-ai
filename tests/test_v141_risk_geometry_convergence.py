@@ -1,11 +1,32 @@
 from __future__ import annotations
 
+from pathlib import Path
+import tempfile
 import unittest
 
 from omni.trading_intelligence.continuous_execution_policy_v14 import (
     CONTINUOUS_EXECUTION_POLICY_V14,
 )
+from workstation.paper_execution_sizing_v13 import install_v13_execution_sizing_bridge
+from workstation.paper_trading_desk import PaperTradingDesk
 from workstation.risk_geometry_v141 import enrich_scan_row, status
+
+
+CRYPTO_SPEC = {
+    "symbol": "BTC",
+    "provider_symbol": "BTCUSDT",
+    "asset_class": "CRYPTO",
+    "instrument_type": "SPOT",
+    "native_currency": "USDT",
+    "valuation_currency": "INR",
+    "quantity_step": 0.00001,
+    "contract_multiplier": 1.0,
+    "tick_size": 0.01,
+    "source": "TEST_VERIFIED_BINANCE_SPEC",
+    "verified": True,
+    "verification_reason": "TEST",
+    "cost_model_status": "UNCONFIGURED",
+}
 
 
 def _row(**overrides):
@@ -102,6 +123,43 @@ class RiskGeometryV141Tests(unittest.TestCase):
         self.assertFalse(decision["arbitrary_confidence_execution_gate"])
         self.assertFalse(decision["live_execution"])
         self.assertFalse(decision["automatic_broker_order"])
+
+    def test_repaired_geometry_reaches_fractional_paper_open(self) -> None:
+        row = enrich_scan_row(_row())
+        decision = CONTINUOUS_EXECUTION_POLICY_V14.evaluate(row, learning_state={})
+        self.assertTrue(decision["executable"], decision)
+        install_v13_execution_sizing_bridge()
+        with tempfile.TemporaryDirectory() as directory:
+            desk = PaperTradingDesk(
+                Path(directory) / "v141-paper.sqlite3",
+                starting_equity=100000.0,
+                max_open_positions=8,
+                max_total_risk_fraction=0.04,
+                max_single_risk_fraction=0.01,
+                max_gross_exposure_multiple=2.0,
+            )
+            result = desk.open_position(
+                symbol="BTC",
+                side=decision["side"],
+                entry=float(row["entry"]),
+                stop=float(row["stop"]),
+                target=float(row["target"]),
+                quantity=None,
+                timeframe="5m",
+                strategy="V14_1_RISK_GEOMETRY_TEST",
+                score=float(row["score"]),
+                source="V14_1_TEST",
+                asset_type="CRYPTO",
+                risk_multiplier=float(decision["risk_multiplier"]),
+                valuation_multiplier=83.0,
+                instrument_spec=dict(CRYPTO_SPEC),
+                portfolio_bucket="INTRADAY",
+                bucket_allocation_fraction=0.50,
+            )
+        self.assertTrue(result["success"], result)
+        self.assertEqual(result["reason"], "PAPER_POSITION_OPENED")
+        self.assertGreater(float(result["quantity"]), 0.0)
+        self.assertFalse(result["live_execution"])
 
     def test_existing_valid_geometry_is_preserved(self) -> None:
         source = _row(entry=100.0, stop=98.0, target=104.0, risk_reward=2.0, blockers=["SCORE_BELOW_GATE"], reasons_not_to_trade=["SCORE_BELOW_GATE"])
