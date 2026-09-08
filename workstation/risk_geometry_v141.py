@@ -42,7 +42,20 @@ def _valid_geometry(side: str, entry: Any, stop: Any, target: Any) -> bool:
     return False
 
 
-def _profile_priority(profile: str, evidence: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+def _evidence_side(item: Mapping[str, Any]) -> str:
+    decision = item.get("decision") if isinstance(item.get("decision"), Mapping) else {}
+    decision_side = str(decision.get("side") or "").strip().upper()
+    if decision_side in {"LONG", "SHORT"}:
+        return decision_side
+    trend = str(item.get("trend") or "").strip().upper()
+    return "LONG" if trend == "BULLISH" else "SHORT" if trend == "BEARISH" else "WAIT"
+
+
+def _profile_priority(
+    profile: str,
+    evidence: Iterable[Mapping[str, Any]],
+    side: str,
+) -> list[dict[str, Any]]:
     rows = [dict(item) for item in evidence if isinstance(item, Mapping)]
     profile_token = str(profile or "").strip().lower()
     if profile_token == "5m_only":
@@ -58,11 +71,16 @@ def _profile_priority(profile: str, evidence: Iterable[Mapping[str, Any]]) -> li
     else:
         order = ("15m", "10m", "5m", "1h", "4h", "1d")
     rank = {timeframe: index for index, timeframe in enumerate(order)}
-    rows.sort(key=lambda item: rank.get(str(item.get("timeframe") or ""), len(order)))
+    rows.sort(
+        key=lambda item: (
+            0 if _evidence_side(item) == side else 1,
+            rank.get(str(item.get("timeframe") or ""), len(order)),
+        )
+    )
     return rows
 
 
-def _eligible_evidence(row: Mapping[str, Any]) -> list[dict[str, Any]]:
+def _eligible_evidence(row: Mapping[str, Any], side: str) -> list[dict[str, Any]]:
     eligible: list[dict[str, Any]] = []
     for raw in list(row.get("evidence") or []):
         if not isinstance(raw, Mapping):
@@ -77,12 +95,12 @@ def _eligible_evidence(row: Mapping[str, Any]) -> list[dict[str, Any]]:
         if close is None or atr is None:
             continue
         # Evidence is accepted only from the existing verified completed-bar scan
-        # path.  The builder never requests or fabricates candles independently.
+        # path. The builder never requests or fabricates candles independently.
         complete_bars = int(item.get("complete_bars") or 0)
         if complete_bars < 15:
             continue
         eligible.append(item)
-    return _profile_priority(str(row.get("profile") or ""), eligible)
+    return _profile_priority(str(row.get("profile") or ""), eligible, side)
 
 
 def _bounded_risk_distance(entry: float, atr: float, structural_distance: float | None) -> float:
@@ -174,6 +192,8 @@ def _build_from_anchor(row: Mapping[str, Any], anchor: Mapping[str, Any], side: 
         "anchor_atr14": atr,
         "anchor_support": support,
         "anchor_resistance": resistance,
+        "anchor_direction": _evidence_side(anchor),
+        "anchor_direction_matches_candidate": _evidence_side(anchor) == side,
         "stop_method": "VERIFIED_STRUCTURE_PLUS_BOUNDED_ATR",
         "target_method": target_method,
         "derived_from_verified_completed_bar_evidence": True,
@@ -183,6 +203,15 @@ def _build_from_anchor(row: Mapping[str, Any], anchor: Mapping[str, Any], side: 
         "live_execution": False,
         "automatic_broker_order": False,
     }
+
+
+def _clear_invalid_risk_token(row: dict[str, Any]) -> bool:
+    blockers = [str(item) for item in list(row.get("blockers") or [])]
+    reasons = [str(item) for item in list(row.get("reasons_not_to_trade") or [])]
+    changed = "INVALID_RISK_LEVELS" in blockers or "INVALID_RISK_LEVELS" in reasons
+    row["blockers"] = [item for item in blockers if item != "INVALID_RISK_LEVELS"]
+    row["reasons_not_to_trade"] = [item for item in reasons if item != "INVALID_RISK_LEVELS"]
+    return changed
 
 
 def enrich_scan_row(raw: Mapping[str, Any]) -> dict[str, Any]:
@@ -202,14 +231,19 @@ def enrich_scan_row(raw: Mapping[str, Any]) -> dict[str, Any]:
     side = _side(row)
     existing_valid = _valid_geometry(side, row.get("entry"), row.get("stop"), row.get("target"))
     if existing_valid:
+        cleared = _clear_invalid_risk_token(row)
         row["risk_geometry_v141"] = {
             "success": True,
             "geometry_version": GEOMETRY_VERSION,
             "state": "EXISTING_VALID_GEOMETRY",
             "derived": False,
+            "stale_invalid_risk_token_cleared": cleared,
             "paper_only": True,
             "live_execution": False,
         }
+        if cleared:
+            row["risk_geometry_repaired"] = True
+            row["risk_geometry_source"] = GEOMETRY_VERSION
         return row
 
     if not row.get("success"):
@@ -232,7 +266,7 @@ def enrich_scan_row(raw: Mapping[str, Any]) -> dict[str, Any]:
         }
         return row
 
-    evidence = _eligible_evidence(row)
+    evidence = _eligible_evidence(row, side)
     if not evidence:
         row["risk_geometry_v141"] = {
             "success": False,
@@ -264,10 +298,7 @@ def enrich_scan_row(raw: Mapping[str, Any]) -> dict[str, Any]:
         "derived": True,
     }
 
-    blockers = [str(item) for item in list(row.get("blockers") or [])]
-    reasons = [str(item) for item in list(row.get("reasons_not_to_trade") or [])]
-    row["blockers"] = [item for item in blockers if item != "INVALID_RISK_LEVELS"]
-    row["reasons_not_to_trade"] = [item for item in reasons if item != "INVALID_RISK_LEVELS"]
+    _clear_invalid_risk_token(row)
     row["risk_geometry_repaired"] = True
     row["risk_geometry_source"] = GEOMETRY_VERSION
 
@@ -297,6 +328,7 @@ def status() -> dict[str, Any]:
         "legacy_qualified_required": False,
         "invalid_risk_levels_remains_hard_blocker_when_geometry_unavailable": True,
         "verified_completed_bar_evidence_only": True,
+        "prefers_candidate_aligned_evidence": True,
         "uses_close": True,
         "uses_atr14": True,
         "uses_support_resistance_when_available": True,
