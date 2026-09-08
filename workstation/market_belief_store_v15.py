@@ -31,9 +31,9 @@ def _changes(previous: Mapping[str, Any] | None, current: Mapping[str, Any]) -> 
 class MarketBeliefStoreV15:
     """Persistent local history of explainable market beliefs.
 
-    The store contains model state only.  It does not create market data and it
-    is never an execution or broker surface.  Previous/current belief snapshots
-    let the UI explain what changed between completed-bar updates.
+    The store contains model state only. It never creates candles or prices.
+    Unchanged completed-bar provenance is de-duplicated so a polling UI cannot
+    manufacture a fake sequence of new market states.
     """
 
     def __init__(self, db_path: Path | str = DEFAULT_DB) -> None:
@@ -72,8 +72,7 @@ class MarketBeliefStoreV15:
     @staticmethod
     def _decode(value: Any, default: Any) -> Any:
         try:
-            parsed = json.loads(str(value or ""))
-            return parsed
+            return json.loads(str(value or ""))
         except Exception:
             return default
 
@@ -109,6 +108,23 @@ class MarketBeliefStoreV15:
                 "live_execution": False,
             }
         previous = self.latest(symbol, profile)
+        if previous and previous.get("market_belief") == belief and previous.get("provenance") == provenance:
+            return {
+                "success": True,
+                "version": "15.0",
+                "service": STORE_VERSION,
+                "symbol": symbol,
+                "profile": profile,
+                "recorded_at": previous.get("recorded_at"),
+                "previous_belief": previous.get("market_belief"),
+                "current_belief": belief,
+                "changes": [],
+                "reason": "BELIEF_UNCHANGED_COMPLETED_BAR_EVIDENCE",
+                "record_inserted": False,
+                "history_fabricated": False,
+                "paper_only": True,
+                "live_execution": False,
+            }
         recorded_at = _now()
         with self._lock, self._connect() as conn:
             conn.execute(
@@ -134,6 +150,7 @@ class MarketBeliefStoreV15:
             "previous_belief": (previous or {}).get("market_belief"),
             "current_belief": belief,
             "changes": _changes((previous or {}).get("market_belief"), belief),
+            "record_inserted": True,
             "history_fabricated": False,
             "paper_only": True,
             "live_execution": False,
@@ -173,6 +190,7 @@ class MarketBeliefStoreV15:
             "version": "15.0",
             "service": STORE_VERSION,
             "persistent": True,
+            "deduplicates_same_completed_bar_evidence": True,
             "market_data_created": False,
             "paper_only": True,
             "live_execution": False,
