@@ -4,6 +4,8 @@ import socket
 
 # Protected cross-generation launcher lineage retained for regression contracts:
 # completion_console_v11 -> completion_console_v12 -> completion_console_v13 -> completion_console_v14
+# Historical exact import marker retained for V13 regression compatibility only:
+# from workstation import completion_console_v13 as completion_console
 # V14 is the active Completion implementation; older markers are compatibility
 # metadata only and do not launch duplicate/stale Completion services.
 from workstation import completion_console_v14 as completion_console
