@@ -53,12 +53,22 @@ def _dominant_hypothesis_alignment(reasoning: Mapping[str, Any], side: str) -> f
     return _clamp(0.45 + 0.45 * aligned_probability - 0.15 * dominant_probability, 0.20, 0.95)
 
 
+def _correlation_utility_multiplier(decision: Mapping[str, Any]) -> float:
+    correlation = decision.get("portfolio_correlation")
+    if not isinstance(correlation, Mapping):
+        return 1.0
+    # V13/V14 completed-bar correlation is one-way risk protection.  V15 uses
+    # the same bounded multiplier for opportunity ranking so highly correlated
+    # candidates cannot look artificially attractive before allocation.
+    return _clamp(_f(correlation.get("risk_multiplier"), 1.0), 0.0, 1.0)
+
+
 class AutonomousDecisionEngineV15:
     """V15 final paper decision authority.
 
     V14 remains the economic foundation: hard verified-data/accounting/safety
     blockers veto and positive contextual expected value is executable. V15 adds
-    explicit market-state/hypothesis reasoning and bounded cross-opportunity
+    explainable market state, competing hypotheses and bounded portfolio-aware
     allocation. Portfolio reasoning can only preserve or REDUCE V14 paper risk;
     it cannot increase risk, bypass hard blockers or access a live broker.
     """
@@ -72,7 +82,14 @@ class AutonomousDecisionEngineV15:
         confidence = _clamp(_f(base.get("confidence")))
         market_quality = _market_quality(reasoning)
         hypothesis_alignment = _dominant_hypothesis_alignment(reasoning, side)
-        raw_utility = max(expected_value, 0.0) * (0.30 + 0.70 * confidence) * market_quality * hypothesis_alignment
+        correlation_multiplier = _correlation_utility_multiplier(base)
+        raw_utility = (
+            max(expected_value, 0.0)
+            * (0.30 + 0.70 * confidence)
+            * market_quality
+            * hypothesis_alignment
+            * correlation_multiplier
+        )
         base_risk = _clamp(_f(base.get("risk_multiplier")))
         return {
             **base,
@@ -82,6 +99,7 @@ class AutonomousDecisionEngineV15:
             "market_reasoning_v15": reasoning,
             "market_quality_multiplier": round(market_quality, 4),
             "hypothesis_alignment_multiplier": round(hypothesis_alignment, 4),
+            "portfolio_correlation_utility_multiplier": round(correlation_multiplier, 4),
             "pre_allocation_portfolio_utility": round(raw_utility, 6),
             "portfolio_adjusted_utility": round(raw_utility, 6),
             # AdaptivePaperAutonomyEngine ranks `utility`; V15 therefore points
@@ -93,6 +111,7 @@ class AutonomousDecisionEngineV15:
             "opportunity_count": 1,
             "better_opportunity_available": False,
             "portfolio_allocator_can_only_reduce_risk": True,
+            "correlation_can_only_reduce_utility_and_risk": True,
             "risk_multiplier": base_risk,
             "paper_only": True,
             "live_execution": False,
@@ -220,6 +239,7 @@ class AutonomousDecisionEngineV15:
             "multi_hypothesis_reasoning": True,
             "market_belief_model": True,
             "canonical_engine_utility_is_portfolio_adjusted": True,
+            "completed_bar_correlation_reduces_portfolio_utility": True,
             "confidence_scales_risk_not_execution": True,
             "legacy_score_execution_authority": False,
             "static_alignment_execution_authority": False,
