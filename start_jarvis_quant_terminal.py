@@ -141,7 +141,7 @@ def main():
     print("Context: V13 closed-paper outcomes + uncertainty + completed-bar correlation")
     print("Decision authority: POSITIVE CONTEXTUAL EXPECTED VALUE / CONTINUOUS PAPER RISK")
     print("Confidence: SCALES POSITION SIZE ONLY / NOT AN EXECUTION GATE")
-    print("67/68/70 score boundary: OBSERVABILITY ONLY")
+    print("Static 67/68/70 score boundary: OBSERVABILITY ONLY")
     print("Static R:R / alignment boundary: NOT EXECUTION AUTHORITY")
     print("PRIMARY / PROBE labels: INTENSITY LABELS ONLY")
     print("Fractional sizing: CONSTRAINT-AWARE / VERIFIED INSTRUMENT STEP")
