@@ -64,6 +64,7 @@ def master_v13_surface_status() -> dict[str, Any]:
 def quant_v13_surface_status() -> dict[str, Any]:
     health_status, health = _json_http(QUANT_BASE + "/api/health")
     controller_status, controller = _json_http(QUANT_BASE + "/api/paper/portfolio-controller", timeout=4.0)
+    assets_status, assets = _json_http(QUANT_BASE + "/api/v13/runtime-assets", timeout=3.0)
     mandates = controller.get("mandates") if isinstance(controller.get("mandates"), dict) else {}
     intraday = mandates.get("INTRADAY") if isinstance(mandates.get("INTRADAY"), dict) else {}
     lanes = intraday.get("lanes") if isinstance(intraday.get("lanes"), dict) else {}
@@ -77,12 +78,24 @@ def quant_v13_surface_status() -> dict[str, Any]:
     )
     if not lanes:
         contextual = intraday.get("decision_authority") == "CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE"
+    runtime_assets_ready = bool(
+        assets_status == 200
+        and assets.get("success") is True
+        and assets.get("version") == "13.0"
+        and assets.get("service") == "JARVIS_QUANT_V13_RUNTIME_ASSETS"
+        and assets.get("handler_installed") is True
+        and (assets.get("assets") or {}).get("v12_paper_intelligence") is True
+        and (assets.get("assets") or {}).get("v13_contextual_paper_runtime") is True
+        and assets.get("live_execution") is False
+        and assets.get("automatic_broker_order") is False
+    )
     current = bool(
         health_status == 200
         and str(health.get("service") or "") == "JARVIS_QUANT_TERMINAL"
         and controller_status == 200
         and controller.get("success") is True
         and contextual
+        and runtime_assets_ready
         and controller.get("live_execution") is False
     )
     return {
@@ -91,6 +104,9 @@ def quant_v13_surface_status() -> dict[str, Any]:
         "service": health.get("service"),
         "controller_status": controller_status,
         "contextual_authority": contextual,
+        "runtime_assets_status": assets_status,
+        "runtime_assets_ready": runtime_assets_ready,
+        "runtime_assets_service": assets.get("service"),
         "active_mandates": controller.get("active_mandates") or [],
         "paper_only": True,
         "live_execution": False,
@@ -212,10 +228,10 @@ def v13_services(root: Path = ROOT) -> tuple[ManagedService, ...]:
             services.append(ManagedService(
                 name=service.name,
                 argv=service.argv,
-                health_url=service.health_url,
-                expected_service=service.expected_service,
+                health_url=QUANT_BASE + "/api/v13/runtime-assets",
+                expected_service="JARVIS_QUANT_V13_RUNTIME_ASSETS",
                 port=service.port,
-                health_markers=service.health_markers,
+                health_markers=(),
                 environment=tuple(environment.items()),
             ))
             continue
@@ -244,6 +260,7 @@ def main() -> int:
     print("Completion ownership preflight:", completion.get("action"))
     print("Starting V13 supervised services: protected V8 Master, contextual Quant, Nautilus, V13 Completion.")
     print("Contextual expected-value paper intelligence enabled; scores remain observability only.")
+    print("Quant V13 runtime assets are part of process identity; stale pre-overlay listeners are rejected.")
     print("Live broker execution remains locked.")
     browser = str(os.getenv("JARVIS_NO_BROWSER", "0")).strip().lower() not in {"1", "true", "yes", "on"}
     return JarvisRuntimeSupervisor(
