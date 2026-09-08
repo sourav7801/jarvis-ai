@@ -16,7 +16,8 @@
       title().textContent='AUTONOMOUS EXECUTION';
       msg().textContent='Positive contextual expected value can execute at continuously scaled paper risk. Confidence, score, alignment and static R:R are evidence—not arbitrary binary execution gates.';
       const p=a.policy||{}, r=a.runtime||{}, s=a.sizing||{}, counts=l.state_counts||{};
-      const blockers=(l.top_hard_blockers||[]).map(x=>`${x.reason} (${x.count})`).join(', ')||'NONE';
+      const hard=(l.top_hard_blockers||[]).map(x=>`${x.reason} (${x.count})`).join(', ')||'NONE';
+      const execution=(l.top_execution_rejections||[]).map(x=>`${x.reason} (${x.count})`).join(', ')||'NONE';
       content().innerHTML=cards([
         ['AUTHORITY',p.decision_authority||'POSITIVE CONTEXTUAL EV','ok'],
         ['POSITIVE EV BOUNDARY',`${n(p.positive_ev_boundary_r,3)}R`,'ok'],
@@ -27,7 +28,8 @@
         ['NON-POSITIVE EV',counts.WAIT_NEGATIVE_OR_ZERO_EV||0,''],
         ['HARD BLOCKED',counts.BLOCKED_SAFETY_OR_DATA||0,Number(counts.BLOCKED_SAFETY_OR_DATA||0)?'warn':'ok'],
         ['POSITIONS OPENED',counts.POSITION_OPENED||0,'ok'],
-        ['TOP HARD BLOCKERS',blockers,blockers==='NONE'?'ok':'warn'],
+        ['TOP DATA / SAFETY BLOCKERS',hard,hard==='NONE'?'ok':'warn'],
+        ['TOP EXECUTION REJECTIONS',execution,execution==='NONE'?'ok':'warn'],
         ['LIVE EXECUTION','LOCKED','ok'],
         ['PERMANENT AGENTS','29','ok']
       ])+`<h2>OPPORTUNITY LIFECYCLE</h2>${table(l.active||[])}`;
