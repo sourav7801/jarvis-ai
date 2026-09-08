@@ -3,6 +3,7 @@
   const $=id=>document.getElementById(id);
   const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const n=(v,d=2)=>Number.isFinite(Number(v))?Number(v).toFixed(d):"—";
+  const INVALID_RISK_LEVELS="INVALID_RISK_LEVELS";
 
   function selectedSymbol(){
     const value=String($("scanSymbol")?.textContent||"BTC").trim().toUpperCase();
@@ -56,7 +57,9 @@
     if(reasonEl){
       reasonEl.textContent=executable
         ?`V14.1 ${action}: contextual EV ${n(decision?.expected_value_r,3)}R. Risk geometry is valid; confidence scales paper size only. ${sizeReady?"Sizing is ready for Paper Desk.":`Sizing not ready: ${reason}.`}`
-        :`V14.1 WAIT: ${reason}. Legacy score ${best?.legacy_score??"—"} is observation only; risk geometry and contextual EV now determine the execution path.`;
+        :geometryReady
+          ?`V14.1 WAIT: ${reason}. Legacy score ${best?.legacy_score??"—"} is observation only; risk geometry and contextual EV now determine the execution path.`
+          :`V14.1 BLOCKED: ${reason}. ${INVALID_RISK_LEVELS} remains a hard blocker whenever verified entry/stop/target geometry cannot be built. Legacy score ${best?.legacy_score??"—"} is observation only.`;
     }
 
     const setup=$("setupState");
