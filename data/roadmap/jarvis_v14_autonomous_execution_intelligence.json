@@ -1,0 +1,65 @@
+{
+  "version": "14.0",
+  "service": "JARVIS_AUTONOMOUS_EXECUTION_INTELLIGENCE_OS",
+  "status": "CANDIDATE_REQUIRES_LOCAL_RELEASE_GATE",
+  "verified": false,
+  "base": {
+    "branch": "jarvis-dev/20260908-JARVIS-V13-adaptive-intelligence-operating-system",
+    "sha": "28a56f451c14af6b80718670d0f5933d84063eda"
+  },
+  "decision_authority": "POSITIVE_CONTEXTUAL_EXPECTED_VALUE_CONTINUOUS_RISK",
+  "execution_contract": {
+    "positive_ev_boundary_r": 0.0,
+    "static_score_execution_authority": false,
+    "static_alignment_execution_authority": false,
+    "static_risk_reward_execution_authority": false,
+    "arbitrary_confidence_execution_gate": false,
+    "uncertainty_scales_position_size_only": true,
+    "primary_probe_labels_are_execution_gates": false,
+    "hard_data_safety_blockers_preserved": true,
+    "fractional_constraint_aware_sizing": true,
+    "paper_desk_final_risk_authority": true
+  },
+  "opportunity_lifecycle": [
+    "WAIT_NEGATIVE_OR_ZERO_EV",
+    "BLOCKED_SAFETY_OR_DATA",
+    "RECHECK_PENDING",
+    "ACTIONABLE",
+    "POSITION_OPENED"
+  ],
+  "runtime": {
+    "master": "127.0.0.1:8797",
+    "quant": "127.0.0.1:8787",
+    "completion": "127.0.0.1:8799",
+    "master_authority": "/api/v14/paper-authority",
+    "quant_authority": "/api/v14/execution-authority",
+    "quant_lifecycle": "/api/v14/opportunity-lifecycle",
+    "completion_status": "/api/v14/status"
+  },
+  "agents": {
+    "permanent": 29,
+    "legacy_critic_preserved": true,
+    "v14_components_are_system_planes": true
+  },
+  "safety": {
+    "paper_only": true,
+    "live_execution": false,
+    "automatic_broker_order": false,
+    "automatic_production_strategy_rewrite": false,
+    "external_actions": "APPROVAL_GATED",
+    "fabricated_market_data": false
+  },
+  "release_gate": [
+    "python_compile",
+    "javascript_syntax",
+    "v14_positive_ev_low_confidence_proof",
+    "v14_hard_blocker_proof",
+    "fractional_crypto_execution_sizing_tests",
+    "targeted_cross_generation_regression",
+    "full_unittest_discovery",
+    "protected_core",
+    "clean_working_tree",
+    "master_quant_completion_runtime_identity",
+    "btc_live_sample_when_provider_available"
+  ]
+}
