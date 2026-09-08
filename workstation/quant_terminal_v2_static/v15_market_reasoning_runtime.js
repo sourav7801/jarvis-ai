@@ -75,7 +75,7 @@
   }
 
   async function read(){
-    try{render(await j(`/api/v15/reasoning-trace?symbol=${encodeURIComponent(selectedSymbol())}`))}catch{}
+    try{render(await j(`/api/v15/reasoning-trace?symbol=${encodeURIComponent(selectedSymbol())}&persist=1`))}catch{}
   }
   function boot(){read();setInterval(read,3500)}
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot);else boot();
