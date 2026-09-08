@@ -1,0 +1,32 @@
+{
+  "version": "15.0",
+  "release": "AUTONOMOUS_MARKET_REASONING",
+  "verified_parent": "c28f7e522063ad0aff02fb40ef157a722235bce0",
+  "decision_authority": "PORTFOLIO_ADJUSTED_CONTEXTUAL_UTILITY_CONTINUOUS_RISK",
+  "planes": [
+    "persistent_market_belief",
+    "multi_hypothesis_reasoning",
+    "portfolio_opportunity_cost",
+    "position_intelligence",
+    "causal_trade_review",
+    "execution_forensics",
+    "supervisor_single_instance_safety"
+  ],
+  "preserved": [
+    "V8_PROTECTED_MASTER",
+    "V14_1_VERIFIED_RISK_GEOMETRY",
+    "V14_POSITIVE_CONTEXTUAL_EV",
+    "V13_CLOSED_PAPER_OUTCOME_MEMORY",
+    "FRACTIONAL_CONSTRAINT_AWARE_SIZING",
+    "29_PERMANENT_SPECIALISTS_WITH_CRITIC"
+  ],
+  "safety": {
+    "paper_only": true,
+    "live_execution": false,
+    "automatic_broker_order": false,
+    "automatic_production_strategy_rewrite": false,
+    "external_actions": "APPROVAL_GATED",
+    "portfolio_allocator_can_only_reduce_v14_risk": true,
+    "invalid_risk_levels_hard_blocker_preserved": true
+  }
+}
