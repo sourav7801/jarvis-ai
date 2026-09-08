@@ -91,6 +91,7 @@ function Wait-V141Runtime {
     )
 
     $deadline = [DateTime]::UtcNow.AddSeconds(240)
+    $contractReady = $false
     while ([DateTime]::UtcNow -lt $deadline) {
         $pending = @($required | Where-Object { -not (Test-Http200 $_) })
         if ($pending.Count -eq 0) {
@@ -102,7 +103,7 @@ function Wait-V141Runtime {
                 $completion = Invoke-RestMethod -Uri "http://127.0.0.1:8799/api/v14.1/status" -TimeoutSec 12
                 $active = @($controller.active_mandates)
 
-                if (
+                $contractReady = [bool](
                     $masterHome.Contains("V8 UNIFIED INTELLIGENCE") -and
                     $master.success -eq $true -and
                     $master.version -eq "14.1" -and
@@ -133,17 +134,8 @@ function Wait-V141Runtime {
                     $completion.permanent_agents -eq 29 -and
                     $completion.live_execution -eq $false -and
                     $completion.automatic_broker_order -eq $false
-                ) {
-                    foreach ($url in $required) { Write-Host "200  $url" -ForegroundColor Green }
-                    Write-Host "PASS protected V8 Master + V14.1 risk-geometry authority" -ForegroundColor Green
-                    Write-Host "PASS legacy qualification no longer suppresses executable geometry" -ForegroundColor Green
-                    Write-Host "PASS INVALID_RISK_LEVELS remains hard when verified geometry is unavailable" -ForegroundColor Green
-                    Write-Host "PASS V14 positive contextual-EV authority preserved" -ForegroundColor Green
-                    Write-Host "PASS INTRADAY / SWING / INVESTMENT paper mandates" -ForegroundColor Green
-                    Write-Host "PASS permanent 29-agent boundary" -ForegroundColor Green
-                    Write-Host "PASS live broker execution locked" -ForegroundColor Green
-                    break
-                }
+                )
+                if ($contractReady) { break }
             }
             catch {
                 Write-Host "Runtime contract not ready yet: $($_.Exception.Message)" -ForegroundColor DarkYellow
@@ -152,19 +144,22 @@ function Wait-V141Runtime {
         Start-Sleep -Seconds 2
     }
 
-    $ready = $false
-    try {
-        $check = Invoke-RestMethod -Uri "http://127.0.0.1:8799/api/v14.1/status" -TimeoutSec 12
-        $ready = $check.success -eq $true -and $check.quant_risk_geometry_ready -eq $true
-    }
-    catch { $ready = $false }
-    if (-not $ready) {
+    if (-not $contractReady) {
         foreach ($url in $required) {
             if (Test-Http200 $url) { Write-Host "200  $url" -ForegroundColor Green }
             else { Write-Host "FAIL $url" -ForegroundColor Red }
         }
         throw "V14.1 runtime verification failed."
     }
+
+    foreach ($url in $required) { Write-Host "200  $url" -ForegroundColor Green }
+    Write-Host "PASS protected V8 Master + V14.1 risk-geometry authority" -ForegroundColor Green
+    Write-Host "PASS legacy qualification no longer suppresses executable geometry" -ForegroundColor Green
+    Write-Host "PASS INVALID_RISK_LEVELS remains hard when verified geometry is unavailable" -ForegroundColor Green
+    Write-Host "PASS V14 positive contextual-EV authority preserved" -ForegroundColor Green
+    Write-Host "PASS INTRADAY / SWING / INVESTMENT paper mandates" -ForegroundColor Green
+    Write-Host "PASS permanent 29-agent boundary" -ForegroundColor Green
+    Write-Host "PASS live broker execution locked" -ForegroundColor Green
 
     Write-Host "BTC V14.1 EXECUTION TRACE > authoritative Quant profiles..." -ForegroundColor Cyan
     try {
@@ -303,24 +298,28 @@ try {
         tests.test_v141_runtime_contracts `
         tests.test_v14_autonomous_execution_intelligence `
         tests.test_v14_runtime_contracts `
-        tests.test_v13_paper_execution_sizing `
+        tests.test_v13_adaptive_intelligence_os `
         tests.test_v13_runtime_contracts `
         tests.test_v13_runtime_integration_hardening `
+        tests.test_v13_adaptive_discovery `
+        tests.test_v13_paper_execution_sizing `
         tests.test_v12_adaptive_market_intelligence `
         tests.test_v12_adaptive_runtime_contracts `
         tests.test_v11_cognitive_execution_convergence `
-        tests.test_v11_runtime_safety `
-        tests.test_v11_quant_bridges `
-        tests.test_v10_advanced_autonomy `
-        tests.test_v81_trading_repair `
-        tests.test_v8_unified_intelligence `
-        tests.test_v7_project_completion_core
+        tests.test_v11_runtime_and_safety `
+        tests.test_v11_quant_runtime_bridges `
+        tests.test_v10_advanced_autonomy_convergence `
+        tests.test_v81_trading_decision_execution_repair `
+        tests.test_paper_trade_action_router `
+        tests.test_paper_portfolio_controller `
+        tests.test_v8_unified_intelligence_os `
+        tests.test_v7_project_completion
     if ($LASTEXITCODE -ne 0) { throw "Targeted V14.1 regression failed." }
     Write-Host "Targeted regression: PASS" -ForegroundColor Green
 
     if (-not $SkipFullRegression) {
-        Write-Host "FULL JARVIS REGRESSION" -ForegroundColor Cyan
-        & $Python -m unittest discover -s tests -p "test_*.py"
+        Write-Host "FULL JARVIS REGRESSION > V14.1 release gate" -ForegroundColor Cyan
+        & $Python -m unittest discover -s tests -q
         if ($LASTEXITCODE -ne 0) { throw "Full JARVIS regression failed." }
         Write-Host "Full regression: PASS" -ForegroundColor Green
     }
@@ -329,7 +328,7 @@ try {
     }
 
     Write-Host "PROTECTED CORE + SOURCE SAFETY" -ForegroundColor Cyan
-    & $Python -c "from omni.core_integrity import verify_protected_core; c=verify_protected_core(); assert c.ok; print('PASS Protected Core')"
+    & $Python -c "from omni.core_integrity import verify_protected_core; from omni.agent_registry import default_agent_specs; c=verify_protected_core(); assert c.ok; n={s.name for s in default_agent_specs()}; assert len(n)==29 and 'critic' in n; print('PASS Protected Core + 29 specialists including critic')"
     if ($LASTEXITCODE -ne 0) { throw "Protected Core verification failed." }
 
     & git diff --check
@@ -341,8 +340,14 @@ try {
     Write-Host "Clean-tree verification: PASS" -ForegroundColor Green
 
     if (-not $NoLaunch) {
-        Write-Host "Launching JARVIS V14.1 runtime..." -ForegroundColor Cyan
-        Start-Process -FilePath $Python -ArgumentList @("-m", "scripts.jarvis_runtime_supervisor_v141") -WorkingDirectory $Root -WindowStyle Minimized
+        Write-Host "LAUNCH > JARVIS V14.1 RISK-GEOMETRY CONVERGENCE" -ForegroundColor Cyan
+        Stop-TrustedJarvisProcesses
+        $oldNoBrowser = $env:JARVIS_NO_BROWSER
+        $env:JARVIS_NO_BROWSER = "1"
+        $runtime = Start-Process -FilePath $Python -ArgumentList @("-m", "scripts.jarvis_runtime_supervisor_v141") -WorkingDirectory $Root -WindowStyle Hidden -PassThru
+        if ($null -eq $oldNoBrowser) { Remove-Item Env:JARVIS_NO_BROWSER -ErrorAction SilentlyContinue }
+        else { $env:JARVIS_NO_BROWSER = $oldNoBrowser }
+        Write-Host "Runtime supervisor PID: $($runtime.Id)"
         Wait-V141Runtime
     }
     else {
@@ -352,38 +357,35 @@ try {
     Write-Host "================================================================================" -ForegroundColor Green
     Write-Host "JARVIS V14.1 RISK-GEOMETRY CONVERGENCE: SUCCESS" -ForegroundColor Green
     Write-Host "================================================================================" -ForegroundColor Green
-    Write-Host "Risk geometry            : VERIFIED COMPLETED-BAR CLOSE + ATR + STRUCTURE"
-    Write-Host "Legacy qualified required: NO"
-    Write-Host "INVALID_RISK_LEVELS      : HARD WHEN VERIFIED GEOMETRY UNAVAILABLE"
-    Write-Host "Decision authority       : POSITIVE CONTEXTUAL EV / CONTINUOUS RISK"
-    Write-Host "67/68/70 thresholds      : OBSERVABILITY ONLY"
-    Write-Host "Fractional sizing        : CONSTRAINT-AWARE / VERIFIED STEP"
-    Write-Host "Permanent agents         : 29 PRESERVED"
-    Write-Host "Real execution           : LOCKED"
-    Write-Host "Backup branch            : $BackupBranch"
-    Write-Host "Installed HEAD           : $Head"
+    Write-Host "Risk geometry             : VERIFIED COMPLETED-BAR CLOSE + ATR + STRUCTURE"
+    Write-Host "Legacy qualified required : NO"
+    Write-Host "INVALID_RISK_LEVELS       : HARD WHEN VERIFIED GEOMETRY UNAVAILABLE"
+    Write-Host "Decision authority        : POSITIVE CONTEXTUAL EV / CONTINUOUS RISK"
+    Write-Host "67/68/70 thresholds       : OBSERVABILITY ONLY"
+    Write-Host "Fractional sizing         : CONSTRAINT-AWARE / VERIFIED STEP"
+    Write-Host "BTC data pass             : SEPARATE FROM EXECUTION-PIPELINE READINESS"
+    Write-Host "Permanent agents          : 29 PRESERVED"
+    Write-Host "Real execution            : LOCKED"
+    Write-Host "Backup branch             : $BackupBranch"
+    Write-Host "Installed HEAD            : $Head"
 }
 catch {
-    $Failure = $_
-    Write-Host "" 
-    Write-Host "V14.1 INSTALL FAILED: $($Failure.Exception.Message)" -ForegroundColor Red
-    try { Stop-TrustedJarvisProcesses } catch {}
+    Write-Host ""
+    Write-Host "V14.1 INSTALL FAILED: $($_.Exception.Message)" -ForegroundColor Red
+    Stop-TrustedJarvisProcesses
     try {
         if ($PreviousBranch) {
-            & git switch $PreviousBranch
-            if ($LASTEXITCODE -ne 0) { throw "Could not switch back to $PreviousBranch" }
-            & git reset --hard $PreviousHead
-            if ($LASTEXITCODE -ne 0) { throw "Could not reset previous checkpoint" }
+            Invoke-Git @("switch", $PreviousBranch)
+            Invoke-Git @("reset", "--hard", $PreviousHead)
         }
         else {
-            & git checkout --detach $PreviousHead
+            Invoke-Git @("checkout", "--detach", $PreviousHead)
         }
         Write-Host "Rolled back to previous checkpoint: $PreviousHead" -ForegroundColor Yellow
         Write-Host "Backup retained: $BackupBranch" -ForegroundColor Yellow
     }
     catch {
-        Write-Host "ROLLBACK WARNING: $($_.Exception.Message)" -ForegroundColor Red
-        Write-Host "Backup retained: $BackupBranch" -ForegroundColor Yellow
+        Write-Host "Automatic rollback encountered an error. Backup branch remains available: $BackupBranch" -ForegroundColor Red
     }
-    throw $Failure
+    throw
 }
