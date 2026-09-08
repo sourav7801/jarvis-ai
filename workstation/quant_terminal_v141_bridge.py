@@ -31,7 +31,7 @@ def _sizing_plan(scan: dict[str, Any], decision: dict[str, Any]) -> dict[str, An
     entry = scan.get("entry")
     stop = scan.get("stop")
     target = scan.get("target")
-    if side not in {"LONG", "SHORT"} or None in {entry, stop, target}:
+    if side not in {"LONG", "SHORT"} or entry is None or stop is None or target is None:
         return {"success": False, "reason": "INVALID_RISK_LEVELS"}
 
     try:
@@ -187,6 +187,11 @@ class QuantTerminalV141Handler(QuantTerminalV14Handler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         params = urllib.parse.parse_qs(parsed.query)
+        if path == "/v141_risk_geometry_runtime.js":
+            return self.send_file(
+                quant.STATIC / "v141_risk_geometry_runtime.js",
+                "application/javascript; charset=utf-8",
+            )
         if path == "/api/v14.1/risk-geometry":
             symbol = str((params.get("symbol") or ["BTC"])[0]).strip().upper() or "BTC"
             profile = str((params.get("profile") or ["5m_only"])[0]).strip() or "5m_only"
@@ -222,6 +227,7 @@ class QuantTerminalV141Handler(QuantTerminalV14Handler):
                 "runtime": runtime_status(),
                 "decision_authority": "POSITIVE_CONTEXTUAL_EXPECTED_VALUE_CONTINUOUS_RISK",
                 "invalid_risk_levels_hard_blocker_preserved": True,
+                "v141_ui_asset": (quant.STATIC / "v141_risk_geometry_runtime.js").is_file(),
                 "paper_only": True,
                 "live_execution": False,
                 "automatic_broker_order": False,
@@ -243,6 +249,7 @@ def install_quant_terminal_v141_bridge() -> dict[str, Any]:
 def status() -> dict[str, Any]:
     with _LOCK:
         installed = _INSTALLED or getattr(quant.Handler, "_jarvis_v141_risk_geometry", False)
+    asset = quant.STATIC / "v141_risk_geometry_runtime.js"
     return {
         "success": True,
         "version": "14.1",
@@ -251,6 +258,7 @@ def status() -> dict[str, Any]:
         "v14_endpoints_preserved": True,
         "risk_geometry_endpoint": "/api/v14.1/risk-geometry",
         "execution_trace_endpoint": "/api/v14.1/execution-trace",
+        "v141_ui_asset": asset.is_file(),
         "paper_only": True,
         "live_execution": False,
         "automatic_broker_order": False,
