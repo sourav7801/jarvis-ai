@@ -6,6 +6,7 @@ from typing import Any
 
 _LOCK = RLock()
 _INSTALLED = False
+_SIZING_INSTALLED = False
 
 
 def install_v13_runtime_bridges() -> dict[str, Any]:
@@ -14,9 +15,14 @@ def install_v13_runtime_bridges() -> dict[str, Any]:
     V12 classes/endpoints stay intact for cross-generation compatibility. Their
     process-local policy globals are rebound to the V13 contextual engine so the
     active runtime uses contextual EV, outcome memory and dynamic correlation.
+
+    V13 also installs constraint-aware automatic Paper Desk sizing before any
+    paper engine starts. This fixes inherited floor-division behavior that could
+    turn a valid fractional BTC/crypto quantity into zero and leave JARVIS in
+    watching mode. Existing portfolio limits remain final authority.
     """
 
-    global _INSTALLED
+    global _INSTALLED, _SIZING_INSTALLED
     with _LOCK:
         if _INSTALLED:
             return status()
@@ -29,6 +35,10 @@ def install_v13_runtime_bridges() -> dict[str, Any]:
         from workstation import adaptive_direct_trade_bridge as direct_bridge_module
         from workstation import adaptive_market_sampler as sampler_module
         from workstation.adaptive_discovery_router_v13 import install_adaptive_discovery_router_v13
+        from workstation.paper_execution_sizing_v13 import install_v13_execution_sizing_bridge
+
+        sizing = install_v13_execution_sizing_bridge()
+        _SIZING_INSTALLED = bool(sizing.get("installed"))
 
         adaptive_engine_module.ADAPTIVE_OPPORTUNITY_POLICY = CONTEXTUAL_DECISION_ENGINE_V13
         adaptive_engine_module.POLICY_VERSION = DECISION_VERSION
@@ -37,12 +47,13 @@ def install_v13_runtime_bridges() -> dict[str, Any]:
 
         discovery = install_adaptive_discovery_router_v13()
         _INSTALLED = True
-        return {**status(), "discovery": discovery}
+        return {**status(), "discovery": discovery, "execution_sizing": sizing}
 
 
 def status() -> dict[str, Any]:
     with _LOCK:
         installed = _INSTALLED
+        sizing_installed = _SIZING_INSTALLED
     return {
         "success": True,
         "version": "13.0",
@@ -53,6 +64,8 @@ def status() -> dict[str, Any]:
         "direct_paper_command_rebound": installed,
         "market_sampler_rebound": installed,
         "continuous_top_n_discovery": installed,
+        "fractional_auto_sizing_installed": sizing_installed,
+        "constraint_aware_auto_sizing": sizing_installed,
         "static_67_68_70_execution_authority": False,
         "static_discovery_score_gate": False if installed else None,
         "contextual_outcome_memory": True,
