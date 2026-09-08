@@ -13,6 +13,93 @@ _INSTALLED = False
 DEFAULT_PROFILES = ("5m_only", "10m_only", "15m_only", "adaptive_intraday", "swing")
 
 
+def _persist_forensics(
+    *,
+    symbol: str,
+    profile: str,
+    scan: dict[str, Any],
+    reasoning: dict[str, Any],
+    decision: dict[str, Any],
+    sizing: dict[str, Any],
+    stop_reason: str,
+) -> None:
+    """Record bounded high-information stages for an explicit persisted trace."""
+    try:
+        from workstation.execution_forensics_v15 import EXECUTION_FORENSICS_V15
+
+        base_payload = {
+            "candidate_side": scan.get("candidate_side"),
+            "legacy_score": scan.get("score"),
+            "legacy_qualified": scan.get("qualified"),
+            "entry": scan.get("entry"),
+            "stop": scan.get("stop"),
+            "target": scan.get("target"),
+            "risk_reward": scan.get("risk_reward"),
+        }
+        EXECUTION_FORENSICS_V15.record(
+            "DISCOVERY",
+            symbol=symbol,
+            profile=profile,
+            reason="VERIFIED_SCAN_SAMPLE" if scan.get("success") else "DATA_UNAVAILABLE",
+            payload=base_payload,
+        )
+        if reasoning.get("success"):
+            EXECUTION_FORENSICS_V15.record(
+                "BELIEF_UPDATE",
+                symbol=symbol,
+                profile=profile,
+                reason=str((reasoning.get("market_belief") or {}).get("signal_freshness") or "BELIEF_BUILT"),
+                payload={"market_belief": reasoning.get("market_belief"), "data_provenance": reasoning.get("data_provenance")},
+            )
+            EXECUTION_FORENSICS_V15.record(
+                "HYPOTHESIS_BUILD",
+                symbol=symbol,
+                profile=profile,
+                reason=str((reasoning.get("dominant_hypothesis") or {}).get("name") or "HYPOTHESES_BUILT"),
+                payload={"hypotheses": list(reasoning.get("hypotheses") or [])[:4]},
+            )
+        EXECUTION_FORENSICS_V15.record(
+            "DECISION",
+            symbol=symbol,
+            profile=profile,
+            reason=str(decision.get("action") or "WAIT"),
+            payload={
+                "expected_value_r": decision.get("expected_value_r"),
+                "confidence": decision.get("confidence"),
+                "hard_blockers": decision.get("hard_blockers"),
+                "risk_multiplier": decision.get("risk_multiplier"),
+            },
+        )
+        EXECUTION_FORENSICS_V15.record(
+            "PORTFOLIO_ALLOCATION",
+            symbol=symbol,
+            profile=profile,
+            reason="BETTER_OPPORTUNITY_AVAILABLE" if decision.get("better_opportunity_available") else "UTILITY_ALLOCATED",
+            payload={
+                "portfolio_adjusted_utility": decision.get("portfolio_adjusted_utility"),
+                "opportunity_rank": decision.get("opportunity_rank"),
+                "opportunity_count": decision.get("opportunity_count"),
+                "portfolio_allocation_multiplier": decision.get("portfolio_allocation_multiplier"),
+                "portfolio_correlation_utility_multiplier": decision.get("portfolio_correlation_utility_multiplier"),
+            },
+        )
+        EXECUTION_FORENSICS_V15.record(
+            "SIZE_PLAN",
+            symbol=symbol,
+            profile=profile,
+            reason="SIZE_READY" if sizing.get("success") else str(sizing.get("reason") or stop_reason),
+            payload={
+                "success": sizing.get("success"),
+                "quantity": sizing.get("quantity"),
+                "risk_multiplier": decision.get("risk_multiplier"),
+                "pipeline_stop_reason": stop_reason,
+            },
+        )
+    except Exception:
+        # Forensics are observability only and must never block paper decisions.
+        pass
+
+
 def _reason_profile(symbol: str, profile: str, *, persist: bool = False) -> dict[str, Any]:
     from omni.trading_intelligence.autonomous_decision_engine_v15 import AUTONOMOUS_DECISION_ENGINE_V15
 
@@ -56,6 +143,18 @@ def _reason_profile(symbol: str, profile: str, *, persist: bool = False) -> dict
         stop_reason = str(sizing.get("reason") or "POSITION_SIZE_PLAN_FAILED")
     else:
         stop_reason = "READY_FOR_PAPER_DESK_OPEN"
+
+    if persist:
+        _persist_forensics(
+            symbol=str(scan.get("symbol") or symbol).upper(),
+            profile=str(scan.get("profile") or profile),
+            scan=scan,
+            reasoning=reasoning,
+            decision=decision,
+            sizing=sizing,
+            stop_reason=stop_reason,
+        )
+
     return {
         "success": bool(scan.get("success")),
         "symbol": scan.get("symbol") or symbol,
@@ -111,6 +210,7 @@ def reasoning_trace(symbol: str = "BTC", *, persist: bool = False) -> dict[str, 
         "best_legacy_score": best.get("legacy_score") if best else None,
         "execution_pipeline_ready": bool(size_ready),
         "data_connectivity_is_not_execution_proof": True,
+        "forensics_persisted": bool(persist),
         "paper_only": True,
         "live_execution": False,
         "automatic_broker_order": False,
@@ -219,6 +319,7 @@ def status() -> dict[str, Any]:
         "v141_endpoints_preserved": True,
         "v15_reasoning_asset": asset.is_file(),
         "decision_authority": "PORTFOLIO_ADJUSTED_CONTEXTUAL_UTILITY_CONTINUOUS_RISK",
+        "execution_forensics_stages": True,
         "paper_only": True,
         "live_execution": False,
         "automatic_broker_order": False,
