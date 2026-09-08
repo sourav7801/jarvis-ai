@@ -157,23 +157,56 @@ class ContextualDecisionEngineV13:
         self,
         row: Mapping[str, Any],
         *,
+        learning_state: Mapping[str, Any] | None = None,
         allowed_sides: Iterable[str] = ("LONG", "SHORT"),
     ) -> dict[str, Any]:
-        base_rows = ADAPTIVE_OPPORTUNITY_POLICY.evaluate_many([row], allowed_sides=allowed_sides)
-        base_row = base_rows[0] if base_rows else dict(row)
-        base = base_row.get("adaptive_decision") if isinstance(base_row.get("adaptive_decision"), Mapping) else {}
+        """Evaluate one row while preserving the V12 caller contract.
+
+        Direct paper-command paths already pass an explicit V12 learning_state.
+        Batch/scanner callers historically rely on V12 evaluate_many() to load
+        that state once. Supporting both forms prevents V13 rebinding from
+        breaking the protected V12 direct-command bridge.
+        """
+
+        if learning_state is not None:
+            base = ADAPTIVE_OPPORTUNITY_POLICY.evaluate(
+                row,
+                learning_state=learning_state,
+                allowed_sides=allowed_sides,
+            )
+        else:
+            base_rows = ADAPTIVE_OPPORTUNITY_POLICY.evaluate_many([row], allowed_sides=allowed_sides)
+            base_row = base_rows[0] if base_rows else dict(row)
+            base = base_row.get("adaptive_decision") if isinstance(base_row.get("adaptive_decision"), Mapping) else {}
         return self._contextualize(row, base)
 
     def evaluate_many(
         self,
         rows: Iterable[Mapping[str, Any]],
         *,
+        learning_state: Mapping[str, Any] | None = None,
         allowed_sides: Iterable[str] = ("LONG", "SHORT"),
     ) -> list[dict[str, Any]]:
         source_rows = [dict(raw) for raw in rows]
-        # V12 computes its learned calibration once for the batch. This preserves
-        # all existing V12 paper learning before V13 adds finer context.
-        base_rows = ADAPTIVE_OPPORTUNITY_POLICY.evaluate_many(source_rows, allowed_sides=allowed_sides)
+        # Preserve V12's batch learning behavior by default. Tests, direct
+        # compatibility bridges and deterministic callers may also supply an
+        # explicit learning snapshot.
+        if learning_state is None:
+            base_rows = ADAPTIVE_OPPORTUNITY_POLICY.evaluate_many(source_rows, allowed_sides=allowed_sides)
+        else:
+            base_rows = []
+            for source in source_rows:
+                base_rows.append(
+                    {
+                        **source,
+                        "adaptive_decision": ADAPTIVE_OPPORTUNITY_POLICY.evaluate(
+                            source,
+                            learning_state=learning_state,
+                            allowed_sides=allowed_sides,
+                        ),
+                    }
+                )
+
         result: list[dict[str, Any]] = []
         for source, base_row in zip(source_rows, base_rows):
             base = base_row.get("adaptive_decision") if isinstance(base_row.get("adaptive_decision"), Mapping) else {}
@@ -213,6 +246,7 @@ class ContextualDecisionEngineV13:
             "decision_version": DECISION_VERSION,
             "base_policy": "ADAPTIVE_OPPORTUNITY_POLICY_V12",
             "base_v12_learning_preserved": True,
+            "v12_direct_evaluate_signature_preserved": True,
             "decision_authority": "CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE",
             "contextual_outcome_memory": {
                 "usable_r_count": memory.get("usable_r_count"),
