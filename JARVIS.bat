@@ -6,6 +6,7 @@ cd /d C:\Jarvis
 title JARVIS OS V8 MASTER + V15.1 OPTIONS EXECUTION INTELLIGENCE
 
 REM JARVIS V15.1 fast-path: exact current runtime opens the protected dashboard.
+REM Historical V15 fast-path contract: http://127.0.0.1:8797/api/v15/paper-authority
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ok=$false; try {$r=Invoke-RestMethod 'http://127.0.0.1:8797/api/v15.1/paper-authority' -TimeoutSec 2; $ok=($r.success -eq $true -and $r.version -eq '15.1' -and $r.service -eq 'JARVIS_MASTER_V151_OPTIONS_EXECUTION_BRIDGE')} catch {}; if($ok){Start-Process 'http://127.0.0.1:8797'; exit 0}else{exit 1}" >nul 2>&1
 if not errorlevel 1 (
     echo JARVIS V15.1 is already running. Opening the existing dashboard.
