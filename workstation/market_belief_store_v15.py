@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import RLock
-from typing import Any, Mapping
+from typing import Any, Iterator, Mapping
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,6 +35,11 @@ class MarketBeliefStoreV15:
     The store contains model state only. It never creates candles or prices.
     Unchanged completed-bar provenance is de-duplicated so a polling UI cannot
     manufacture a fake sequence of new market states.
+
+    SQLite connections are explicitly closed after every operation. Python's
+    sqlite3 connection context manager commits/rolls back but does not close the
+    connection; relying on garbage collection left Windows file handles open and
+    made temporary V15 belief-store tests fail during directory cleanup.
     """
 
     def __init__(self, db_path: Path | str = DEFAULT_DB) -> None:
@@ -49,8 +55,17 @@ class MarketBeliefStoreV15:
         conn.execute("PRAGMA busy_timeout=5000")
         return conn
 
+    @contextmanager
+    def _connection(self) -> Iterator[sqlite3.Connection]:
+        conn = self._connect()
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
+
     def _ensure(self) -> None:
-        with self._lock, self._connect() as conn:
+        with self._lock, self._connection() as conn:
             conn.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS v15_market_beliefs(
@@ -77,7 +92,7 @@ class MarketBeliefStoreV15:
             return default
 
     def latest(self, symbol: str, profile: str) -> dict[str, Any] | None:
-        with self._lock, self._connect() as conn:
+        with self._lock, self._connection() as conn:
             row = conn.execute(
                 "SELECT * FROM v15_market_beliefs WHERE symbol=? AND profile=? ORDER BY id DESC LIMIT 1",
                 (str(symbol).upper(), str(profile)),
@@ -126,7 +141,7 @@ class MarketBeliefStoreV15:
                 "live_execution": False,
             }
         recorded_at = _now()
-        with self._lock, self._connect() as conn:
+        with self._lock, self._connection() as conn:
             conn.execute(
                 "INSERT INTO v15_market_beliefs(symbol,profile,recorded_at,reasoning_version,belief_json,hypotheses_json,provenance_json) VALUES(?,?,?,?,?,?,?)",
                 (
@@ -139,7 +154,6 @@ class MarketBeliefStoreV15:
                     json.dumps(provenance, sort_keys=True, default=str),
                 ),
             )
-            conn.commit()
         return {
             "success": True,
             "version": "15.0",
@@ -158,7 +172,7 @@ class MarketBeliefStoreV15:
 
     def history(self, symbol: str, profile: str, limit: int = 20) -> dict[str, Any]:
         bounded = max(1, min(int(limit), 100))
-        with self._lock, self._connect() as conn:
+        with self._lock, self._connection() as conn:
             rows = conn.execute(
                 "SELECT * FROM v15_market_beliefs WHERE symbol=? AND profile=? ORDER BY id DESC LIMIT ?",
                 (str(symbol).upper(), str(profile), bounded),
@@ -191,6 +205,8 @@ class MarketBeliefStoreV15:
             "service": STORE_VERSION,
             "persistent": True,
             "deduplicates_same_completed_bar_evidence": True,
+            "sqlite_connections_explicitly_closed": True,
+            "windows_temp_cleanup_safe": True,
             "market_data_created": False,
             "paper_only": True,
             "live_execution": False,
