@@ -1,7 +1,7 @@
 """V16 workstation bridge layered on the verified V15 protected Master.
 
-The protected V8 Master identity and V15 market reasoning stay intact.  V16 adds
-managed Files/Artifacts/Workspaces/Capabilities APIs only.  All local writes are
+The protected V8 Master identity and V15 market reasoning stay intact. V16 adds
+managed Files/Artifacts/Workspaces/Capabilities APIs only. All local writes are
 loopback-authorized using the existing Master token path.
 """
 
@@ -14,6 +14,7 @@ from urllib.parse import parse_qs, urlparse
 
 from omni.loopback_http import exclusive_server
 from workstation import jarvis_os_v15_bridge as v15
+from workstation import jarvis_os_v3 as v3
 
 
 HOST = v15.HOST
@@ -70,10 +71,26 @@ class V16BridgeHandler(v15.V15BridgeHandler):
             raise ValueError("request JSON must be an object")
         return payload
 
+    def _send_files_workspace(self) -> None:
+        asset = v3.ASSETS / "v16_files.html"
+        try:
+            html = asset.read_text(encoding="utf-8").replace("__JARVIS_TOKEN__", v3.TOKEN)
+        except OSError as exc:
+            return self.send_json({"success": False, "reason": f"FILES_UI_UNAVAILABLE: {exc}"[:500]}, 500)
+        raw = html.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(raw)))
+        self.end_headers()
+        self.wfile.write(raw)
+
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         path = parsed.path
         params = parse_qs(parsed.query)
+        if path in {"/v16/files", "/files"}:
+            return self._send_files_workspace()
         if path == "/api/v16/status":
             return self.send_json(_v16_status())
         if path == "/api/v16/capabilities":
