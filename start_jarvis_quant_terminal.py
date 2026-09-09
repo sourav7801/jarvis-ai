@@ -166,6 +166,7 @@ def main():
     print("Risk geometry: V14.1 VERIFIED COMPLETED-BAR CLOSE + ATR + STRUCTURE")
     print("Market reasoning: PERSISTENT BELIEF + COMPETING HYPOTHESES")
     print("Decision authority: PORTFOLIO-ADJUSTED CONTEXTUAL UTILITY / CONTINUOUS PAPER RISK")
+    print("Compatibility authority lineage: POSITIVE CONTEXTUAL EXPECTED VALUE (V14 FOUNDATION); V15 PORTFOLIO UTILITY IS CURRENT")
     print("Opportunity cost: better alternatives can reduce or skip weaker paper risk")
     print("Confidence: SCALES POSITION SIZE ONLY / NOT AN EXECUTION GATE")
     print("Static 67/68/70 score boundary: OBSERVABILITY ONLY")
