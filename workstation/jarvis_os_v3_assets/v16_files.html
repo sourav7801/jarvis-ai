@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JARVIS V16 · Files</title>
+<style>
+:root{color-scheme:dark;--bg:#05080b;--panel:#0b1117;--line:#1c2d38;--text:#e8f7ff;--muted:#75909f;--accent:#71e9ff;--ok:#7af0a9;--bad:#ff9c9c}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -20%,#102934 0,#05080b 42%);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif;min-height:100vh}
+header{height:64px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:rgba(5,8,11,.9);position:sticky;top:0;z-index:5;backdrop-filter:blur(16px)}
+.brand{font-weight:800;letter-spacing:.28em}.brand small{display:block;color:var(--muted);letter-spacing:.12em;font-weight:500;font-size:10px;margin-top:5px}.status{font-size:11px;color:var(--ok);letter-spacing:.08em}
+main{max-width:1180px;margin:0 auto;padding:34px 24px 80px}.hero{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:24px}.hero h1{font-size:32px;margin:0 0 8px}.hero p{margin:0;color:var(--muted)}
+.controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}select,input,button{background:#091219;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px 12px}button{cursor:pointer}button:hover{border-color:#356274}.primary{border-color:#2b7184;color:var(--accent)}
+.drop{border:1px dashed #315767;background:linear-gradient(180deg,rgba(14,34,43,.55),rgba(7,14,19,.7));border-radius:14px;padding:34px;text-align:center;transition:.15s}.drop.drag{border-color:var(--accent);background:#0b1d25}.drop strong{display:block;font-size:17px;margin-bottom:7px}.drop span{color:var(--muted);font-size:12px}.drop input{display:none}
+.progress{margin:12px 0 24px;min-height:18px;color:var(--muted);font-size:12px}.progress.ok{color:var(--ok)}.progress.bad{color:var(--bad)}
+.toolbar{display:flex;gap:10px;justify-content:space-between;margin:26px 0 12px}.search{min-width:320px;flex:1}.count{font-size:11px;color:var(--muted);align-self:center}
+.list{display:grid;gap:8px}.file{display:grid;grid-template-columns:minmax(260px,1.6fr) .7fr .7fr .9fr auto;gap:14px;align-items:center;border:1px solid var(--line);border-radius:10px;background:rgba(10,16,22,.86);padding:14px 16px}.file:hover{border-color:#2d4b5a}.name{font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.meta,.hash{font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.badge{display:inline-block;padding:4px 7px;border:1px solid #23414f;border-radius:999px;font-size:9px;color:#a7c9d7}.empty{padding:42px;border:1px solid var(--line);border-radius:12px;text-align:center;color:var(--muted)}
+.preview{position:fixed;right:20px;bottom:20px;width:min(520px,calc(100vw - 40px));max-height:70vh;overflow:auto;border:1px solid #2b5363;border-radius:12px;background:#071017;box-shadow:0 20px 70px #000;padding:16px;display:none}.preview.open{display:block}.preview header{height:auto;padding:0 0 12px;position:static;background:transparent}.preview pre{white-space:pre-wrap;font:11px/1.5 ui-monospace,Consolas,monospace;color:#bad4df}.close{float:right}@media(max-width:760px){.file{grid-template-columns:1fr}.hero{align-items:flex-start;flex-direction:column}.search{min-width:0}.meta,.hash{display:none}}
+</style>
+</head>
+<body>
+<header><div class="brand">JARVIS<small>V16 · MANAGED FILES</small></div><div class="status" id="systemState">● CHECKING</div></header>
+<main>
+<section class="hero"><div><h1>Your files. One JARVIS context.</h1><p>Upload, index, search and attach files without giving agents unrestricted filesystem access.</p></div><div class="controls"><select id="workspace"><option>HOME</option><option>WORK</option><option>TRADING</option><option>COMPANY</option><option>AUTOMATION</option></select><button onclick="location.href='/'">MASTER HOME</button></div></section>
+<label class="drop" id="drop"><input type="file" id="picker" multiple><strong>Drop files here or click to browse</strong><span>PDF · DOCX · XLSX · CSV · PPTX · images · code · text · ZIP · up to 100 MB each</span></label>
+<div class="progress" id="progress">Ready.</div>
+<div class="toolbar"><input class="search" id="search" placeholder="Search filenames and extracted document text…"><button class="primary" id="refresh">REFRESH</button><span class="count" id="count">0 FILES</span></div>
+<div class="list" id="list"></div>
+</main>
+<aside class="preview" id="preview"><header><strong id="previewName">Preview</strong><button class="close" id="previewClose">CLOSE</button></header><pre id="previewText"></pre></aside>
+<script>window.JARVIS_TOKEN="__JARVIS_TOKEN__";</script>
+<script>
+(()=>{"use strict";
+const $=id=>document.getElementById(id),token=window.JARVIS_TOKEN;
+async function api(path,options={}){options.headers={...(options.headers||{}),"X-Jarvis-Token":token,"Content-Type":"application/json"};const r=await fetch(path,options);let v={};try{v=await r.json()}catch{}if(!r.ok)throw new Error(v.reason||v.error||`HTTP ${r.status}`);return v}
+function size(n){n=Number(n||0);if(n<1024)return `${n} B`;if(n<1048576)return `${(n/1024).toFixed(1)} KB`;return `${(n/1048576).toFixed(1)} MB`}
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+async function health(){try{const v=await api('/api/v16/status');$('systemState').textContent=v.success?'● V16 FILE SERVICE ONLINE':'● DEGRADED';$('systemState').style.color=v.success?'var(--ok)':'var(--bad)'}catch(e){$('systemState').textContent='● UNAVAILABLE';$('systemState').style.color='var(--bad)'}}
+async function load(){const q=$('search').value.trim(),w=$('workspace').value;try{const v=await api(q?`/api/v16/files/search?q=${encodeURIComponent(q)}&workspace=${encodeURIComponent(w)}`:`/api/v16/files?workspace=${encodeURIComponent(w)}`);const files=v.files||[];$('count').textContent=`${files.length} FILE${files.length===1?'':'S'}`;$('list').innerHTML=files.length?files.map(f=>`<article class="file"><div><div class="name">${esc(f.original_name)}</div><div class="hash">${esc(f.sha256)}</div></div><div><span class="badge">${esc(f.extension.replace('.','').toUpperCase())}</span></div><div class="meta">${size(f.size_bytes)}</div><div class="meta">${esc(f.parser_status)}</div><button data-preview="${esc(f.file_id)}">ASK / PREVIEW</button></article>`).join(''):'<div class="empty">No managed files in this workspace yet.</div>';document.querySelectorAll('[data-preview]').forEach(b=>b.onclick=()=>preview(b.dataset.preview))}catch(e){$('progress').className='progress bad';$('progress').textContent=e.message}}
+function toBase64(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result).split(',')[1]||'');r.onerror=reject;r.readAsDataURL(file)})}
+async function upload(files){for(const file of files){$('progress').className='progress';$('progress').textContent=`Uploading ${file.name}…`;try{const content_base64=await toBase64(file);const v=await api('/api/v16/files/upload',{method:'POST',body:JSON.stringify({filename:file.name,workspace:$('workspace').value,content_base64})});$('progress').className='progress ok';$('progress').textContent=`${v.duplicate?'Already indexed':'Uploaded'}: ${file.name}`;}catch(e){$('progress').className='progress bad';$('progress').textContent=`${file.name}: ${e.message}`;break}}await load()}
+async function preview(id){try{const v=await api(`/api/v16/files/text?file_id=${encodeURIComponent(id)}&max_chars=120000`);$('previewName').textContent=v.filename||'Preview';$('previewText').textContent=v.text||`No extractable text. Parser state: ${v.parser_status||'unknown'}`;$('preview').classList.add('open')}catch(e){$('progress').className='progress bad';$('progress').textContent=e.message}}
+const drop=$('drop'),picker=$('picker');drop.onclick=()=>picker.click();picker.onchange=()=>upload([...picker.files]);['dragenter','dragover'].forEach(e=>drop.addEventListener(e,x=>{x.preventDefault();drop.classList.add('drag')}));['dragleave','drop'].forEach(e=>drop.addEventListener(e,x=>{x.preventDefault();drop.classList.remove('drag')}));drop.addEventListener('drop',e=>upload([...e.dataTransfer.files]));$('refresh').onclick=load;$('workspace').onchange=load;$('search').addEventListener('input',()=>{clearTimeout(window.__s);window.__s=setTimeout(load,250)});$('previewClose').onclick=()=> $('preview').classList.remove('open');health();load();
+})();
+</script>
+</body>
+</html>
