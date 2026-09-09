@@ -38,6 +38,28 @@ def _available_evidence(row: Mapping[str, Any]) -> list[dict[str, Any]]:
     return result
 
 
+def _provider_diagnostics(row: Mapping[str, Any]) -> list[dict[str, Any]]:
+    diagnostics: list[dict[str, Any]] = []
+    for raw in list(row.get("evidence") or []):
+        if not isinstance(raw, Mapping):
+            continue
+        diagnostics.append(
+            {
+                "timeframe": str(raw.get("timeframe") or ""),
+                "available": raw.get("available") is True,
+                "source": raw.get("source"),
+                "data_quality": raw.get("data_quality"),
+                "provider_state": raw.get("provider_state"),
+                "provider_code": raw.get("provider_code"),
+                "retry_after_seconds": raw.get("retry_after_seconds"),
+                "raw_bars": raw.get("raw_bars"),
+                "complete_bars": raw.get("complete_bars"),
+                "message": raw.get("message"),
+            }
+        )
+    return diagnostics[:12]
+
+
 def _timeframe_state(item: Mapping[str, Any]) -> dict[str, Any]:
     trend = str(item.get("trend") or "MIXED").upper()
     close = _f(item.get("close"))
@@ -111,6 +133,57 @@ class AutonomousMarketReasoningV15:
     ) -> dict[str, Any]:
         evidence = _available_evidence(row)
         states = [_timeframe_state(item) for item in evidence]
+        base = dict(base_decision or {})
+        side = _direction(row)
+        diagnostics = _provider_diagnostics(row)
+
+        if not states:
+            provider_state = next(
+                (str(item.get("provider_state")) for item in diagnostics if item.get("provider_state")),
+                "DATA_UNAVAILABLE",
+            )
+            provider_code = next(
+                (item.get("provider_code") for item in diagnostics if item.get("provider_code") is not None),
+                None,
+            )
+            return {
+                "success": False,
+                "version": "15.0",
+                "reasoning_version": REASONING_VERSION,
+                "symbol": row.get("symbol"),
+                "profile": row.get("profile"),
+                "market_belief": {
+                    "trend_direction": "MIXED",
+                    "trend_strength": 0.0,
+                    "range_probability": None,
+                    "breakout_probability": None,
+                    "reversal_probability": None,
+                    "volatility_state": "UNKNOWN",
+                    "liquidity_state": "UNKNOWN",
+                    "structure_state": "UNAVAILABLE",
+                    "regime": "DATA UNAVAILABLE",
+                    "regime_transition_probability": None,
+                    "timeframe_agreement": None,
+                    "timeframe_conflict": None,
+                    "signal_freshness": "UNAVAILABLE",
+                    "uncertainty": 1.0,
+                    "current_candidate_side": side,
+                    "base_expected_value_r": base.get("expected_value_r"),
+                },
+                "timeframe_states": [],
+                "hypotheses": [],
+                "dominant_hypothesis": None,
+                "data_provenance": diagnostics,
+                "provider_state": provider_state,
+                "provider_code": provider_code,
+                "hypotheses_suppressed_no_verified_evidence": True,
+                "probabilities_are_model_estimate": True,
+                "market_data_fabricated": False,
+                "paper_only": True,
+                "live_execution": False,
+                "automatic_broker_order": False,
+            }
+
         fresh_states = [item for item in states if item.get("fresh")]
         total = max(len(fresh_states), 1)
         bullish = sum(1 for item in fresh_states if item.get("trend") == "BULLISH")
@@ -157,8 +230,6 @@ class AutonomousMarketReasoningV15:
         transition_probability = _clamp(0.10 + 0.55 * timeframe_conflict + (0.15 if volatility_state == "HIGH" else 0.0))
         uncertainty = _clamp(0.15 + 0.55 * timeframe_conflict + (0.20 if not fresh_states else 0.0) + (0.10 if volatility_state == "UNKNOWN" else 0.0))
 
-        side = _direction(row)
-        base = dict(base_decision or {})
         rr = _f(row.get("risk_reward"), 0.0)
         expected_payoff = rr if rr > 0.0 else None
         dominant_tfs = [item["timeframe"] for item in fresh_states if item.get("trend") == direction][:8]
@@ -260,6 +331,9 @@ class AutonomousMarketReasoningV15:
             "hypotheses": hypotheses,
             "dominant_hypothesis": dominant,
             "data_provenance": provenance,
+            "provider_state": "READY",
+            "provider_code": 200,
+            "hypotheses_suppressed_no_verified_evidence": False,
             "probabilities_are_model_estimates": True,
             "market_data_fabricated": False,
             "paper_only": True,
@@ -276,6 +350,7 @@ class AutonomousMarketReasoningV15:
             "persistent_belief_contract": True,
             "multi_hypothesis_reasoning": True,
             "probabilities_are_model_estimates": True,
+            "hypotheses_suppressed_without_verified_evidence": True,
             "verified_completed_bar_inputs_only": True,
             "market_data_fabricated": False,
             "dealer_inventory_fabricated": False,
