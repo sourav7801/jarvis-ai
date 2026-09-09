@@ -9,6 +9,22 @@ from omni.trading_intelligence.options_execution_intelligence_v151 import OPTION
 SERVICE_VERSION = "OPTIONS_RUNTIME_V15_1"
 
 
+def _explicitly_verified(raw: Mapping[str, Any]) -> bool:
+    provider = str(raw.get("provider") or "").strip().lower()
+    fyers_read_only = bool(
+        provider == "fyers_v3_optionchain"
+        and raw.get("read_only") is True
+        and raw.get("broker_order") is False
+        and raw.get("live_execution") is False
+        and raw.get("raw_response") is not None
+    )
+    return bool(
+        raw.get("verified") is True
+        or str(raw.get("data_quality") or "").upper() == "VERIFIED"
+        or fyers_read_only
+    )
+
+
 def _snapshot_from_provider(value: Any, *, underlying: str) -> tuple[OptionChainSnapshot | None, bool, str]:
     if isinstance(value, OptionChainSnapshot):
         return value, False, "PROVIDER_DID_NOT_EXPOSE_VERIFICATION_METADATA"
@@ -17,25 +33,26 @@ def _snapshot_from_provider(value: Any, *, underlying: str) -> tuple[OptionChain
     raw = dict(value)
     snapshot = raw.get("snapshot")
     if isinstance(snapshot, OptionChainSnapshot):
-        verified = raw.get("verified") is True or str(raw.get("data_quality") or "").upper() == "VERIFIED"
+        verified = _explicitly_verified(raw)
         return snapshot, verified, "VERIFIED_PROVIDER_SNAPSHOT" if verified else "OPTION_CHAIN_NOT_VERIFIED"
-    contracts = raw.get("contracts") or raw.get("rows") or raw.get("option_chain")
+    contracts = raw.get("contracts") or raw.get("rows") or raw.get("option_chain") or raw.get("legs")
     spot = raw.get("spot") or raw.get("underlying_price")
-    timestamp = raw.get("timestamp") or raw.get("generated_at")
+    timestamp = raw.get("timestamp") or raw.get("generated_at") or raw.get("captured_at")
     if not contracts or spot is None or timestamp is None:
         return None, False, "OPTION_CHAIN_FIELDS_UNAVAILABLE"
     try:
         normalized = normalize_option_chain(
             contracts,
-            underlying=str(raw.get("underlying") or underlying),
+            underlying=str(raw.get("underlying") or raw.get("symbol") or underlying),
             spot=float(spot),
             timestamp=str(timestamp),
-            expiry=raw.get("expiry"),
+            expiry=raw.get("expiry") or raw.get("selected_expiry"),
         )
     except Exception as exc:
         return None, False, f"OPTION_CHAIN_NORMALIZATION_FAILED:{type(exc).__name__}"
-    verified = raw.get("verified") is True or str(raw.get("data_quality") or "").upper() == "VERIFIED"
-    return normalized, verified, "VERIFIED_PROVIDER_SNAPSHOT" if verified else "OPTION_CHAIN_NOT_VERIFIED"
+    verified = _explicitly_verified(raw)
+    reason = "VERIFIED_FYERS_READ_ONLY_SNAPSHOT" if str(raw.get("provider") or "").lower() == "fyers_v3_optionchain" and verified else "VERIFIED_PROVIDER_SNAPSHOT" if verified else "OPTION_CHAIN_NOT_VERIFIED"
+    return normalized, verified, reason
 
 
 def _instrument_specs(snapshot: OptionChainSnapshot) -> dict[str, dict[str, Any]]:
@@ -186,10 +203,11 @@ def status() -> dict[str, Any]:
         "verified_chain_required_for_option_trade": True,
         "verified_lot_size_and_tick_size_required": True,
         "underlying_v15_reasoning_required": True,
+        "fyers_normalized_read_only_snapshot_supported": True,
         "paper_only": True,
         "live_execution": False,
         "automatic_broker_order": False,
     }
 
 
-__all__ = ["plan", "status", "SERVICE_VERSION"]
+__all__ = ["plan", "status", "SERVICE_VERSION", "_snapshot_from_provider"]
