@@ -4,7 +4,9 @@ import inspect
 from pathlib import Path
 import unittest
 
+from agents.fyers_data_adapter import _response_details
 from omni.agent_registry import default_agent_specs
+from omni.trading_intelligence.market_reasoning_v15 import AUTONOMOUS_MARKET_REASONING_V15
 from omni.trading_intelligence.option_chain_provider import ReadOnlyOptionChainProvider
 from omni.trading_intelligence.options_execution_intelligence_v151 import OPTIONS_EXECUTION_INTELLIGENCE_V151
 from scripts import jarvis_runtime_supervisor_v151 as runtime_v151
@@ -86,6 +88,7 @@ class V151RuntimeContracts(unittest.TestCase):
     def test_v151_ui_surfaces_are_loaded_after_v15(self):
         qhtml = (ROOT / "workstation" / "quant_terminal_v2_static" / "index.html").read_text(encoding="utf-8")
         qjs = (ROOT / "workstation" / "quant_terminal_v2_static" / "v151_options_execution_runtime.js").read_text(encoding="utf-8")
+        v15js = (ROOT / "workstation" / "quant_terminal_v2_static" / "v15_market_reasoning_runtime.js").read_text(encoding="utf-8")
         chtml = (ROOT / "workstation" / "completion_console_static" / "index.html").read_text(encoding="utf-8")
         cjs = (ROOT / "workstation" / "completion_console_static" / "v151_options_execution.js").read_text(encoding="utf-8")
         self.assertIn("v15_market_reasoning_runtime.js", qhtml)
@@ -95,6 +98,57 @@ class V151RuntimeContracts(unittest.TestCase):
         self.assertIn("v151_options_execution.js", chtml)
         for marker in ("LONG PREMIUM", "LIVE BROKER"):
             self.assertIn(marker, qjs)
+        for marker in ("HYPOTHESES SUPPRESSED", "DATA PROVIDER", "providerState"):
+            self.assertIn(marker, v15js)
+
+    def test_fyers_429_is_preserved_as_rate_limited_not_token_expired(self):
+        details = _response_details({"s": "error", "code": 429, "message": "Bad request"})
+        self.assertEqual(details["provider_code"], 429)
+        self.assertEqual(details["provider_state"], "RATE_LIMITED")
+        self.assertGreaterEqual(int(details["retry_after_seconds"]), 60)
+        self.assertIn("does not imply an expired token", details["message"])
+        source = (ROOT / "agents" / "fyers_data_adapter.py").read_text(encoding="utf-8")
+        for marker in (
+            "JARVIS_FYERS_DATA_GOVERNOR_V151",
+            "cross_process_serialization",
+            "_MIN_REQUEST_INTERVAL_SECONDS",
+            "_RATE_LIMIT_COOLDOWN_SECONDS",
+            "provider_cache_hit",
+            "market_data_fabricated",
+        ):
+            self.assertIn(marker, source)
+
+    def test_no_verified_market_evidence_suppresses_hypothesis_percentages(self):
+        reasoning = AUTONOMOUS_MARKET_REASONING_V15.reason(
+            {
+                "symbol": "NIFTY",
+                "profile": "5m_only",
+                "candidate_side": "WAIT",
+                "regime": "DATA UNAVAILABLE",
+                "evidence": [
+                    {
+                        "timeframe": "5m",
+                        "available": False,
+                        "source": "FYERS",
+                        "data_quality": "UNAVAILABLE",
+                        "provider_state": "RATE_LIMITED",
+                        "provider_code": 429,
+                        "retry_after_seconds": 65,
+                        "raw_bars": 0,
+                        "complete_bars": 0,
+                        "message": "FYERS data API rate limited (429).",
+                    }
+                ],
+            },
+            base_decision={"expected_value_r": 0.0},
+        )
+        self.assertFalse(reasoning["success"])
+        self.assertEqual(reasoning["hypotheses"], [])
+        self.assertIsNone(reasoning["dominant_hypothesis"])
+        self.assertTrue(reasoning["hypotheses_suppressed_no_verified_evidence"])
+        self.assertEqual(reasoning["provider_state"], "RATE_LIMITED")
+        self.assertEqual(reasoning["provider_code"], 429)
+        self.assertEqual(reasoning["market_belief"]["uncertainty"], 1.0)
 
     def test_permanent_agents_remain_29_with_critic(self):
         names = {spec.name for spec in default_agent_specs()}
