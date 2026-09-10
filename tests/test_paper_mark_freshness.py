@@ -12,39 +12,57 @@ from workstation.paper_trading_desk import PaperTradingDesk, live_mark_snapshot
 
 class PaperMarkFreshnessTests(unittest.TestCase):
     def test_fresh_verified_mark_is_exit_eligible(self):
+        now = datetime.now(timezone.utc).isoformat()
         payload = {
             "success": True,
-            "source": "FYERS",
+            "symbol": "BTC",
+            "source": "BINANCE_PUBLIC",
             "live_orders": False,
-            "snapshot": {"ltp": 101, "received_at": datetime.now(timezone.utc).isoformat()},
+            "snapshot": {
+                "ltp": 101,
+                "received_at": now,
+                "exchange_timestamp": now,
+            },
         }
         with patch("workstation.quant_terminal_v2.live_payload", return_value=payload):
-            result = live_mark_snapshot("NIFTY")
+            result = live_mark_snapshot("BTC")
         self.assertTrue(result["eligible_for_exit"])
         self.assertTrue(result["verified"])
         self.assertFalse(result["stale"])
 
     def test_stale_mark_carries_diagnostic_price_but_cannot_exit(self):
+        old = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
         payload = {
             "success": True,
-            "source": "FYERS",
+            "symbol": "BTC",
+            "source": "BINANCE_PUBLIC",
             "live_orders": False,
             "snapshot": {
                 "ltp": 90,
-                "received_at": (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat(),
+                "received_at": old,
+                "exchange_timestamp": old,
             },
         }
         with patch("workstation.quant_terminal_v2.live_payload", return_value=payload):
-            result = live_mark_snapshot("NIFTY", stale_after_seconds=30)
+            result = live_mark_snapshot("BTC", stale_after_seconds=30)
         self.assertEqual(result["mark"], 90)
         self.assertTrue(result["stale"])
         self.assertFalse(result["eligible_for_exit"])
         self.assertEqual(result["reason"], "STALE_MARK")
 
-    def test_missing_timestamp_fails_closed(self):
-        payload = {"success": True, "source": "FYERS", "live_orders": False, "snapshot": {"ltp": 100}}
+    def test_missing_received_timestamp_fails_closed_after_identity_validation(self):
+        payload = {
+            "success": True,
+            "symbol": "BTC",
+            "source": "BINANCE_PUBLIC",
+            "live_orders": False,
+            "snapshot": {
+                "ltp": 100,
+                "exchange_timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+        }
         with patch("workstation.quant_terminal_v2.live_payload", return_value=payload):
-            result = live_mark_snapshot("NIFTY")
+            result = live_mark_snapshot("BTC")
         self.assertFalse(result["verified"])
         self.assertFalse(result["eligible_for_exit"])
         self.assertEqual(result["reason"], "MARK_RECEIVED_TIMESTAMP_MISSING")
