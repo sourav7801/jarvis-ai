@@ -91,7 +91,7 @@ async function v16FetchChart(symbol, timeframe) {
         const envelope = await v16FetchJson(endpoint);
         if (!envelope.pending) {
             const payload = envelope.result || envelope;
-            if (!payload || payload.success === false || !(payload.candles || []).length) {
+            if (!payload || payload.success === false || !((payload.candles || payload.bars || []).length)) {
                 throw new Error(payload?.message || payload?.reason || "Verified candles unavailable");
             }
             V16_CHART_CACHE.set(key, {at: Date.now(), payload});
@@ -124,7 +124,8 @@ function v16ChartPane(slot, index) {
 
     const symbol = document.createElement("select");
     symbol.className = "v16ChartSymbol";
-    V16_CHART_SYMBOLS.forEach(name => {
+    const symbols = V16_CHART_SYMBOLS.includes(slot.symbol) ? V16_CHART_SYMBOLS : [slot.symbol, ...V16_CHART_SYMBOLS];
+    symbols.forEach(name => {
         const option = document.createElement("option");
         option.value = name;
         option.textContent = name;
@@ -166,8 +167,9 @@ function v16ChartPane(slot, index) {
 
     symbol.addEventListener("change", event => {
         event.stopPropagation();
+        const oldKey = `${chartSlots[index].symbol}|${chartSlots[index].timeframe}`;
         chartSlots[index] = {...chartSlots[index], symbol: symbol.value};
-        V16_CHART_CACHE.delete(`${slot.symbol}|${chartSlots[index].timeframe}`);
+        V16_CHART_CACHE.delete(oldKey);
         v16SyncPrimaryControls(chartSlots[index], index);
         persistWorkspace();
         v16LoadChart(index, true);
@@ -175,7 +177,9 @@ function v16ChartPane(slot, index) {
 
     timeframe.addEventListener("change", event => {
         event.stopPropagation();
+        const oldKey = `${chartSlots[index].symbol}|${chartSlots[index].timeframe}`;
         chartSlots[index] = {...chartSlots[index], timeframe: timeframe.value};
+        V16_CHART_CACHE.delete(oldKey);
         v16SyncPrimaryControls(chartSlots[index], index);
         persistWorkspace();
         v16LoadChart(index, true);
@@ -295,6 +299,34 @@ function v16InstallLayoutControls() {
     toolbar.appendChild(group);
 }
 
+function v16RewireMainNavigation() {
+    const buttons = [...document.querySelectorAll("#topbar nav button")];
+    const find = label => buttons.find(button => button.textContent.trim().toUpperCase() === label);
+    const bind = (label, action) => {
+        const button = find(label);
+        if (!button) return;
+        button.removeAttribute("onclick");
+        button.onclick = null;
+        button.addEventListener("click", event => {
+            event.preventDefault();
+            action();
+        });
+    };
+
+    bind("TRADING INTELLIGENCE", () => applyLayout("trading"));
+    bind("CHART TERMINAL", () => {
+        maximizeWindow("chart");
+        window.setTimeout(() => {
+            v16SetGridGeometry();
+            chartSlots.forEach((_, index) => v16LoadChart(index));
+        }, 80);
+    });
+    bind("QUANT", () => {
+        openWindow("quant");
+        focusWindow(document.getElementById("win-quant"));
+    });
+}
+
 function v16RenderHealthStrip(extra = {}) {
     let strip = document.getElementById("v16TradingHealth");
     const top = document.querySelector("#topbar .topStatus");
@@ -335,7 +367,17 @@ async function v16RefreshTradingHealth() {
     }
 }
 
+function v16RefreshVisibleCharts() {
+    if (document.hidden) return;
+    const chartWindow = document.getElementById("win-chart");
+    if (!chartWindow || chartWindow.style.display === "none") return;
+    chartSlots.forEach((_, index) => {
+        window.setTimeout(() => v16LoadChart(index), index * 100);
+    });
+}
+
 function v16InstallMainTradingRuntime() {
+    v16RewireMainNavigation();
     v16InstallLayoutControls();
     let preferred = chartSlots.length;
     try {
@@ -346,6 +388,7 @@ function v16InstallMainTradingRuntime() {
     v16RenderHealthStrip({service: "CHECKING", paper_only: true, live_execution: false});
     v16RefreshTradingHealth();
     window.setInterval(v16RefreshTradingHealth, 5000);
+    window.setInterval(v16RefreshVisibleCharts, 15000);
     window.addEventListener("resize", () => {
         v16SetGridGeometry();
         chartSlots.forEach((_, index) => {
