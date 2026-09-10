@@ -1,0 +1,148 @@
+/* JARVIS V16 main-workstation trading enhancements. Appended by V16 bridge. */
+
+.v16TradingHealth {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 520px;
+    overflow: hidden;
+}
+
+.v16TradingHealth span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 23px;
+    padding: 0 7px;
+    border: 1px solid rgba(91, 212, 255, .15);
+    border-radius: 999px;
+    background: rgba(3, 14, 21, .82);
+    font-size: 7px;
+    letter-spacing: .7px;
+    white-space: nowrap;
+}
+
+.v16TradingHealth .ok { color: var(--green); border-color: rgba(111, 245, 170, .22); }
+.v16TradingHealth .wait { color: var(--cyan); }
+.v16TradingHealth .bad { color: var(--red); border-color: rgba(255, 102, 119, .28); }
+
+.v16LayoutControls {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: auto;
+    padding: 3px;
+    border: 1px solid rgba(109, 225, 255, .14);
+    border-radius: 7px;
+    background: rgba(1, 8, 13, .72);
+}
+
+.v16LayoutControls > span {
+    color: var(--muted);
+    font-size: 7px;
+    letter-spacing: .8px;
+    padding: 0 4px;
+}
+
+.v16LayoutControls button {
+    width: 24px;
+    min-width: 24px;
+    height: 24px;
+    padding: 0;
+    font-size: 8px;
+}
+
+.v16LayoutControls button.selected {
+    color: #fff;
+    border-color: var(--cyan);
+    background: linear-gradient(180deg, rgba(16, 86, 111, .82), rgba(4, 27, 39, .92));
+    box-shadow: 0 0 13px rgba(71, 211, 255, .14);
+}
+
+#chartGrid.v16ChartGrid {
+    flex: 1;
+    display: grid;
+    gap: 5px;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.v16ChartPane {
+    min-width: 0;
+    min-height: 94px;
+    position: relative;
+    display: grid;
+    grid-template-rows: 28px minmax(0, 1fr);
+    border-color: rgba(81, 188, 229, .17);
+}
+
+.v16ChartPane.selected {
+    border-color: rgba(109, 225, 255, .78);
+    box-shadow: inset 0 0 0 1px rgba(109, 225, 255, .09), 0 0 16px rgba(50, 190, 238, .08);
+}
+
+.v16ChartPaneHead {
+    display: grid;
+    grid-template-columns: minmax(86px, 1fr) 58px auto;
+    gap: 4px;
+    align-items: center;
+    padding: 3px 5px;
+    background: linear-gradient(180deg, rgba(10, 37, 50, .92), rgba(4, 19, 27, .92));
+    border-bottom: 1px solid rgba(80, 192, 232, .12);
+    z-index: 2;
+}
+
+.v16ChartPaneHead select {
+    min-width: 0;
+    height: 21px;
+    padding: 1px 4px;
+    color: #dff8ff;
+    border: 1px solid rgba(109, 225, 255, .18);
+    border-radius: 4px;
+    background: #031018;
+    font-size: 7px;
+}
+
+.v16ChartProvider {
+    justify-self: end;
+    color: var(--green);
+    font-size: 6px;
+    letter-spacing: .5px;
+    white-space: nowrap;
+}
+
+.v16ChartProvider.degraded { color: var(--amber); }
+
+.v16ChartPane .chartCanvas {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 28px;
+    bottom: 0;
+    width: 100%;
+    height: calc(100% - 28px);
+}
+
+.v16ChartPane .chartStatus {
+    left: 7px;
+    bottom: 5px;
+    right: 7px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+    text-shadow: 0 1px 2px #000;
+}
+
+.chartWindow.maximized .v16ChartPane { min-height: 120px; }
+
+@media (max-width: 1350px) {
+    .topStatus { gap: 5px; }
+    .v16TradingHealth span:nth-child(n+4) { display: none; }
+    .v16LayoutControls { width: 100%; margin-left: 0; }
+}
+
+@media (max-width: 980px) {
+    .v16TradingHealth { display: none; }
+    .v16ChartPaneHead { grid-template-columns: minmax(70px, 1fr) 48px; }
+    .v16ChartProvider { display: none; }
+}
