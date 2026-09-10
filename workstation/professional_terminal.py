@@ -311,6 +311,221 @@ class TerminalRuntime:
                 "cache": MARKET_CACHE.status(), "data_bridge": dict(LIVE_BRIDGE_STARTUP), "reconciliation": self._reconciliation, "csrf_token": self.token,
                 "generated_at": datetime.now(timezone.utc).isoformat(), "paper_only": True, "live_execution": False}
 
+    def workspace_state(self, name="INTRADAY"):
+        """One response = one consistent truth (blueprint section 10).
+
+        Every panel the terminal renders reads from this single payload, so no
+        two panels can disagree about capital, positions or data health. The
+        legacy per-panel endpoints remain as compatibility shims over the same
+        runtime, but the terminal itself consumes only this.
+        """
+
+        from omni.trading_intelligence.v16_market_bus import MARKET_BUS
+        from workstation import v16_trading_stages as stages
+
+        if name not in accounts.WORKSPACES:
+            raise ValueError("Unknown workspace")
+        state = self.snapshot(name)
+        with self._lock:
+            marks = dict(self._marks)
+        account = state["account"]
+
+        scan_summary = stages.summarise(state["scan"]["rows"])
+        watchlist = []
+        for symbol in account["settings"]["symbols"]:
+            certificate = marks.get(symbol) or {}
+            watchlist.append(
+                {
+                    "symbol": symbol,
+                    "mark": certificate.get("mark"),
+                    "provider": certificate.get("provider"),
+                    "verified": bool(certificate.get("verified")),
+                    "eligible_for_entry": bool(certificate.get("eligible_for_entry")),
+                    "eligible_for_exit": bool(certificate.get("eligible_for_exit")),
+                    "age_seconds": certificate.get("age_seconds"),
+                    "reason": certificate.get("reason"),
+                    "held": any(p["symbol"] == symbol for p in account["positions"]),
+                }
+            )
+
+        positions = [self._position_view(p, marks.get(p["symbol"]) or {}) for p in account["positions"]]
+        proposed = next((c for c in scan_summary["candidates"] if c["stage"] == "ACTIONABLE"), None)
+        if proposed is None:
+            proposed = next((c for c in scan_summary["candidates"] if c.get("entry")), None)
+
+        return {
+            "success": True,
+            "service": "JARVIS_V16_TRADING_WORKSPACE_STATE",
+            "version": "16.0",
+            "workspace": name,
+            "generated_at": state["generated_at"],
+            "session": {
+                "state": state["state"],
+                "entry_session": state["entry_session"],
+                "reason": state["status_reason"],
+                "scanning": state["scan"]["scanning"],
+                "scan_cycles": state["scan"]["cycles"],
+                "reconciliation_ok": state["reconciliation"]["success"],
+                "paper_only": True,
+                "live_execution": False,
+            },
+            "capital": {
+                "equity": account.get("equity"),
+                "starting_capital": account.get("starting_capital"),
+                "allocation": account.get("allocation"),
+                "committed_capital": account.get("committed_capital"),
+                "available_capital": account.get("available_capital"),
+                "open_risk": account.get("open_risk"),
+                "capital_at_risk": account.get("open_risk"),
+                "unbooked_entry_fees": account.get("unbooked_entry_fees"),
+                "realized_pnl": account.get("realized_pnl"),
+                "unrealized_pnl": account.get("unrealized_pnl"),
+                "daily_pnl": account.get("daily_pnl"),
+                "daily_loss_limit": self._daily_loss_limit(account),
+            },
+            "accounts": state["accounts"],
+            "market_data": {
+                "bridge": state["data_bridge"],
+                "providers": self._provider_health(marks),
+                "cache": state["cache"],
+                "bus": MARKET_BUS.status(),
+                "marks": marks,
+            },
+            "watchlist": watchlist,
+            "selected_instrument": (proposed or {}).get("symbol") or (watchlist[0]["symbol"] if watchlist else None),
+            "chart": {
+                "symbol": (proposed or {}).get("symbol") or (watchlist[0]["symbol"] if watchlist else None),
+                "timeframe": account["settings"].get("timeframe", "5m"),
+                "layouts": account["settings"].get("chart_layouts"),
+            },
+            "proposed_setup": proposed,
+            "positions": positions,
+            "orders": state["orders"],
+            "scan_decisions": {
+                **scan_summary,
+                "rejections": state["scan"]["rejections"],
+            },
+            "risk": self._risk_view(account, positions),
+            "execution_trace": {
+                "stages": list(stages.PROGRESS_STAGES),
+                "rejections": list(stages.REJECTION_STAGES),
+                "rows": scan_summary["candidates"][:50],
+                "monitor": state["monitor"],
+            },
+            "performance": state["performance"],
+            "history": state["history"],
+            "notes": state["notes"],
+            "csrf_token": state["csrf_token"],
+            "paper_only": True,
+            "live_execution": False,
+        }
+
+    def _daily_loss_limit(self, account):
+        try:
+            percent = float(account["settings"].get("daily_loss_limit_pct", 0) or 0)
+        except (TypeError, ValueError):
+            return None
+        starting = account.get("starting_capital") or 0
+        return starting * percent / 100.0 if percent > 0 else None
+
+    def _provider_health(self, marks):
+        """Distinguish rate limiting from token expiry (blueprint section 4)."""
+
+        providers: dict[str, dict] = {}
+        for certificate in marks.values():
+            provider = certificate.get("provider") or "UNKNOWN"
+            entry = providers.setdefault(provider, {"state": "LIVE", "verified": 0, "blocked": 0, "retry_after_seconds": None, "reason": None})
+            if certificate.get("verified"):
+                entry["verified"] += 1
+                continue
+            entry["blocked"] += 1
+            reason = certificate.get("reason") or "DATA_UNAVAILABLE"
+            if reason in {"MARKET_DATA_RATE_LIMITED", "RATE_LIMITED"}:
+                entry["state"] = "RATE_LIMITED"
+                entry["retry_after_seconds"] = certificate.get("retry_after_seconds")
+            elif reason in {"MARKET_DATA_LOGIN_REQUIRED", "LOGIN_REQUIRED", "TOKEN_EXPIRED"}:
+                entry["state"] = "LOGIN_REQUIRED"
+            elif entry["state"] == "LIVE":
+                entry["state"] = "DEGRADED"
+            entry["reason"] = reason
+        return providers
+
+    def _position_view(self, position, certificate):
+        from workstation import v16_trading_stages as stages
+
+        metadata = position.get("metadata") or {}
+        return {
+            **position,
+            "mark_verified": bool(certificate.get("verified")),
+            "mark_reason": certificate.get("reason"),
+            "mark_age_seconds": certificate.get("age_seconds"),
+            "management_actions": self.position_actions(position, certificate),
+            "journal_complete": bool(position.get("closed_at")) and bool(metadata.get("exit_reason")),
+            "stage": "POSITION_CLOSED" if position.get("status") == "CLOSED" else "POSITION_MANAGED",
+            "stage_vocabulary": list(stages.PROGRESS_STAGES),
+        }
+
+    def position_actions(self, position, certificate):
+        """Advisory management intents (blueprint section 14).
+
+        This reports what the evidence permits; it does not itself act. Every
+        action it names is still executed through the Paper Desk, which remains
+        the single risk authority, and every resulting change is journalled.
+        """
+
+        actions: list[dict] = [{"action": "HOLD", "reason": "Position open within plan"}]
+        if not certificate.get("eligible_for_exit"):
+            actions.append({"action": "HOLD", "reason": "Mark unverified; no exit simulated on stale data"})
+            return actions
+        entry, stop, mark = position.get("entry"), position.get("stop"), certificate.get("mark")
+        try:
+            entry, stop, mark = float(entry), float(stop), float(mark)
+        except (TypeError, ValueError):
+            return actions
+        risk = abs(entry - stop)
+        if risk <= 0:
+            return actions
+        favorable = (mark - entry) if str(position.get("side", "")).upper() in {"BUY", "LONG"} else (entry - mark)
+        achieved = favorable / risk if risk else 0.0
+        if achieved >= 1.0:
+            actions.append({"action": "MOVE_STOP", "reason": "1R achieved; reduce open risk to breakeven or better"})
+            actions.append({"action": "BREAKEVEN", "reason": "Move stop to entry once 1R is realized"})
+        if achieved >= 1.5:
+            actions.append({"action": "TRAIL", "reason": "Trail stop behind confirmed structure"})
+            actions.append({"action": "PARTIAL_EXIT", "reason": "Scale out a portion after 1.5R"})
+        if achieved <= -1.0:
+            actions.append({"action": "EXIT", "reason": "Adverse excursion reached planned stop distance"})
+        if position.get("target") is not None:
+            actions.append({"action": "REDUCE", "reason": "Reduce into target T1 as planned"})
+        actions.append({"action": "TIME_EXIT", "reason": "Intraday positions exit at session boundary"})
+        return actions
+
+    def _risk_view(self, account, positions):
+        """Per-trade risk breakdown (blueprint section 13)."""
+
+        settings = account["settings"]
+        starting = account.get("starting_capital") or 0
+        try:
+            per_trade_pct = float(settings.get("risk_per_trade_pct", 0) or 0)
+        except (TypeError, ValueError):
+            per_trade_pct = 0.0
+        base_risk = starting * per_trade_pct / 100.0
+        allowed = sum(p.get("capital_at_risk") or 0 for p in positions)
+        return {
+            "base_risk": base_risk,
+            "risk_per_trade_pct": per_trade_pct,
+            "open_risk": account.get("open_risk"),
+            "open_positions": len(positions),
+            "max_positions": settings.get("max_positions"),
+            "concentration_limit_pct": settings.get("concentration_pct"),
+            "daily_loss_limit": self._daily_loss_limit(account),
+            "allocated_capital": account.get("committed_capital"),
+            "available_capital": account.get("available_capital"),
+            "utilization": allowed / base_risk if base_risk > 0 else None,
+            "confidence_is_calibrated": False,
+            "confidence_note": "Confidence is not a probability. Risk is modified by evidence quality, regime fit, volatility, liquidity and correlation.",
+        }
+
     def job(self, key, loader, ttl=10):
         with self._lock:
             item = self._jobs.get(key)
