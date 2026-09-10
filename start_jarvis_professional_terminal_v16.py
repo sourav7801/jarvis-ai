@@ -18,7 +18,8 @@ os.environ["JARVIS_V12_AUTO_PAPER_START"] = "0"
 
 from workstation import quant_terminal_v2 as trading_app
 from workstation import terminal_data
-from workstation.professional_terminal import TerminalHTTPServer, TerminalRuntime, build_handler
+from workstation.professional_terminal import TerminalHTTPServer, TerminalRuntime
+from workstation.v16_terminal_http import build_handler
 
 import start_jarvis_quant_terminal as lineage
 
@@ -88,6 +89,7 @@ def main() -> int:
         print("JARVIS V16 PROFESSIONAL PAPER TERMINAL CONVERGENCE")
         print("=" * 72)
         print(f"Terminal: {url}")
+        print(f"Canonical state: {url}/api/v16/trading/workspace-state?workspace=INTRADAY")
         print("Workspaces: INTRADAY / SWING / INVESTMENT")
         print("Sessions: explicit START/PAUSE; saved positions remain monitored")
         print("Data: verified provider data only; invalid/stale data blocks new entries")
