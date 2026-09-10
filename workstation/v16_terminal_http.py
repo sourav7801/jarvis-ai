@@ -1,9 +1,9 @@
 """V16 HTTP convergence layer for the professional paper terminal.
 
-The V15/V16 professional terminal remains the runtime authority. This module
-only exposes its canonical ``workspace_state`` snapshot on the V16 route while
-leaving the existing ``/api/terminal/*`` endpoints available as compatibility
-shims. It never places broker orders and never creates a second trading engine.
+The professional terminal remains the runtime authority. This module exposes
+its canonical ``workspace_state`` snapshot on the V16 route while leaving the
+existing ``/api/terminal/*`` endpoints available as compatibility shims. It
+never places broker orders and never creates a second trading engine.
 """
 from __future__ import annotations
 
@@ -21,6 +21,13 @@ def build_handler(base, runtime):
     CompatHandler = build_compat_handler(base, runtime)
 
     class V16TerminalHandler(CompatHandler):
+        def send_json(self, payload, status=200):
+            """A browser tab disappearing is not a trading-runtime failure."""
+            try:
+                return super().send_json(payload, status)
+            except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
+                return None
+
         def do_GET(self):
             parsed = urllib.parse.urlparse(self.path)
             if parsed.path != CANONICAL_WORKSPACE_STATE_PATH:
