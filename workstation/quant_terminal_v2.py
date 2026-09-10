@@ -18,6 +18,7 @@ from typing import Any
 
 from omni.loopback_http import exclusive_server
 from omni.service_health_contract import ServiceHealthClock
+from workstation.terminal_data import shared_read
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 STATIC = PROJECT_ROOT / "workstation" / "quant_terminal_v2_static"
@@ -65,6 +66,9 @@ CONSENSUS_MIN_ALIGNMENT = 67
 CONSENSUS_MIN_RISK_REWARD = 1.8
 
 _LIVE_BRIDGE_PROCESS: subprocess.Popen | None = None
+_LIVE_BRIDGE_LOCK = threading.Lock()
+_LIVE_BRIDGE_RETRY_AT = 0.
+LIVE_BRIDGE_STARTUP = {"state": "NOT_STARTED", "error": None}
 _QUOTE_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
 _QUOTE_CACHE_LOCK = threading.RLock()
 HEALTH = ServiceHealthClock("JARVIS_QUANT_TERMINAL", "5.0")
@@ -395,6 +399,7 @@ def _crypto_candles(symbol: str, timeframe: str, bars: int) -> dict[str, Any]:
         }
 
 
+@shared_read(10.)
 def candles_payload(symbol: str, timeframe: str = "5m", bars: int = 500) -> dict[str, Any]:
     canonical = normalize_symbol(symbol)
     resolved_timeframe = normalize_timeframe(timeframe)
@@ -461,6 +466,29 @@ def _port_open(host: str, port: int) -> bool:
 
 
 def start_live_bridge() -> bool:
+    global _LIVE_BRIDGE_RETRY_AT
+    if _port_open(LIVE_BRIDGE_HOST, LIVE_BRIDGE_PORT):
+        LIVE_BRIDGE_STARTUP.update(state="AVAILABLE", error=None)
+        return True
+    if time.monotonic() < _LIVE_BRIDGE_RETRY_AT or not _LIVE_BRIDGE_LOCK.acquire(blocking=False):
+        return False
+    try:
+        _LIVE_BRIDGE_RETRY_AT = time.monotonic() + 30
+        if _LIVE_BRIDGE_PROCESS is not None and _LIVE_BRIDGE_PROCESS.poll() is None:
+            LIVE_BRIDGE_STARTUP.update(state="STARTING_OR_RECONNECTING")
+            return False
+        LIVE_BRIDGE_STARTUP.update(state="STARTING", error=None)
+        result = _start_live_bridge_unlocked()
+        LIVE_BRIDGE_STARTUP.update(state="AVAILABLE" if result else "UNAVAILABLE", error=None if result else "FYERS environment, login or bridge unavailable; see data/logs/fyers_bridge.log")
+        return result
+    except Exception as exc:
+        LIVE_BRIDGE_STARTUP.update(state="UNAVAILABLE", error=type(exc).__name__)
+        return False
+    finally:
+        _LIVE_BRIDGE_LOCK.release()
+
+
+def _start_live_bridge_unlocked() -> bool:
     global _LIVE_BRIDGE_PROCESS
     if _port_open(LIVE_BRIDGE_HOST, LIVE_BRIDGE_PORT):
         return True
@@ -477,13 +505,16 @@ def start_live_bridge() -> bool:
             getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
         )
     try:
-        _LIVE_BRIDGE_PROCESS = subprocess.Popen(
-            [str(python), "-m", "workstation.fyers_live_bridge_service"],
-            cwd=str(PROJECT_ROOT),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            creationflags=flags,
-        )
+        log_path = PROJECT_ROOT / "data/logs/fyers_bridge.log"
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        if log_path.exists() and log_path.stat().st_size > 5_000_000:
+            log_path.replace(log_path.with_suffix(".previous.log"))
+        with log_path.open("ab") as log:
+            _LIVE_BRIDGE_PROCESS = subprocess.Popen(
+                [str(python), "-m", "workstation.fyers_live_bridge_service"],
+                cwd=str(PROJECT_ROOT), stdout=log, stderr=subprocess.STDOUT,
+                creationflags=flags,
+            )
     except Exception:
         return False
 
@@ -543,6 +574,7 @@ def provider_health_state(provider: dict[str, Any]) -> tuple[bool, str | None]:
     return ready, str(error)[:500] if error else None
 
 
+@shared_read(1.)
 def live_payload(symbol: str) -> dict[str, Any]:
     canonical = normalize_symbol(symbol)
     if canonical in CRYPTO_SYMBOLS:
@@ -559,6 +591,7 @@ def live_payload(symbol: str) -> dict[str, Any]:
                     "change": float(ticker["priceChange"]),
                     "change_percent": float(ticker["priceChangePercent"]),
                     "volume": float(ticker["volume"]),
+                    "exchange_timestamp": ticker.get("closeTime"),
                     "received_at": datetime.now(timezone.utc).isoformat(),
                 },
                 "live_orders": False,
@@ -635,7 +668,8 @@ def live_payload(symbol: str) -> dict[str, Any]:
     try:
         from agents.fyers_data_adapter import get_quote
 
-        quote = get_quote(bridge_symbol)
+        bridged_quote = _bridge_request("/api/quote?" + urllib.parse.urlencode({"symbol": bridge_symbol}), timeout=2.5)
+        quote = bridged_quote if bridged_quote is not None else get_quote(bridge_symbol)
         if quote.get("success"):
             result = {
                 "success": True,
@@ -729,9 +763,18 @@ def _atr(candles: list[dict[str, Any]], period: int = 14) -> float | None:
     return sum(true_ranges) / len(true_ranges) if true_ranges else None
 
 
+@shared_read(8.)
 def _timeframe_evidence(symbol: str, timeframe: str) -> dict[str, Any]:
     payload = candles_payload(symbol, timeframe, 220)
     raw_candles = list(payload.get("candles") or [])
+    from workstation.terminal_data import validate_candles
+    error = validate_candles(raw_candles, _TIMEFRAME_SECONDS.get(timeframe, 300))
+    if error:
+        return {"timeframe": timeframe, "available": False, "message": error, "source": payload.get("source"), "complete_bars": 0}
+    from workstation.terminal_data import validate_candles
+    invalid = validate_candles(raw_candles, _TIMEFRAME_SECONDS.get(normalize_timeframe(timeframe), 300))
+    if invalid:
+        return {"timeframe": timeframe, "available": False, "message": invalid, "source": payload.get("source"), "data_quality": "INVALID", "raw_bars": len(raw_candles), "complete_bars": 0}
     candles = completed_candles(raw_candles, timeframe)
     if not payload.get("success") or len(candles) < 55:
         return {

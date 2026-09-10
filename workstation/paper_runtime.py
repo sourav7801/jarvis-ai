@@ -322,7 +322,15 @@ class PaperTradingRuntime:
                 "No validated market-data price is available. Paper orders wait for a connected read-only feed."
             )
         with self._lock:
+            from workstation.terminal_ledger_guard import terminal_controls
+            existing = self.broker.positions.get(normalized)
+            reducing = existing and direction == ("SELL" if existing.side == "LONG" else "BUY") and size <= existing.quantity
+            if terminal_controls(self.state_file):
+                if not reducing:
+                    raise RuntimeError("TERMINAL_CAPITAL_AUTHORITY: start the appropriate terminal workspace; legacy records permit reductions and exits only.")
             self._update_broker_price(normalized, _number(live_price))
+            if reducing and normalized not in self.broker.positions:
+                return {"ok": True, "paper_only": True, "result": {"success": True, "action": "CLOSE", "reason": "PROTECTIVE_EXIT_ALREADY_FILLED"}, "state": self.public_state()}
             result = (
                 self.broker.buy(
                     normalized,

@@ -215,7 +215,7 @@ def _live_entry(candidate: dict[str, Any]) -> tuple[float | None, str | None]:
     decision_entry = float(candidate["entry"])
     mark = live_mark_loader(str(candidate.get("symbol") or ""))
     if mark is None:
-        return decision_entry, None
+        return None, "LIVE_MARK_UNAVAILABLE"
 
     mark = float(mark)
     if decision_entry <= 0 or mark <= 0:

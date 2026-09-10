@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import threading
+import math
 from typing import Any, Iterable, Mapping
 
 
@@ -78,7 +79,7 @@ class PaperPortfolioController:
         normalized = {str(key).upper(): float(value) for key, value in allocations.items()}
         if set(normalized) != set(DEFAULT_ALLOCATIONS):
             raise ValueError("allocations must contain INTRADAY, SWING and INVESTMENT")
-        if any(value <= 0.0 or value > 1.0 for value in normalized.values()):
+        if any(not math.isfinite(value) or value <= 0.0 or value > 1.0 for value in normalized.values()):
             raise ValueError("each allocation must be greater than zero and at most one")
         if abs(sum(normalized.values()) - 1.0) > 1e-9:
             raise ValueError("portfolio allocations must total exactly one")
@@ -105,7 +106,7 @@ class PaperPortfolioController:
             allocation = self.allocations[normalized]
         if engine is None:
             raise RuntimeError(f"{normalized} paper engine is unavailable")
-        sides = ("LONG",) if normalized == "INVESTMENT" else ("LONG", "SHORT")
+        sides = ("LONG",) if normalized == "INVESTMENT" or (normalized == "SWING" and getattr(self, "professional_sessions", False)) else ("LONG", "SHORT")
         engine.configure_mandate(normalized, allocation, sides)
         profile = (
             "adaptive_intraday"

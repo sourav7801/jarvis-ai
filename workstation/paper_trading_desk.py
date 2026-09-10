@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 import json
 import math
+import os
 import re
 import sqlite3
 import threading
@@ -23,7 +24,7 @@ from workstation.paper_instrument_accounting import (
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DB_PATH = PROJECT_ROOT / "data" / "trading" / "paper_desk.sqlite3"
+DB_PATH = Path(os.getenv("JARVIS_PAPER_DB", str(PROJECT_ROOT / "data/trading/paper_desk.sqlite3"))).expanduser()
 DEFAULT_EQUITY = 100000.0
 
 
@@ -34,7 +35,7 @@ def _now() -> str:
 def _f(value: Any, default: float = 0.0) -> float:
     try:
         number = float(value)
-        return number if number == number else default
+        return number if math.isfinite(number) else default
     except (TypeError, ValueError):
         return default
 
@@ -151,6 +152,7 @@ class PaperTradingDesk:
             if str(symbol).strip() and str(cluster).strip()
         }
         self._lock = threading.RLock()
+        self._transaction = threading.local()
         self._ensure_schema()
 
     @property
@@ -167,14 +169,24 @@ class PaperTradingDesk:
 
     @contextmanager
     def _connection(self):
+        # Re-entrant operations (risk snapshot, partials and exits) must share
+        # the admission transaction. SQLite, not a process-local RLock, owns
+        # cross-process serialization.
+        active = getattr(self._transaction, "connection", None)
+        if active is not None:
+            yield active
+            return
         connection = self._connect()
         try:
+            connection.execute("BEGIN IMMEDIATE")
+            self._transaction.connection = connection
             yield connection
             connection.commit()
         except Exception:
             connection.rollback()
             raise
         finally:
+            self._transaction.connection = None
             connection.close()
 
     def _ensure_schema(self) -> None:
@@ -222,10 +234,18 @@ class PaperTradingDesk:
             )
 
     def _event(self, conn: sqlite3.Connection, position_id: int | None, event_type: str, payload: dict[str, Any]) -> None:
-        conn.execute(
+        cursor = conn.execute(
             "INSERT INTO paper_events(position_id,event_type,created_at,payload_json) VALUES(?,?,?,?)",
             (position_id, event_type, _now(), json.dumps(payload, default=str, sort_keys=True)),
         )
+        if event_type in {"CLOSE", "SCALE_OUT"}:
+            from workstation import workspace_accounts as accounts
+            if accounts.enabled(conn):
+                position = conn.execute("SELECT * FROM paper_positions WHERE id=?", (position_id,)).fetchone()
+                meta = self._metadata(position)
+                conn.execute("INSERT INTO terminal_orders(workspace,external_id,position_id,status,reason,created_at,payload_json,kind) VALUES(?,?,?,?,?,?,?,?)",
+                             (accounts.workspace(meta.get("portfolio_bucket")), f"exit:{position_id}:{cursor.lastrowid}", position_id, "FILLED", payload.get("reason") or meta.get("exit_reason") or event_type, _now(),
+                              json.dumps({**payload, "symbol": position["symbol"], "side": "SELL" if position["side"] == "LONG" else "BUY"}, default=str), event_type))
 
     @staticmethod
     def _pnl(side: str, entry: float, mark: float, quantity: float) -> float:
@@ -233,10 +253,11 @@ class PaperTradingDesk:
         return (mark - entry) * direction * quantity
 
     @staticmethod
-    def _risk_at_stop(entry: float, stop: float | None, quantity: float) -> float:
+    def _risk_at_stop(entry: float, stop: float | None, quantity: float, side: str | None = None) -> float:
         if stop is None:
             return 0.0
-        return abs(entry - stop) * quantity
+        distance = (entry - stop) * (1 if side == "LONG" else -1) if side else abs(entry - stop)
+        return max(0., distance) * quantity
 
     def _realized_pnl(self, conn: sqlite3.Connection) -> float:
         """Total booked P&L: closed trades plus partials banked on open ones.
@@ -392,6 +413,12 @@ class PaperTradingDesk:
         return metadata
 
     def snapshot(self, mark_loader: Callable[[str], float | None] | None = None) -> dict[str, Any]:
+        # Never perform provider I/O while holding the ledger transaction.
+        fetched_marks = {}
+        if mark_loader is not None:
+            with self._lock, self._connection() as conn:
+                symbols = {str(row["symbol"]) for row in self._open_rows(conn)}
+            fetched_marks = {symbol: self._mark_for_symbol(symbol, mark_loader) for symbol in symbols}
         with self._lock, self._connection() as conn:
             rows = self._open_rows(conn)
             realized = self._realized_pnl(conn)
@@ -414,9 +441,9 @@ class PaperTradingDesk:
                 position_multiplier = accounting["position_multiplier"]
                 entry = _f(row["entry"])
                 quantity = _f(row["quantity"])
-                mark = self._mark_for_symbol(str(row["symbol"]), mark_loader)
+                mark = fetched_marks.get(str(row["symbol"]))
                 if mark is None:
-                    mark = entry
+                    mark = _f(row_metadata.get("last_mark"), entry)
                 side = str(row["side"])
                 pnl = (
                     self._pnl(side, entry, mark, quantity) * position_multiplier
@@ -427,6 +454,7 @@ class PaperTradingDesk:
                     entry,
                     _f(row["stop"]) if row["stop"] is not None else None,
                     quantity,
+                    side,
                 ) * position_multiplier
                 unrealized += pnl
                 gross += notional
@@ -562,7 +590,29 @@ class PaperTradingDesk:
                 "live_execution": False,
             }
 
-    def open_position(
+    def open_position(self, **request) -> dict[str, Any]:
+        from workstation import workspace_accounts as accounts
+
+        with self._lock, self._connection() as conn:
+            controlled = accounts.enabled(conn)
+            if not controlled:
+                return self._open_position(**request)
+            key = request.get("external_id")
+            if key:
+                existing = conn.execute("SELECT id FROM paper_positions WHERE external_id=?", (key,)).fetchone()
+                if existing:
+                    return {"success": True, "reason": "ALREADY_RECORDED", "position_id": existing["id"], "paper_only": True, "live_execution": False}
+            call, admission = accounts.plan_admission(self, conn, request)
+            result = self._open_position(**call) if admission.get("success") else admission
+            if admission.get("sizing"):
+                result["sizing"] = admission["sizing"]
+            conn.execute("INSERT INTO terminal_orders(workspace,external_id,position_id,status,reason,created_at,payload_json) VALUES(?,?,?,?,?,?,?)",
+                         (accounts.workspace(request.get("portfolio_bucket")), key, result.get("position_id"),
+                          "FILLED" if result.get("success") else "REJECTED", result.get("reason", "UNKNOWN"), _now(),
+                          json.dumps({"symbol": request.get("symbol"), "side": request.get("side"), **result}, default=str)))
+            return result
+
+    def _open_position(
         self,
         *,
         symbol: str,
@@ -858,7 +908,6 @@ class PaperTradingDesk:
                     "cost_model_status": cost_status,
                 },
             )
-            conn.commit()
 
         return {
             "success": True,
@@ -1149,7 +1198,6 @@ class PaperTradingDesk:
                     "reason": reason,
                 },
             )
-            conn.commit()
 
         try:
             from omni.trading_intelligence.trade_learning_engine import learning_engine
@@ -1239,6 +1287,14 @@ class PaperTradingDesk:
         marks: dict[str, float],
         *,
         now: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        # Keep rung bookkeeping, partial reductions and full exits in one
+        # transaction so a crash cannot acknowledge an unexecuted scale-out.
+        with self._lock, self._connection():
+            return self._manage_positions(marks, now=now)
+
+    def _manage_positions(
+        self, marks: dict[str, float], *, now: datetime | None = None,
     ) -> list[dict[str, Any]]:
         """Apply bounded synthetic exit policy, then fixed stop/target checks.
 
@@ -1625,77 +1681,25 @@ class PaperTradingDesk:
 
 def live_mark_loader(symbol: str) -> float | None:
     certificate = live_mark_snapshot(symbol)
-    return float(certificate["mark"]) if certificate.get("success") else None
+    return float(certificate["mark"]) if certificate.get("eligible_for_entry") else None
 
 
-def live_mark_snapshot(symbol: str, *, stale_after_seconds: float = 90.0) -> dict[str, Any]:
-    """Return a read-only mark plus provenance/freshness qualification.
-
-    A stale certificate may still carry the last observed mark for diagnostics,
-    but callers must require ``eligible_for_exit`` before managing positions.
-    """
-
+def live_mark_snapshot(symbol: str, *, stale_after_seconds: float = 30.0) -> dict[str, Any]:
+    """Exchange and receive timestamps both qualify read-only marks."""
+    from workstation.terminal_data import quote_certificate
+    from workstation.quant_terminal_v2 import live_payload
     try:
-        from workstation.quant_terminal_v2 import live_payload
-
-        payload = live_payload(symbol)
-        snapshot = payload.get("snapshot") if isinstance(payload, dict) else None
-        if not payload.get("success") or not isinstance(snapshot, dict):
-            raise ValueError(str(payload.get("message") or "market snapshot unavailable"))
-        mark = _f(snapshot.get("ltp"))
-        if mark <= 0:
-            raise ValueError("market snapshot did not contain a valid mark")
-        received_raw = snapshot.get("received_at") or payload.get("received_at")
-        if not received_raw:
-            return {
-                "success": True,
-                "mark": mark,
-                "symbol": str(symbol).upper(),
-                "provider": payload.get("source") or snapshot.get("source"),
-                "received_at": None,
-                "age_seconds": None,
-                "verified": False,
-                "stale": True,
-                "eligible_for_exit": False,
-                "reason": "MARK_RECEIVED_TIMESTAMP_MISSING",
-                "paper_only": True,
-                "live_execution": False,
-            }
-        received = datetime.fromisoformat(str(received_raw).replace("Z", "+00:00"))
-        if received.tzinfo is None:
-            received = received.replace(tzinfo=timezone.utc)
-        age = max(0.0, (datetime.now(timezone.utc) - received.astimezone(timezone.utc)).total_seconds())
-        stale = age > max(1.0, float(stale_after_seconds))
-        verified = bool(payload.get("success")) and payload.get("live_orders") is False
-        return {
-            "success": True,
-            "mark": mark,
-            "symbol": str(symbol).upper(),
-            "provider": payload.get("source") or snapshot.get("source"),
-            "provider_symbol": payload.get("provider_symbol") or snapshot.get("provider_symbol"),
-            "exchange_timestamp": snapshot.get("exchange_timestamp"),
-            "received_at": received.isoformat(),
-            "age_seconds": age,
-            "verified": verified,
-            "stale": stale,
-            "eligible_for_exit": verified and not stale,
-            "reason": None if verified and not stale else "STALE_MARK" if stale else "UNVERIFIED_MARK",
-            "paper_only": True,
-            "live_execution": False,
-        }
+        if re.fullmatch(r"(?:NSE|BSE|MCX):[A-Z0-9._-]+(?:CE|PE)", symbol):
+            from workstation.option_chart_data import option_live
+            payload = option_live("FYERS", symbol)
+        else:
+            payload = live_payload(symbol)
+        return quote_certificate(symbol, payload, max_age=stale_after_seconds)
     except Exception as exc:
-        return {
-            "success": False,
-            "mark": None,
-            "symbol": str(symbol).upper(),
-            "verified": False,
-            "stale": True,
-            "eligible_for_exit": False,
-            "reason": f"MARK_UNAVAILABLE:{type(exc).__name__}",
-            "message": str(exc)[:240],
-            "paper_only": True,
-            "live_execution": False,
-        }
+        return {"success": False, "symbol": symbol, "mark": None,
+                "verified": False, "stale": True, "eligible_for_exit": False,
+                "eligible_for_entry": False, "reason": "MARK_UNAVAILABLE:" + type(exc).__name__,
+                "paper_only": True, "live_execution": False}
 
 
 def portfolio_payload() -> dict[str, Any]:

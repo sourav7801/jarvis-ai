@@ -272,6 +272,9 @@ def install_v13_execution_sizing_bridge() -> dict[str, Any]:
         _ORIGINAL_OPEN_POSITION = original
 
         def governed_open_position(self, *args, **kwargs):
+            from workstation.workspace_accounts import is_enabled
+            if is_enabled(self):
+                return original(self, *args, **kwargs)
             # The protected method is keyword-only. Positional callers are
             # delegated unchanged rather than reinterpreted by this bridge.
             if args or kwargs.get("quantity") is not None:
