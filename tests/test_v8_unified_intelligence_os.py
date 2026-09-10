@@ -159,7 +159,7 @@ class V8RuntimeContractTests(unittest.TestCase):
         self.assertFalse(state["current"])
 
     def test_launcher_and_startup_use_v8_runtime(self):
-        launcher = (ROOT / "JARVIS.bat").read_text(encoding="utf-8")
+        launcher = (ROOT / "JARVIS_WORKSTATION.bat").read_text(encoding="utf-8")
         startup = (ROOT / "start_jarvis_v3.py").read_text(encoding="utf-8")
         self.assertIn("scripts.jarvis_runtime_supervisor_v8", launcher)
         self.assertIn("workstation.jarvis_os_v8", startup)

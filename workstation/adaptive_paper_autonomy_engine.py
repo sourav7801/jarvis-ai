@@ -64,22 +64,12 @@ class AdaptivePaperAutonomyEngine(PaperAutonomyEngine):
     def _scan_once_unlocked(self) -> dict[str, Any]:
         started = time.perf_counter()
         rows: list[dict[str, Any]] = []
-        with ThreadPoolExecutor(max_workers=self.max_workers) as pool:
-            futures = {pool.submit(self._scan_symbol, symbol): symbol for symbol in self.universe}
-            for future in as_completed(futures):
-                symbol = futures[future]
-                try:
-                    rows.append(future.result())
-                except Exception as exc:
-                    rows.append(
-                        {
-                            "success": False,
-                            "symbol": symbol,
-                            "message": f"{type(exc).__name__}: {exc}"[:300],
-                            "paper_only": True,
-                            "live_execution": False,
-                        }
-                    )
+        from workstation.terminal_data import scan_rows
+        from workstation import workspace_accounts
+        from workstation.paper_trading_desk import live_mark_snapshot
+        ticket = workspace_accounts.session(paper_desk, self.portfolio_bucket)
+        session_generation = ticket.get("generation")
+        rows = list(scan_rows(self._scan_symbol, self.universe, self._stop))
 
         rows = ADAPTIVE_OPPORTUNITY_POLICY.evaluate_many(
             rows,
@@ -131,6 +121,8 @@ class AdaptivePaperAutonomyEngine(PaperAutonomyEngine):
         probe_budget_remaining = 1
 
         for row in candidates:
+            if self._stop.is_set():
+                break
             adaptive = dict(row.get("adaptive_decision") or {})
             action = str(adaptive.get("action") or "WAIT").upper()
             if action == "PROBE" and probe_budget_remaining <= 0:
@@ -164,6 +156,11 @@ class AdaptivePaperAutonomyEngine(PaperAutonomyEngine):
                 rejection_counts["ADAPTIVE_COHORT_QUARANTINED"] += 1
                 continue
 
+            certificate = live_mark_snapshot(symbol)
+            if not certificate.get("eligible_for_entry"):
+                rejection_counts[str(certificate.get("reason") or "LIVE_MARK_UNAVAILABLE")] += 1
+                continue
+            row["entry_certificate"] = certificate
             live_candidate = dict(row)
             live_candidate["side"] = side
             try:
@@ -174,6 +171,26 @@ class AdaptivePaperAutonomyEngine(PaperAutonomyEngine):
                 live_entry, live_blocker = None, "LIVE_ENTRY_VALIDATION_FAILED"
             if live_entry is None:
                 rejection_counts[str(live_blocker or "LIVE_ENTRY_VALIDATION_FAILED")] += 1
+                continue
+
+            if ticket and symbol in {"NIFTY", "BANKNIFTY", "SENSEX"}:
+                from workstation.options_runtime_v151 import plan as option_plan
+                from workstation.options_paper_execution_v151 import OPTIONS_PAPER_EXECUTION_V151
+                proposal = option_plan(symbol, underlying_decision=adaptive, resolve_specs=True)
+                row["option_proposal"] = proposal
+                signal_bar = next((str(e.get("last_candle_time")) for e in row.get("evidence", []) if e.get("last_candle_time")), None)
+                if not signal_bar:
+                    rejection_counts["SIGNAL_BAR_ID_REQUIRED"] += 1
+                    continue
+                result = OPTIONS_PAPER_EXECUTION_V151.open_plan(proposal, desk=paper_desk,
+                    portfolio_bucket=self.portfolio_bucket, bucket_allocation_fraction=self.allocation_fraction,
+                    session_generation=session_generation, signal_id=signal_bar)
+                row["execution_result"] = result
+                if result.get("reason") == "PAPER_POSITION_OPENED":
+                    opened.append(result)
+                    already_open.add(symbol)
+                else:
+                    rejection_counts[result.get("reason") or "NO_OPTION_TRADE"] += 1
                 continue
 
             valuation_multiplier = 1.0
@@ -204,8 +221,11 @@ class AdaptivePaperAutonomyEngine(PaperAutonomyEngine):
                     for item in evidence
                     if item.get("last_candle_time") is not None
                 ),
-                datetime.now(timezone.utc).strftime("%Y%m%dT%H%M"),
+                None,
             )
+            if signal_bar is None:
+                rejection_counts["SIGNAL_BAR_ID_REQUIRED"] += 1
+                continue
             journal_evidence = _journal_entry_evidence(row)
             adaptive_risk = float(adaptive.get("risk_multiplier") or 0.0)
             final_risk_multiplier = (
@@ -248,6 +268,8 @@ class AdaptivePaperAutonomyEngine(PaperAutonomyEngine):
                     + signal_bar
                 ),
                 metadata={
+                    "session_generation": session_generation,
+                    "entry_certificate": certificate,
                     **journal_evidence,
                     "adaptive_decision": adaptive,
                     "adaptive_policy_version": POLICY_VERSION,
@@ -307,6 +329,7 @@ class AdaptivePaperAutonomyEngine(PaperAutonomyEngine):
                 portfolio_bucket=self.portfolio_bucket,
                 bucket_allocation_fraction=self.allocation_fraction,
             )
+            row["execution_result"] = result
             if result.get("success") and result.get("reason") == "PAPER_POSITION_OPENED":
                 opened.append(result)
                 already_open.add(symbol)
@@ -323,6 +346,14 @@ class AdaptivePaperAutonomyEngine(PaperAutonomyEngine):
             rows_summary.append(
                 {
                     "symbol": row.get("symbol"),
+                    "side": adaptive.get("side"), "action": adaptive.get("action"),
+                    "reason": (row.get("execution_result") or {}).get("reason") or ", ".join(normalized_blockers.get(id(row), [])),
+                    "workspace_sizing": (row.get("execution_result") or {}).get("sizing"),
+                    "execution_result": row.get("execution_result"),
+                    "strategy": row.get("strategy") or STRATEGY_VERSION,
+                    "entry": row.get("entry"), "stop": row.get("stop"), "target": row.get("target"),
+                    "risk_reward": row.get("risk_reward"), "timeframe": row.get("timeframe"),
+                    "evidence": row.get("evidence"), "option_proposal": row.get("option_proposal"),
                     "legacy_side": row.get("side"),
                     "candidate_side": row.get("candidate_side"),
                     "legacy_score": row.get("score"),

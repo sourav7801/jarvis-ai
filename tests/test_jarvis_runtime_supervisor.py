@@ -171,14 +171,14 @@ class JarvisRuntimeSupervisorTests(unittest.TestCase):
             self.assertEqual(events[-1]["event"], "SERVICE_QUARANTINED")
 
     def test_canonical_batch_launcher_uses_runtime_supervisor_chain(self):
-        source = Path("JARVIS.bat").read_text(encoding="utf-8")
+        source = Path("JARVIS_WORKSTATION.bat").read_text(encoding="utf-8")
         direct = "scripts\\jarvis_runtime_supervisor.py" in source
         via_v62 = "scripts.jarvis_runtime_supervisor_v62" in source
         via_v7 = "scripts.jarvis_runtime_supervisor_v7" in source
         via_v8 = "scripts.jarvis_runtime_supervisor_v8" in source
         self.assertTrue(
             direct or via_v62 or via_v7 or via_v8,
-            msg="JARVIS.bat must reach the canonical supervisor through a verified wrapper chain.",
+            msg="JARVIS_WORKSTATION.bat must reach the canonical supervisor through a verified wrapper chain.",
         )
 
         if via_v62:

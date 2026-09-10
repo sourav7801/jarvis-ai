@@ -109,8 +109,8 @@ class V13QuantRuntimeAssetBridgeTests(unittest.TestCase):
 
     def test_quant_launcher_installs_http_overlay_before_base_server(self) -> None:
         source = (ROOT / "start_jarvis_quant_terminal.py").read_text(encoding="utf-8")
-        install_index = source.index("v13_http = install_v13_quant_http_bridge()")
-        serve_index = source.index("trading_app.main()")
+        install_index = source.index("install_v13_quant_http_bridge()")
+        serve_index = source.index("server.serve_forever(")
         self.assertLess(install_index, serve_index)
         self.assertIn("CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE", source)
         self.assertNotIn("place_order(", source)

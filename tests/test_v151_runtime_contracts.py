@@ -27,12 +27,12 @@ class V151RuntimeContracts(unittest.TestCase):
             "install_v151_options_bridges",
             "install_v151_quant_http_bridge",
             "CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE",
-            "POSITIVE CONTEXTUAL EXPECTED VALUE",
-            "Static 67/68/70 score boundary: OBSERVABILITY ONLY",
-            "PORTFOLIO-ADJUSTED CONTEXTUAL UTILITY",
+            "install_v14_execution_bridges",
+            "CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE",
+            "install_v15_reasoning_bridges",
         ):
             self.assertIn(marker, text)
-        self.assertLess(text.index("v151_bridges = install_v151_options_bridges()"), text.index("adaptive = start_v12_adaptive_paper()"))
+        self.assertLess(text.index("install_v151_options_bridges()"), text.index("runtime.start()"))
 
     def test_completion_launcher_preserves_v15_literal_and_targets_v151(self):
         text = (ROOT / "start_jarvis_completion_console.py").read_text(encoding="utf-8")
@@ -42,7 +42,7 @@ class V151RuntimeContracts(unittest.TestCase):
         self.assertIn("from workstation import completion_console_v151 as completion_console", text)
 
     def test_main_launcher_preserves_all_historical_supervisors_and_runs_v151(self):
-        text = (ROOT / "JARVIS.bat").read_text(encoding="utf-8")
+        text = (ROOT / "JARVIS_WORKSTATION.bat").read_text(encoding="utf-8")
         for marker in (
             "scripts.jarvis_runtime_supervisor_v62",
             "-m scripts.jarvis_runtime_supervisor_v8",

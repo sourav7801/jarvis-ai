@@ -28,6 +28,8 @@ class OptionsPaperExecutionV151:
         desk=None,
         portfolio_bucket: str = "INTRADAY",
         bucket_allocation_fraction: float = 0.50,
+        session_generation: int | None = None,
+        signal_id: str | None = None,
     ) -> dict[str, Any]:
         payload = dict(plan or {})
         if payload.get("executable") is not True:
@@ -91,6 +93,7 @@ class OptionsPaperExecutionV151:
             "cost_model_status": str(spec.get("cost_model_status") or "UNCONFIGURED"),
         }
         metadata = {
+            "session_generation": session_generation,
             "v151_option_execution": True,
             "underlying": payload.get("underlying"),
             "underlying_side": (payload.get("underlying_decision") or {}).get("side"),
@@ -114,6 +117,16 @@ class OptionsPaperExecutionV151:
             "paper_only": True,
             "live_execution": False,
         }
+        from workstation.workspace_accounts import is_enabled
+        if is_enabled(desk):
+            from workstation.paper_trading_desk import live_mark_snapshot
+            certificate = live_mark_snapshot(symbol)
+            if not certificate.get("eligible_for_entry") or not certificate.get("bid") or not certificate.get("ask"):
+                return {"success": False, "reason": certificate.get("reason") or "OPTION_EXECUTABLE_QUOTE_REQUIRED", "paper_only": True, "live_execution": False}
+            entry = float(certificate["ask"])
+            if not stop < entry < target:
+                return {"success": False, "reason": "LIVE_OPTION_QUOTE_OUTSIDE_SETUP", "paper_only": True, "live_execution": False}
+            metadata["entry_certificate"] = certificate
         result = desk.open_position(
             symbol=symbol,
             side="LONG",
@@ -132,6 +145,7 @@ class OptionsPaperExecutionV151:
             portfolio_bucket=str(portfolio_bucket or "INTRADAY").upper(),
             bucket_allocation_fraction=max(0.0, min(float(bucket_allocation_fraction), 1.0)),
             metadata=metadata,
+            external_id=("option:" + str(portfolio_bucket) + ":" + symbol + ":" + str(signal_id)) if signal_id else None,
         )
         return {
             **dict(result),

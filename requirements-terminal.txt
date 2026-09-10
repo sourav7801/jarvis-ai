@@ -1,0 +1,7 @@
+# Focused paper-terminal runtime. FYERS SDK stays in the existing isolated
+# .venv-fyers environment; full desktop/Nautilus requirements remain separate.
+numpy>=1.26,<3
+pandas>=2.2,<3
+requests>=2.32.4,<3
+ta==0.11.0
+tzdata>=2025.2

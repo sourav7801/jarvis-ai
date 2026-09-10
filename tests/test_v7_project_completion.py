@@ -164,7 +164,7 @@ class V7ProjectCompletionTests(unittest.TestCase):
             self.assertNotIn(forbidden, source)
 
     def test_launcher_preserves_v7_completion_service_through_v8(self):
-        source = (ROOT / "JARVIS.bat").read_text(encoding="utf-8")
+        source = (ROOT / "JARVIS_WORKSTATION.bat").read_text(encoding="utf-8")
         via_v7 = "-m scripts.jarvis_runtime_supervisor_v7" in source
         via_v8 = "-m scripts.jarvis_runtime_supervisor_v8" in source
         self.assertTrue(via_v7 or via_v8)

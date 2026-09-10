@@ -54,7 +54,7 @@ def _adaptive_live_entry(candidate: dict[str, Any]) -> tuple[float | None, str |
 
     mark = live_mark_loader(str(candidate.get("symbol") or ""))
     if mark is None:
-        mark = decision_entry
+        return None, "LIVE_MARK_UNAVAILABLE"
     try:
         mark = float(mark)
     except (TypeError, ValueError):

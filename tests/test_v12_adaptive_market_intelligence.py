@@ -150,7 +150,7 @@ class V12RuntimeContractTests(unittest.TestCase):
         self.assertIn("start_v12_adaptive_paper", source)
         self.assertIn("paper_portfolio_controller.start", source)
         self.assertIn("install_v12_runtime_bridges", source)
-        self.assertIn("Static 67/68/70 score boundary: OBSERVABILITY ONLY", source)
+        self.assertIn("CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE", source)
 
     def test_master_wrapper_installs_v12_bridge_before_protected_master(self) -> None:
         source = (ROOT / "start_jarvis_master_v12.py").read_text(encoding="utf-8")

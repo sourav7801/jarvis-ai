@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class QuantTradingIntelligencePhase1IntegrationTests(unittest.TestCase):
     def test_jarvis_launcher_starts_quant_terminal(self):
-        launcher = (ROOT / "JARVIS.bat").read_text(
+        launcher = (ROOT / "JARVIS_WORKSTATION.bat").read_text(
             encoding="utf-8",
             errors="ignore",
         )

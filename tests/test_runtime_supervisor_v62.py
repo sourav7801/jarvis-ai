@@ -58,7 +58,7 @@ class RuntimeSupervisorV62Tests(unittest.TestCase):
         )
 
     def test_launcher_preserves_v62_preflight_through_supported_wrapper_chain(self):
-        launcher = (ROOT / "JARVIS.bat").read_text(encoding="utf-8")
+        launcher = (ROOT / "JARVIS_WORKSTATION.bat").read_text(encoding="utf-8")
         direct = "-m scripts.jarvis_runtime_supervisor_v62" in launcher
         via_v7 = "-m scripts.jarvis_runtime_supervisor_v7" in launcher
         via_v8 = "-m scripts.jarvis_runtime_supervisor_v8" in launcher

@@ -216,6 +216,9 @@ class DefinedRiskOptionsPaperDesk:
         )
 
     def open_spread(self, candidate: DebitVerticalCandidate, *, equity: float) -> dict[str, Any]:
+        from workstation.terminal_ledger_guard import terminal_controls
+        if terminal_controls(self.path):
+            return {"success": False, "status": "TERMINAL_CAPITAL_AUTHORITY", "message": "Spread research and existing exits remain available; new spread commitments require shared-ledger integration.", "paper_only": True, "live_execution": False}
         if not isinstance(candidate, DebitVerticalCandidate) or not candidate.defined_risk or candidate.naked_short:
             raise ValueError("Only validated defined-risk debit verticals are accepted.")
         if not candidate.verified or candidate.stale or candidate.live_execution:

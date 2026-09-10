@@ -91,7 +91,7 @@ def start_v12_adaptive_paper() -> dict[str, object]:
     # Function name is preserved for protected V12/V13/V14/V14.1 compatibility.
     # By V15/V15.1, verified risk geometry and portfolio-aware reasoning have
     # already rebound the canonical policy before paper workers start.
-    enabled = os.getenv("JARVIS_V12_AUTO_PAPER_START", "1").strip().lower() not in {"0", "false", "no", "off"}
+    enabled = os.getenv("JARVIS_V12_AUTO_PAPER_START", "0").strip().lower() not in {"0", "false", "no", "off"}
     if not enabled:
         return {"success": True, "running": False, "reason": "V12_ADAPTIVE_AUTO_START_DISABLED", "decision_authority": "PORTFOLIO_ADJUSTED_CONTEXTUAL_UTILITY_CONTINUOUS_RISK", "paper_only": True, "live_execution": False, "automatic_broker_order": False}
     from workstation.paper_portfolio_controller import paper_portfolio_controller
@@ -100,66 +100,57 @@ def start_v12_adaptive_paper() -> dict[str, object]:
 
 
 def main():
-    if port_open(trading_app.HOST, trading_app.PORT):
-        print(f"JARVIS Quant Trading Intelligence already running at http://{trading_app.HOST}:{trading_app.PORT}")
-        return
-
-    bridges = install_v11_quant_bridges()
-    adaptive_bridges = install_v12_adaptive_bridges()
-    v13_bridges = install_v13_intelligence_bridges()
-    v13_http = install_v13_quant_http_bridge()
-    v14_bridges = install_v14_execution_bridges()
-    v14_http = install_v14_quant_http_bridge()
-    v141_bridges = install_v141_risk_geometry_bridges()
-    v141_http = install_v141_quant_http_bridge()
-    v15_bridges = install_v15_reasoning_bridges()
-    v15_http = install_v15_quant_http_bridge()
-    v151_bridges = install_v151_options_bridges()
-    v151_http = install_v151_quant_http_bridge()
-
+    # Acquire the exclusive listener before installing bridges or creating
+    # workers. Two simultaneous launchers cannot start duplicate scan engines.
+    from workstation.professional_terminal import TerminalRuntime, TerminalHTTPServer, build_handler
+    from workstation import terminal_data
     try:
-        trading_app.start_live_bridge()
-    except Exception:
-        pass
-
-    adaptive = start_v12_adaptive_paper()
-    print("=" * 72)
-    print("JARVIS QUANT TRADING INTELLIGENCE V15.1 OPTIONS EXECUTION INTELLIGENCE")
-    print("=" * 72)
-    print(f"Terminal: http://{trading_app.HOST}:{trading_app.PORT}")
-    print("Data: FYERS read-only + public crypto market data")
-    print("10m bars: derived from 2x contiguous COMPLETED 5m provider bars only")
-    print("Risk geometry: V14.1 VERIFIED COMPLETED-BAR CLOSE + ATR + STRUCTURE")
-    print("Market reasoning: V15 PERSISTENT BELIEF + COMPETING HYPOTHESES")
-    print("Decision authority: PORTFOLIO-ADJUSTED CONTEXTUAL UTILITY / CONTINUOUS PAPER RISK")
-    print("Compatibility authority lineage: POSITIVE CONTEXTUAL EXPECTED VALUE (V14 FOUNDATION); V15 PORTFOLIO UTILITY IS CURRENT")
-    print("Options: VERIFIED READ-ONLY CHAIN + VERIFIED CONTRACT SPEC + OPTION ECONOMICS")
-    print("Option execution: LONG PREMIUM PAPER ONLY; NAKED SHORT OPTIONS DISABLED")
-    print("Option premium stop/target: RISK-PLAN ESTIMATES / NOT FUTURE MARKET QUOTES")
-    print("Dealer positioning: UNAVAILABLE WITHOUT VERIFIED DEALER INVENTORY")
-    print("Confidence: SCALES POSITION SIZE ONLY / NOT AN EXECUTION GATE")
-    print("Static 67/68/70 score boundary: OBSERVABILITY ONLY")
-    print("Static R:R / alignment boundary: NOT EXECUTION AUTHORITY")
-    print("Fractional sizing: CONSTRAINT-AWARE / VERIFIED INSTRUMENT STEP")
-    print("INVALID_RISK_LEVELS: HARD ONLY WHEN VERIFIED GEOMETRY CANNOT BE BUILT")
-    print("Watching: NOT A TERMINAL STATE; exact pipeline reason is recorded")
-    print(f"V11 bridge state: {bool(bridges.get('success'))}")
-    print(f"V12 compatibility bridge state: {bool(adaptive_bridges.get('success'))}")
-    print(f"V13 contextual bridge state: {bool(v13_bridges.get('installed'))}")
-    print(f"V13 Quant HTTP compatibility state: {bool(v13_http.get('installed'))}")
-    print(f"V14 execution bridge state: {bool(v14_bridges.get('installed'))}")
-    print(f"V14 Quant HTTP compatibility state: {bool(v14_http.get('installed'))}")
-    print(f"V14.1 risk geometry bridge state: {bool(v141_bridges.get('installed'))}")
-    print(f"V14.1 Quant HTTP compatibility state: {bool(v141_http.get('installed'))}")
-    print(f"V15 reasoning bridge state: {bool(v15_bridges.get('installed'))}")
-    print(f"V15 Quant HTTP bridge state: {bool(v15_http.get('installed'))}")
-    print(f"V15.1 options bridge state: {bool(v151_bridges.get('installed'))}")
-    print(f"V15.1 Quant HTTP bridge state: {bool(v151_http.get('installed'))}")
-    print(f"V15 paper workers running: {bool(adaptive.get('running'))}")
-    print("Mode: PAPER / RESEARCH")
-    print("Live broker execution: LOCKED")
-    trading_app.main()
+        server = TerminalHTTPServer((trading_app.HOST, trading_app.PORT), trading_app.Handler)
+    except OSError as exc:
+        print(f"Terminal port {trading_app.PORT} is already owned: {exc}")
+        print(f"Open http://{trading_app.HOST}:{trading_app.PORT} or close the older terminal before upgrading.")
+        return 1
+    runtime = None
+    try:
+        install_v11_quant_bridges()
+        install_v12_adaptive_bridges()
+        install_v13_intelligence_bridges()
+        install_v13_quant_http_bridge()
+        install_v14_execution_bridges()
+        install_v14_quant_http_bridge()
+        install_v141_risk_geometry_bridges()
+        install_v141_quant_http_bridge()
+        install_v15_reasoning_bridges()
+        install_v15_quant_http_bridge()
+        install_v151_options_bridges()
+        install_v151_quant_http_bridge()
+        from workstation.paper_trading_desk import paper_desk
+        from workstation.paper_portfolio_controller import paper_portfolio_controller
+        terminal_data.CACHE_ENABLED = True
+        runtime = TerminalRuntime(paper_desk, paper_portfolio_controller)
+        server.RequestHandlerClass = build_handler(trading_app.Handler, runtime)
+        runtime.start()
+        # Bridge startup may wait for another Python environment. Keep it off
+        # the HTTP/position-management path, and start it only once.
+        import threading
+        threading.Thread(target=trading_app.start_live_bridge, name="JarvisDataStartup", daemon=True).start()
+        url = f"http://{trading_app.HOST}:{trading_app.PORT}"
+        print("JARVIS PROFESSIONAL PAPER TERMINAL", flush=True)
+        print(f"Terminal: {url}", flush=True)
+        print("Intraday / Swing / Investment · paper only · live broker execution locked", flush=True)
+        print("Sessions paused. Saved positions remain monitored. Start a workspace in the terminal.", flush=True)
+        if os.getenv("JARVIS_NO_BROWSER", "0").lower() not in {"1", "true", "yes"}:
+            import webbrowser
+            webbrowser.open(url)
+        server.serve_forever(poll_interval=.25)
+    except KeyboardInterrupt:
+        return 0
+    finally:
+        if runtime is not None:
+            runtime.stop()
+        server.server_close()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

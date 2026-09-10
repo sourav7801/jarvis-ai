@@ -116,7 +116,7 @@ class QuantV63FullAdvancedTests(unittest.TestCase):
             self.assertIn(marker, source)
 
     def test_runtime_hardening_remains_the_canonical_launcher(self):
-        bat = (ROOT / "JARVIS.bat").read_text(encoding="utf-8")
+        bat = (ROOT / "JARVIS_WORKSTATION.bat").read_text(encoding="utf-8")
         self.assertIn("scripts.jarvis_runtime_supervisor_v62", bat)
         runtime = (ROOT / "scripts" / "jarvis_runtime_supervisor_v62.py").read_text(encoding="utf-8")
         self.assertIn("REQUIRED_QUANT_PATHS", runtime)

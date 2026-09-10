@@ -114,7 +114,7 @@ def _underlying_decision(symbol: str) -> dict[str, Any]:
     }
 
 
-def plan(symbol: str = "NIFTY", *, provider_name: str = "fyers") -> dict[str, Any]:
+def plan(symbol: str = "NIFTY", *, provider_name: str = "fyers", underlying_decision=None, resolve_specs=False) -> dict[str, Any]:
     canonical = str(symbol or "NIFTY").strip().upper() or "NIFTY"
     provider_key = str(provider_name or "fyers").strip().lower() or "fyers"
     from omni.trading_intelligence.option_chain_provider import option_chain_providers
@@ -167,7 +167,13 @@ def plan(symbol: str = "NIFTY", *, provider_name: str = "fyers") -> dict[str, An
             "automatic_broker_order": False,
         }
     specs = _instrument_specs(snapshot)
-    decision = _underlying_decision(canonical)
+    if resolve_specs and verified:
+        try:
+            from workstation.fyers_option_specs import resolve_specs as fetch_specs
+            specs.update(fetch_specs(snapshot))
+        except Exception:
+            pass  # Missing verified specs remain a hard execution blocker.
+    decision = dict(underlying_decision) if underlying_decision is not None else _underlying_decision(canonical)
     result = OPTIONS_EXECUTION_INTELLIGENCE_V151.evaluate(
         snapshot,
         decision,

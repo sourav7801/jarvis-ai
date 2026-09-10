@@ -8,6 +8,7 @@ import re
 import urllib.parse
 import urllib.request
 from typing import Any
+from workstation.terminal_data import shared_read
 
 
 DERIBIT_HTTP = "https://www.deribit.com/api/v2"
@@ -247,9 +248,19 @@ def option_candles(provider: str, instrument: str, timeframe: str = "5m", bars: 
     raise ValueError(f"Unsupported option-chart provider: {provider}")
 
 
+@shared_read(1.)
 def option_live(provider: str, instrument: str) -> dict[str, Any]:
     resolved_provider = str(provider or "").strip().upper()
     resolved_instrument = _instrument(instrument)
+    if resolved_provider in {"FYERS", "FYERS_READ_ONLY"}:
+        from workstation.quant_terminal_v2 import _bridge_request
+        query = urllib.parse.urlencode({"symbol": resolved_instrument})
+        payload = _bridge_request("/api/snapshot?" + query, timeout=1.2) or {}
+        snap = payload.get("snapshot") or {}
+        if not snap:
+            _bridge_request("/api/subscribe", method="POST", payload={"symbol": resolved_instrument}, timeout=1.2)
+            payload = _bridge_request("/api/quote?" + query, timeout=2.) or {}
+        return {**payload, "source": "FYERS", "provider_symbol": resolved_instrument, "paper_only": True, "live_execution": False}
     if resolved_provider == "DERIBIT_PUBLIC":
         ticker = dict(_deribit_json("/public/ticker", {"instrument_name": resolved_instrument}) or {})
         price = ticker.get("last_price")

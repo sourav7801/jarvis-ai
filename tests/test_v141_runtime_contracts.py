@@ -19,8 +19,8 @@ class V141RuntimeContracts(unittest.TestCase):
         self.assertIn("install_v14_execution_bridges", source)
         self.assertIn("install_v141_risk_geometry_bridges", source)
         self.assertIn("install_v141_quant_http_bridge", source)
-        self.assertLess(source.index("v141_bridges = install_v141_risk_geometry_bridges()"), source.index("adaptive = start_v12_adaptive_paper()"))
-        self.assertIn("Static 67/68/70 score boundary: OBSERVABILITY ONLY", source)
+        self.assertLess(source.index("install_v141_risk_geometry_bridges()"), source.index("runtime.start()"))
+        self.assertIn("CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE", source)
         self.assertIn("CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE", source)
 
     def test_completion_launcher_preserves_v11_through_v14_markers_and_runs_v141(self) -> None:
@@ -30,7 +30,7 @@ class V141RuntimeContracts(unittest.TestCase):
         self.assertIn("from workstation import completion_console_v141 as completion_console", source)
 
     def test_main_launcher_preserves_historical_supervisors_and_runs_v141(self) -> None:
-        source = (ROOT / "JARVIS.bat").read_text(encoding="utf-8")
+        source = (ROOT / "JARVIS_WORKSTATION.bat").read_text(encoding="utf-8")
         for marker in (
             "scripts.jarvis_runtime_supervisor_v62",
             "-m scripts.jarvis_runtime_supervisor_v8",

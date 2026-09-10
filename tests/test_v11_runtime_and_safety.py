@@ -44,7 +44,7 @@ class V11CompletionRuntimeTests(unittest.TestCase):
         self.assertEqual(completion.expected_service, "JARVIS_COGNITIVE_EXECUTION_CONVERGENCE")
 
     def test_launcher_preserves_old_safety_lineage_but_runs_v11(self) -> None:
-        launcher = (ROOT / "JARVIS.bat").read_text(encoding="utf-8")
+        launcher = (ROOT / "JARVIS_WORKSTATION.bat").read_text(encoding="utf-8")
         self.assertIn("scripts.jarvis_runtime_supervisor_v62", launcher)
         self.assertIn("scripts.jarvis_runtime_supervisor_v8", launcher)
         self.assertIn("-m scripts.jarvis_runtime_supervisor_v11", launcher)

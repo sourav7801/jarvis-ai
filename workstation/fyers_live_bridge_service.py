@@ -4,6 +4,7 @@ import json
 import os
 import threading
 import urllib.parse
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler
 from typing import Any
 
@@ -169,6 +170,12 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/api/status":
             return self.send_json(status_payload())
+        if parsed.path == "/api/quote":
+            from agents.fyers_data_adapter import get_quote
+            params = urllib.parse.parse_qs(parsed.query)
+            symbol = str((params.get("symbol") or [""])[0])
+            result = get_quote(symbol)
+            return self.send_json({**result, "snapshot": {**result, "received_at": datetime.now(timezone.utc).isoformat()}, "live_orders": False})
         if parsed.path == "/api/snapshot":
             params = urllib.parse.parse_qs(parsed.query)
             symbol = str((params.get("symbol") or [""])[0]).strip()

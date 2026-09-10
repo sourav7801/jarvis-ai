@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class V13RuntimeSurfaceTests(unittest.TestCase):
     def test_launcher_preserves_historical_lineage_and_runs_v13(self) -> None:
-        text = (ROOT / "JARVIS.bat").read_text(encoding="utf-8")
+        text = (ROOT / "JARVIS_WORKSTATION.bat").read_text(encoding="utf-8")
         for marker in (
             "scripts.jarvis_runtime_supervisor_v62",
             "-m scripts.jarvis_runtime_supervisor_v8",
@@ -40,8 +40,8 @@ class V13RuntimeSurfaceTests(unittest.TestCase):
         self.assertIn("install_v12_adaptive_bridges", text)
         self.assertIn("install_v13_intelligence_bridges", text)
         self.assertIn("start_v12_adaptive_paper", text)
-        self.assertIn("CONTEXTUAL EXPECTED VALUE", text.upper())
-        self.assertIn("OBSERVABILITY ONLY", text)
+        self.assertIn("CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE", text)
+        self.assertIn("runtime.start()", text)
 
     def test_supervisor_service_identity_requires_v13_master_and_completion(self) -> None:
         services = {service.name: service for service in runtime_v13.v13_services(ROOT)}

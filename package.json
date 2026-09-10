@@ -1,0 +1,8 @@
+{
+  "name": "jarvis-terminal-ui-tests",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Optional browser QA only; the installed terminal runs with Python and vendored chart assets.",
+  "scripts": {"dev": "vite --config tests/terminal-preview.config.mjs"},
+  "devDependencies": {"vite": "8.2.2"}
+}

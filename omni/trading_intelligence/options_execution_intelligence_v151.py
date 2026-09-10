@@ -334,6 +334,7 @@ class OptionsExecutionIntelligenceV151:
             "requires_verified_option_chain": True,
             "requires_verified_lot_size_and_tick_size": True,
             "long_premium_only": True,
+            "naked_option_selling": False,
             "call_for_bullish_underlying": True,
             "put_for_bearish_underlying": True,
             "underlying_direction_does_not_force_option_trade": True,

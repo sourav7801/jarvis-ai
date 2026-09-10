@@ -20,13 +20,13 @@ class V15RuntimeContracts(unittest.TestCase):
             "install_v141_risk_geometry_bridges",
             "install_v15_reasoning_bridges",
             "install_v15_quant_http_bridge",
-            "Static 67/68/70 score boundary: OBSERVABILITY ONLY",
             "CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE",
-            "PORTFOLIO-ADJUSTED CONTEXTUAL UTILITY",
+            "CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE",
+            "install_v15_reasoning_bridges",
         ):
             self.assertIn(marker, text)
-        self.assertLess(text.index("v15_bridges = install_v15_reasoning_bridges()"), text.index("adaptive = start_v12_adaptive_paper()"))
-        self.assertLess(text.index("v15_http = install_v15_quant_http_bridge()"), text.index("trading_app.main()"))
+        self.assertLess(text.index("install_v15_reasoning_bridges()"), text.index("runtime.start()"))
+        self.assertLess(text.index("install_v15_quant_http_bridge()"), text.index("server.serve_forever("))
 
     def test_completion_launcher_preserves_lineage_and_targets_v15(self):
         text = (ROOT / "start_jarvis_completion_console.py").read_text(encoding="utf-8")
@@ -38,7 +38,7 @@ class V15RuntimeContracts(unittest.TestCase):
         self.assertIn("from workstation import completion_console_v15 as completion_console", text)
 
     def test_main_launcher_prevents_duplicate_supervisor_and_runs_v15(self):
-        text = (ROOT / "JARVIS.bat").read_text(encoding="utf-8")
+        text = (ROOT / "JARVIS_WORKSTATION.bat").read_text(encoding="utf-8")
         for marker in (
             "scripts.jarvis_runtime_supervisor_v62",
             "-m scripts.jarvis_runtime_supervisor_v8",

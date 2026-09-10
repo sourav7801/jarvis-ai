@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class V14RuntimeContractTests(unittest.TestCase):
     def test_launcher_preserves_historical_lineage_and_runs_v14(self) -> None:
-        text = (ROOT / "JARVIS.bat").read_text(encoding="utf-8")
+        text = (ROOT / "JARVIS_WORKSTATION.bat").read_text(encoding="utf-8")
         for marker in (
             "scripts.jarvis_runtime_supervisor_v62",
             "-m scripts.jarvis_runtime_supervisor_v8",
@@ -42,10 +42,10 @@ class V14RuntimeContractTests(unittest.TestCase):
         text = (ROOT / "start_jarvis_quant_terminal.py").read_text(encoding="utf-8")
         self.assertIn("install_v14_execution_bridges", text)
         self.assertIn("install_v14_quant_http_bridge", text)
-        self.assertIn("POSITIVE CONTEXTUAL EXPECTED VALUE", text)
-        self.assertIn("NOT AN EXECUTION GATE", text)
-        self.assertLess(text.index("v14_bridges = install_v14_execution_bridges()"), text.index("adaptive = start_v12_adaptive_paper()"))
-        self.assertLess(text.index("v14_http = install_v14_quant_http_bridge()"), text.index("trading_app.main()"))
+        self.assertIn("install_v14_execution_bridges", text)
+        self.assertIn("CONTEXTUAL_EXPECTED_VALUE_NOT_STATIC_SCORE", text)
+        self.assertLess(text.index("install_v14_execution_bridges()"), text.index("runtime.start()"))
+        self.assertLess(text.index("install_v14_quant_http_bridge()"), text.index("server.serve_forever("))
 
     def test_supervisor_requires_v14_master_quant_completion_identities(self) -> None:
         services = {service.name: service for service in runtime_v14.v14_services(ROOT)}

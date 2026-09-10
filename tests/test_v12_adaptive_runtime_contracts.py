@@ -68,7 +68,7 @@ class V12SupervisorContracts(unittest.TestCase):
         self.assertEqual(services["completion"].expected_service, "JARVIS_ADAPTIVE_MARKET_INTELLIGENCE")
 
     def test_launcher_executes_v12_and_preserves_old_lineage_markers(self) -> None:
-        source = (ROOT / "JARVIS.bat").read_text(encoding="utf-8")
+        source = (ROOT / "JARVIS_WORKSTATION.bat").read_text(encoding="utf-8")
         self.assertIn('-m scripts.jarvis_runtime_supervisor_v12', source)
         self.assertIn('-m scripts.jarvis_runtime_supervisor_v11', source)
         self.assertIn('-m scripts.jarvis_runtime_supervisor_v8', source)

@@ -29,7 +29,7 @@ LAUNCHER = (
 
 BAT = (
     ROOT
-    / "JARVIS.bat"
+    / "JARVIS_WORKSTATION.bat"
 )
 
 

@@ -47,7 +47,7 @@ class V11CrossProcessAuthorityTests(unittest.TestCase):
         self.assertIn("install_v11_quant_bridges", source)
         self.assertIn("install_derived_timeframe_bridge", source)
         self.assertIn("install_discovery_routing_bridge", source)
-        self.assertIn("trading_app.main()", source)
+        self.assertIn("server.serve_forever(", source)
         self.assertNotIn("place_order(", source)
         self.assertNotIn("submit_order(", source)
 

@@ -37,7 +37,7 @@ class QuantV5NautilusIntegrationTests(unittest.TestCase):
         self.assertFalse(result["live_execution"])
 
     def test_launcher_starts_nautilus_in_isolated_environment(self):
-        source = (ROOT / "JARVIS.bat").read_text(encoding="utf-8", errors="replace")
+        source = (ROOT / "JARVIS_WORKSTATION.bat").read_text(encoding="utf-8", errors="replace")
         self.assertIn("JARVIS_NAUTILUS_QUANT_CORE_V5", source)
         self.assertIn("import nautilus_trader, nautilus_trader.backtest.config, numpy, pandas", source)
         self.assertIn("nautilus_trader.__version__ == '1.231.0'", source)
