@@ -1,8 +1,9 @@
 """V16 workstation bridge layered on the verified V15 protected Master.
 
 The protected V8 Master identity and V15 market reasoning stay intact. V16 adds
-managed Files/Artifacts/Workspaces/Capabilities APIs only. All local writes are
-loopback-authorized using the existing Master token path.
+managed Files/Artifacts/Workspaces/Capabilities APIs and a canonical read-only
+trading workspace state. All local writes are loopback-authorized using the
+existing Master token path.
 """
 
 from __future__ import annotations
@@ -39,6 +40,12 @@ def _v16_status() -> dict[str, Any]:
         "artifacts": ARTIFACT_SERVICE_V16.status(),
         "workspaces": WORKSPACE_SERVICE_V16.status(),
         "capabilities": capability_status(),
+        "trading": {
+            "workspace_state": "/api/v16/trading/workspace-state",
+            "authority": "QUANT_RUNTIME",
+            "paper_only": True,
+            "live_orders_locked": True,
+        },
         "permanent_agents": 29,
         "system_planes_do_not_count_as_agents": True,
         "paper_only": True,
@@ -50,7 +57,7 @@ def _v16_status() -> dict[str, Any]:
 
 
 class V16BridgeHandler(v15.V15BridgeHandler):
-    server_version = "JarvisOSV8-V16Bridge/1.0"
+    server_version = "JarvisOSV8-V16Bridge/1.1"
 
     def _json_body(self) -> dict[str, Any]:
         length_header = str(self.headers.get("Content-Length") or "0")
@@ -95,29 +102,51 @@ class V16BridgeHandler(v15.V15BridgeHandler):
             return self.send_json(_v16_status())
         if path == "/api/v16/capabilities":
             from omni.v16_capability_registry import install_v16_capabilities
+
             return self.send_json(install_v16_capabilities())
+        if path == "/api/v16/trading/workspace-state":
+            from workstation.v16_trading_workspace_state import build_workspace_state
+
+            workspace = str((params.get("workspace") or ["INTRADAY"])[0])
+            symbol = str((params.get("symbol") or [""])[0]).strip() or None
+            timeframe = str((params.get("timeframe") or [""])[0]).strip() or None
+            chart_raw = str((params.get("include_chart") or ["1"])[0]).strip().lower()
+            include_chart = chart_raw not in {"0", "false", "no", "off"}
+            return self.send_json(
+                build_workspace_state(
+                    workspace,
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    include_chart=include_chart,
+                )
+            )
         if path == "/api/v16/files":
             from omni.v16_file_service import MANAGED_FILE_SERVICE_V16
+
             workspace = str((params.get("workspace") or [""])[0]).strip() or None
             limit = int((params.get("limit") or ["100"])[0])
             return self.send_json(MANAGED_FILE_SERVICE_V16.list_files(workspace=workspace, limit=limit))
         if path == "/api/v16/files/search":
             from omni.v16_file_service import MANAGED_FILE_SERVICE_V16
+
             query = str((params.get("q") or [""])[0])
             workspace = str((params.get("workspace") or [""])[0]).strip() or None
             limit = int((params.get("limit") or ["50"])[0])
             return self.send_json(MANAGED_FILE_SERVICE_V16.search(query, workspace=workspace, limit=limit))
         if path == "/api/v16/files/text":
             from omni.v16_file_service import MANAGED_FILE_SERVICE_V16
+
             file_id = str((params.get("file_id") or [""])[0]).strip()
             max_chars = int((params.get("max_chars") or ["200000"])[0])
             return self.send_json(MANAGED_FILE_SERVICE_V16.extracted_text(file_id, max_chars=max_chars))
         if path == "/api/v16/workspaces":
             from omni.v16_workspace_service import WORKSPACE_SERVICE_V16
+
             kind = str((params.get("kind") or [""])[0]).strip() or None
             return self.send_json(WORKSPACE_SERVICE_V16.list(kind=kind))
         if path == "/api/v16/workspaces/recent":
             from omni.v16_workspace_service import WORKSPACE_SERVICE_V16
+
             workspace_id = str((params.get("workspace_id") or [""])[0]).strip() or None
             limit = int((params.get("limit") or ["50"])[0])
             return self.send_json(WORKSPACE_SERVICE_V16.recent_activity(workspace_id, limit=limit))
