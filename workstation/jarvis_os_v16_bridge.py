@@ -1,15 +1,20 @@
 """V16 workstation bridge layered on the verified V15 protected Master.
 
 The protected V8 Master identity and V15 market reasoning stay intact. V16 adds
-managed Files/Artifacts/Workspaces/Capabilities APIs only. All local writes are
-loopback-authorized using the existing Master token path.
+managed Files/Artifacts/Workspaces/Capabilities plus a same-origin read-only
+trading gateway to the supervised professional paper terminal. The browser
+never needs to address the internal trading port directly.
 """
 
 from __future__ import annotations
 
 import base64
 import json
+import os
+import socket
 from typing import Any
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 from urllib.parse import parse_qs, urlparse
 
 from omni.loopback_http import exclusive_server
@@ -20,6 +25,14 @@ from workstation import jarvis_os_v3 as v3
 HOST = v15.HOST
 PORT = v15.PORT
 _MAX_JSON_BODY = 140 * 1024 * 1024
+_TRADING_BASE = os.getenv("JARVIS_V16_TRADING_BASE", "http://127.0.0.1:8787").rstrip("/")
+_TRADING_GET_ROUTES = {
+    "/api/v16/trading/health": "/api/terminal/health",
+    "/api/v16/trading/workspace-state": "/api/v16/trading/workspace-state",
+    "/api/v16/trading/chart": "/api/terminal/chart",
+    "/api/v16/trading/quote": "/api/terminal/quote",
+    "/api/v16/trading/module": "/api/terminal/module",
+}
 
 
 def _v16_status() -> dict[str, Any]:
@@ -39,6 +52,16 @@ def _v16_status() -> dict[str, Any]:
         "artifacts": ARTIFACT_SERVICE_V16.status(),
         "workspaces": WORKSPACE_SERVICE_V16.status(),
         "capabilities": capability_status(),
+        "trading": {
+            "authority": "PROFESSIONAL_PAPER_TERMINAL",
+            "workspace_state": "/api/v16/trading/workspace-state",
+            "chart": "/api/v16/trading/chart",
+            "health": "/api/v16/trading/health",
+            "same_origin_gateway": True,
+            "internal_service_exposed_to_browser": False,
+            "paper_only": True,
+            "live_orders_locked": True,
+        },
         "permanent_agents": 29,
         "system_planes_do_not_count_as_agents": True,
         "paper_only": True,
@@ -50,7 +73,7 @@ def _v16_status() -> dict[str, Any]:
 
 
 class V16BridgeHandler(v15.V15BridgeHandler):
-    server_version = "JarvisOSV8-V16Bridge/1.0"
+    server_version = "JarvisOSV8-V16Bridge/1.2"
 
     def _json_body(self) -> dict[str, Any]:
         length_header = str(self.headers.get("Content-Length") or "0")
@@ -71,24 +94,97 @@ class V16BridgeHandler(v15.V15BridgeHandler):
             raise ValueError("request JSON must be an object")
         return payload
 
+    def _send_text(self, text: str, content_type: str) -> None:
+        raw = text.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(raw)))
+        self.end_headers()
+        try:
+            self.wfile.write(raw)
+        except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
+            return
+
+    def _send_enhanced_asset(self, base_name: str, enhancement_name: str, content_type: str) -> None:
+        try:
+            base = (v3.ASSETS / base_name).read_text(encoding="utf-8")
+            enhancement = (v3.ASSETS / enhancement_name).read_text(encoding="utf-8")
+        except OSError as exc:
+            return self.send_json({"success": False, "reason": f"V16_ASSET_UNAVAILABLE: {exc}"[:500]}, 500)
+        separator = "\n\n/* ===== JARVIS V16 MAIN WORKSTATION ENHANCEMENT ===== */\n\n"
+        return self._send_text(base + separator + enhancement, content_type)
+
     def _send_files_workspace(self) -> None:
         asset = v3.ASSETS / "v16_files.html"
         try:
             html = asset.read_text(encoding="utf-8").replace("__JARVIS_TOKEN__", v3.TOKEN)
         except OSError as exc:
             return self.send_json({"success": False, "reason": f"FILES_UI_UNAVAILABLE: {exc}"[:500]}, 500)
-        raw = html.encode("utf-8")
-        self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("Content-Length", str(len(raw)))
-        self.end_headers()
-        self.wfile.write(raw)
+        return self._send_text(html, "text/html; charset=utf-8")
+
+    def _proxy_trading_get(self, upstream_path: str, query: str) -> None:
+        url = _TRADING_BASE + upstream_path + (("?" + query) if query else "")
+        req = urllib_request.Request(
+            url,
+            headers={"Accept": "application/json", "User-Agent": "JARVIS-V16-Master-Gateway/1.2"},
+            method="GET",
+        )
+        try:
+            with urllib_request.urlopen(req, timeout=8.0) as response:
+                raw = response.read(8 * 1024 * 1024)
+                status = int(response.status or 200)
+        except urllib_error.HTTPError as exc:
+            raw = exc.read(2 * 1024 * 1024)
+            status = int(exc.code or 502)
+        except (urllib_error.URLError, TimeoutError, socket.timeout, OSError) as exc:
+            return self.send_json(
+                {
+                    "success": False,
+                    "reason": "TRADING_SERVICE_UNAVAILABLE",
+                    "detail": type(exc).__name__,
+                    "paper_only": True,
+                    "live_execution": False,
+                },
+                503,
+            )
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return self.send_json(
+                {
+                    "success": False,
+                    "reason": "TRADING_SERVICE_INVALID_RESPONSE",
+                    "paper_only": True,
+                    "live_execution": False,
+                },
+                502,
+            )
+        if not isinstance(payload, dict):
+            payload = {"success": False, "reason": "TRADING_SERVICE_INVALID_PAYLOAD"}
+            status = 502
+        payload.setdefault("paper_only", True)
+        payload.setdefault("live_execution", False)
+        return self.send_json(payload, status)
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         path = parsed.path
         params = parse_qs(parsed.query)
+
+        # Keep one protected Master UI and append V16 enhancements at serve time.
+        # The underlying V15 assets remain intact for rollback and comparison.
+        if path == "/app.js":
+            return self._send_enhanced_asset(
+                "app.js", "v16_main_trading_runtime.js", "application/javascript; charset=utf-8"
+            )
+        if path == "/styles.css":
+            return self._send_enhanced_asset(
+                "styles.css", "v16_main_trading.css", "text/css; charset=utf-8"
+            )
+
+        if path in _TRADING_GET_ROUTES:
+            return self._proxy_trading_get(_TRADING_GET_ROUTES[path], parsed.query)
         if path in {"/v16/files", "/files"}:
             return self._send_files_workspace()
         if path == "/api/v16/status":
