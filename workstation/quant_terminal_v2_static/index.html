@@ -157,5 +157,89 @@
 <script src="/adaptive_brain_runtime.js"></script>
 <script src="/v16_workspace.js"></script>
 <script src="/v16_option_execution.js"></script>
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const numberOrNull = value => {
+    const text = String(value ?? "").replaceAll(",", "").replace("₹", "").trim();
+    if (!text) return null;
+    const number = Number(text);
+    return Number.isFinite(number) ? number : null;
+  };
+  const gate = name => [...document.querySelectorAll("#v16OptionGates .v16-option-gate")].find(node => node.querySelector("small")?.textContent?.trim() === name);
+  const setGate = (name, state, detail) => {
+    const node = gate(name);
+    if (!node) return;
+    node.className = `v16-option-gate gate-${String(state).toLowerCase()}`;
+    const b = node.querySelector("b");
+    const em = node.querySelector("em");
+    if (b) b.textContent = state;
+    if (em) em.textContent = detail;
+  };
+  const positionLine = summary => {
+    const parts = [`#${summary.record ?? "?"}`, summary.symbol || "UNKNOWN"];
+    if (summary.option_type) parts.push(summary.option_type);
+    if (summary.strike != null) parts.push(`strike ${summary.strike}`);
+    if (summary.side) parts.push(summary.side);
+    if (summary.quantity != null) parts.push(`qty ${summary.quantity}`);
+    if (summary.entry_price != null) parts.push(`entry ${summary.entry_price}`);
+    if (summary.stop != null) parts.push(`SL ${summary.stop}`);
+    if (summary.target != null) parts.push(`T ${summary.target}`);
+    if (summary.workspace) parts.push(summary.workspace);
+    if (summary.opened_at) parts.push(summary.opened_at);
+    return parts.join(" · ");
+  };
+  async function readJson(url) {
+    const response = await fetch(url, {cache: "no-store"});
+    if (!response.ok) return null;
+    try { return await response.json(); } catch { return null; }
+  }
+  async function refreshTruthfulOptionGates() {
+    if (!$("v16OptionGates")) return;
+    const workspace = $("v16OptionCapital")?.value || "INTRADAY";
+    const [state, reconciliation] = await Promise.all([
+      readJson(`/api/v16/trading/workspace-state?workspace=${encodeURIComponent(workspace)}`),
+      readJson("/api/v16/trading/reconciliation"),
+    ]);
+
+    const entrySession = String(state?.session?.entry_session || "PAUSED").toUpperCase();
+    if (state) setGate("SESSION", entrySession === "RUNNING" ? "READY" : "BLOCKED", entrySession);
+
+    const stop = numberOrNull($("v16OptionStop")?.value);
+    const target = numberOrNull($("v16OptionTarget")?.value);
+    if (stop === null || target === null) {
+      setGate("RISK", "WAITING", "STOP + TARGET REQUIRED");
+      const clean = reconciliation?.success === true && !(reconciliation?.issues || []).length && !(reconciliation?.legacy_exposure || []).length;
+      if (clean && entrySession === "RUNNING") {
+        const status = $("v16OptionOrderStatus");
+        if (status && !String(status.textContent || "").includes("FINAL SERVER GATE")) {
+          status.textContent = "BUY disabled · STOP + TARGET REQUIRED. JARVIS will not invent option risk levels.";
+          status.dataset.kind = "";
+        }
+      }
+    }
+
+    const legacy = Array.isArray(reconciliation?.legacy_exposure) ? reconciliation.legacy_exposure : [];
+    const summaries = legacy.flatMap(item => Array.isArray(item?.position_summaries) ? item.position_summaries : []);
+    const details = $("v16LedgerDiagnostics");
+    const host = $("v16LedgerIssues");
+    if (legacy.length && details) details.open = true;
+    if (host) {
+      host.querySelector("#v16LegacyExposureSummary")?.remove();
+      if (summaries.length) {
+        const block = document.createElement("div");
+        block.id = "v16LegacyExposureSummary";
+        block.className = "v16-ledger-note";
+        block.innerHTML = `<b>LEGACY OPEN POSITION SUMMARY</b>${summaries.map(item => `<p>${escapeHtml(positionLine(item))}</p>`).join("")}<p>Review this old PAPER position deliberately before migration/closure. Nothing is auto-deleted or auto-imported.</p>`;
+        host.appendChild(block);
+      }
+    }
+  }
+  setInterval(refreshTruthfulOptionGates, 1200);
+  setTimeout(refreshTruthfulOptionGates, 350);
+})();
+</script>
 </body>
 </html>
