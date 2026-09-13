@@ -97,7 +97,9 @@ def build_handler(base, runtime):
                     .read_text(encoding="utf-8")
                     .replace(
                         "</head>",
-                        "<script>window.JARVIS_V16_CANONICAL=true;</script></head>",
+                        "<script>window.JARVIS_V16_CANONICAL=true;</script>"
+                        "<link rel=\"stylesheet\" href=\"/v16_autonomy_runtime.css\">"
+                        "<script defer src=\"/v16_autonomy_runtime.js\"></script></head>",
                     )
                     .encode("utf-8")
                 )
@@ -115,6 +117,16 @@ def build_handler(base, runtime):
                 return self.send_file(
                     STATIC / "v16_option_execution.js",
                     "application/javascript; charset=utf-8",
+                )
+
+            if parsed.path in {"/v16_autonomy_runtime.js", "/v16_autonomy_runtime.css"} and self._local():
+                from workstation.quant_terminal_v2 import STATIC
+
+                return self.send_file(
+                    STATIC / parsed.path[1:],
+                    "application/javascript; charset=utf-8"
+                    if parsed.path.endswith(".js")
+                    else "text/css; charset=utf-8",
                 )
 
             if parsed.path == RECONCILIATION_PATH:
