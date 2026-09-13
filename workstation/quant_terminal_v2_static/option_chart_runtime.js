@@ -24,7 +24,8 @@
     if (!slot?.candles || !snapshot) return;
     const price = Number(snapshot.ltp ?? snapshot.mark_price);
     if (!Number.isFinite(price)) return;
-    const now = bucketTime(currentEpoch(snapshot), timeframe);
+    const slotFrame = slot.timeframe || timeframe;
+    const now = bucketTime(currentEpoch(snapshot), slotFrame);
     const last = slot.data[slot.data.length - 1];
     let candle;
     if (last && Number(last.time) === now) {
@@ -54,7 +55,7 @@
       low: candle.low,
       close: candle.close,
     });
-    slot.head.querySelector("span").textContent = `${timeframe} · LIVE ${fmt(price, 4)}`;
+    slot.head.querySelector("span").textContent = `${slotFrame} · LIVE ${fmt(price, 4)}`;
     const iv = Number(snapshot.mark_iv);
     const oi = Number(snapshot.open_interest);
     const parts = [slot.optionChart?.provider || "OPTION", `price ${fmt(price, 4)}`];
@@ -123,15 +124,16 @@
       try { slot.cryptoSocket.close(); } catch {}
       slot.cryptoSocket = null;
     }
+    const slotFrame = slot.timeframe || timeframe;
     const label = optionLabel(spec);
     slot.head.querySelector("strong").textContent = label;
-    slot.head.querySelector("span").textContent = `${timeframe} · OPTION LOADING`;
+    slot.head.querySelector("span").textContent = `${slotFrame} · OPTION LOADING`;
     setStatus(slot, `Loading verified option candles for ${label}…`);
     try {
       const params = new URLSearchParams({
         provider: spec.provider,
         instrument: spec.instrument_name,
-        timeframe,
+        timeframe: slotFrame,
         bars: "700",
       });
       const response = await fetch(`/api/option-candles?${params}`);
@@ -141,7 +143,7 @@
       }
       createSeries(slot, payload);
       slot.head.querySelector("strong").textContent = label;
-      slot.head.querySelector("span").textContent = `${timeframe} · ${payload.source}`;
+      slot.head.querySelector("span").textContent = `${slotFrame} · ${payload.source}`;
       setStatus(
         slot,
         `${payload.source} · ${payload.provider_symbol} · ${payload.bars} bars · ${payload.data_quality || "OPTION DATA"}`,
@@ -151,7 +153,7 @@
       else pollOptionLive(slot);
     } catch (error) {
       setStatus(slot, error.message || "Option chart data unavailable.", "error");
-      slot.head.querySelector("span").textContent = `${timeframe} · OPTION DATA UNAVAILABLE`;
+      slot.head.querySelector("span").textContent = `${slotFrame} · OPTION DATA UNAVAILABLE`;
     }
   }
 
@@ -174,6 +176,7 @@
     slot.optionChart = {...spec};
     if (underlying) slot.symbol = underlying;
     document.querySelectorAll(".chart-cell").forEach((node, i) => node.classList.toggle("selected", i === index));
+    try { persistCharts(); } catch {}
     loadSlot(index);
   }
 
@@ -199,7 +202,7 @@
         );
       }
       else if (result.action === "set_layout" && Number(result.layout)) {
-        layout = [1, 2, 4, 6, 8].includes(Number(result.layout)) ? Number(result.layout) : layout;
+        layout = chartCount(Number(result.layout));
         selectedSlot = 0;
         syncControls();
         mountCharts();
