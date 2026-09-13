@@ -155,9 +155,14 @@ class PaperTradingRuntime:
             "activity": self._activity[-100:],
             "learning": self.learning.snapshot(),
         }
-        temporary = self.state_file.with_suffix(".tmp")
-        temporary.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-        temporary.replace(self.state_file)
+        from workstation.terminal_ledger_guard import legacy_write_permission
+        with legacy_write_permission(self.state_file) as writable:
+            if not writable:
+                self._load()
+                return
+            temporary = self.state_file.with_suffix(".tmp")
+            temporary.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+            temporary.replace(self.state_file)
 
     def _record(self, kind: str, message: str, **details: Any) -> None:
         self._activity.append(

@@ -5,7 +5,9 @@
 
   const $ = id => document.getElementById(id);
   const parseNumber = value => {
-    const n = Number(String(value ?? "").replaceAll(",", "").replace("₹", "").trim());
+    const text = String(value ?? "").replaceAll(",", "").replace("₹", "").trim();
+    if (!text) return null;
+    const n = Number(text);
     return Number.isFinite(n) ? n : null;
   };
   const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, c => ({
@@ -141,7 +143,7 @@
   }
 
   function sessionState() {
-    return String(latestState?.session?.state || latestState?.session?.entry_session || "").toUpperCase();
+    return String(latestState?.session?.entry_session || "").toUpperCase();
   }
 
   function riskGate() {
@@ -217,6 +219,8 @@
       <details id="v16LedgerDiagnostics">
         <summary>LEDGER / EXECUTION DIAGNOSTICS</summary>
         <div id="v16LedgerIssues">Checking canonical ledger…</div>
+        <button id="v16CheckLegacy" type="button">CHECK LEGACY RESOLUTION</button>
+        <div id="v16LegacyPositions"></div>
         <button id="v16RepairLedger" type="button" hidden>REPAIR UNAMBIGUOUS CANONICAL LINKS</button>
       </details>
       <small>Long CALL/PUT paper positions only. No naked shorts. No broker-order API. Live execution remains locked.</small>`;
@@ -227,6 +231,10 @@
     $("v16OptionBuy")?.addEventListener("click", buySelected);
     $("v16OptionClose")?.addEventListener("click", closeSelected);
     $("v16RepairLedger")?.addEventListener("click", repairLedger);
+    $("v16CheckLegacy")?.addEventListener("click", refreshLegacyPositions);
+    $("v16LedgerDiagnostics")?.addEventListener("toggle", () => {
+      if ($("v16LedgerDiagnostics").open) refreshLegacyPositions();
+    });
     ["v16OptionLots", "v16OptionStop", "v16OptionTarget"].forEach(id => {
       $(id)?.addEventListener("input", () => refreshGatePresentation());
     });
@@ -492,6 +500,55 @@
       repair.disabled = false;
       syncSelection();
     }
+  }
+
+  let legacyChecking = false;
+  async function refreshLegacyPositions() {
+    if (legacyChecking || pending) return;
+    const host=$("v16LegacyPositions");if(!host)return;
+    legacyChecking=true;$("v16CheckLegacy").disabled=true;
+    host.textContent="Checking exact instrument, existing canonical exposure and fresh exit quote…";
+    try {
+      const payload=await requestJson("/api/v16/trading/legacy-position");
+      if(!payload.success)throw new Error(payload.reason||"Legacy diagnostics unavailable");
+      host.replaceChildren();
+      for(const row of payload.positions||[]){
+        const item=document.createElement("article");item.className="v16-legacy-position";
+        item.style.cssText="padding:10px;margin-top:8px;border:1px solid #35576b;border-radius:6px;overflow-wrap:anywhere";
+        const display=v=>v==null||v===""?"—":String(v);
+        item.innerHTML=`<b>LEGACY POSITION #${escapeHtml(row.record)} · ${escapeHtml(row.symbol)}</b>
+          <p>Side ${escapeHtml(display(row.side))} · Qty ${escapeHtml(display(row.quantity))} · Entry ${escapeHtml(display(row.entry_price))}<br>
+          Stop ${escapeHtml(display(row.stop))} · Target ${escapeHtml(display(row.target))}<br>Opened ${escapeHtml(display(row.opened_at))}<br>
+          Instrument: ${escapeHtml(row.instrument_status)} · ${escapeHtml(row.instrument_reason||"")}<br>
+          Source: ${escapeHtml(row.source)}<br>Equivalent canonical IDs: ${escapeHtml((row.equivalent_position_ids||[]).join(", ")||"NONE")}</p>
+          <label>Workspace <select data-legacy-workspace><option value="">CHOOSE EXPLICITLY</option><option>INTRADAY</option><option>SWING</option><option>INVESTMENT</option></select></label>
+          <p data-legacy-message></p><button data-resolve="MIGRATE">${row.pending_action==="MIGRATE"?"FINISH MIGRATION ACKNOWLEDGEMENT":"MIGRATE TO V16"}</button>
+          <button data-resolve="CLOSE">${row.pending_action==="CLOSE"?"FINISH CLOSE ACKNOWLEDGEMENT":"CLOSE LEGACY PAPER POSITION"}</button>
+          <p>Migration preserves existing paper exposure; it is not a market entry. Close requires a fresh verified quote. NO LIVE BROKER ORDER.</p>`;
+        const select=item.querySelector("select"),message=item.querySelector("[data-legacy-message]");
+        const buttons=[...item.querySelectorAll("[data-resolve]")];
+        if(row.resolved_workspace){select.value=row.resolved_workspace;select.disabled=true}
+        const update=()=>{
+          for(const b of buttons){const allowed=b.dataset.resolve==="MIGRATE"?row.can_migrate:row.can_close;b.disabled=!allowed||!select.value||pending;b.title=allowed?"Server revalidates before committing":(b.dataset.resolve==="MIGRATE"?row.migration_reason:row.close_reason)||"UNSAFE"}
+          message.textContent=`Migrate: ${row.can_migrate?"ELIGIBLE AFTER WORKSPACE CHOICE":row.migration_reason} · Close: ${row.can_close?"VERIFIED QUOTE REQUIRED AGAIN AT SUBMIT":row.close_reason}`;
+        };
+        select.addEventListener("change",update);update();
+        for(const button of buttons)button.addEventListener("click",async()=>{
+          if(pending||!select.value)return;
+          const action=button.dataset.resolve;
+          if(!window.confirm(`${action} the legacy PAPER position ${row.symbol}, quantity ${row.quantity}, in ${select.value}? No broker order will be sent.`))return;
+          pending=true;buttons.forEach(b=>b.disabled=true);message.textContent="Persisting audited resolution…";
+          try{
+            const state=await csrfState(select.value);
+            const response=await requestJson("/api/v16/trading/legacy-position/resolve",{method:"POST",headers:{"Content-Type":"application/json","X-Jarvis-Token":state.csrf_token},body:JSON.stringify({action,workspace:select.value,fingerprint:row.fingerprint,revision:row.revision})});
+            message.textContent=response.reason||response.message;
+            if(response.success)setStatus("Legacy resolution persisted. Entry sessions remain unchanged; explicitly START SESSION when ready.","ok");
+          }catch(error){message.textContent=error.message}finally{pending=false;await Promise.all([refreshDiagnostics(),refreshWorkspaceState()]);refreshGatePresentation();buttons.forEach(b=>b.disabled=true);$("v16CheckLegacy").disabled=false}
+        });
+        host.appendChild(item);
+      }
+      if(!host.children.length)host.textContent="No unresolved legacy JSON positions. No session was started.";
+    }catch(error){host.textContent=error.message}finally{legacyChecking=false;$("v16CheckLegacy").disabled=false}
   }
 
   function boot() {

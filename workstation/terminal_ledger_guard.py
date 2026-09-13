@@ -3,7 +3,7 @@
 Existing records, research and exits are retained. Explicit isolated test or
 research books at other paths are independent of the default terminal account.
 """
-from contextlib import closing
+from contextlib import closing, contextmanager
 import json
 import os
 from pathlib import Path
@@ -59,7 +59,7 @@ def _legacy_position_summary(record, index):
         "quantity": _first_scalar(record, "quantity", "qty", "lots"),
         "entry_price": _first_scalar(record, "entry_price", "entry", "avg_price", "average_price", "price"),
         "stop": _first_scalar(record, "stop_loss", "stop", "sl"),
-        "target": _first_scalar(record, "target", "target_price", "tp"),
+        "target": _first_scalar(record, "target", "target_price", "take_profit", "tp"),
         "opened_at": _first_scalar(record, "opened_at", "entry_time", "timestamp", "created_at"),
         "status": _first_scalar(record, "status", "state"),
         "option_type": _first_scalar(record, "option_type", "type"),
@@ -73,6 +73,13 @@ def legacy_exposure(desk):
     if desk.db_path.resolve() != TERMINAL_DB.resolve():
         return []
     issues = []
+    try:
+        with closing(sqlite3.connect(TERMINAL_DB.as_uri() + "?mode=ro",uri=True,timeout=2)) as conn:
+            if conn.execute("SELECT 1 FROM sqlite_master WHERE name='legacy_position_resolutions'").fetchone():
+                pending=conn.execute("SELECT COUNT(*) FROM legacy_position_resolutions WHERE acknowledged=0").fetchone()[0]
+                if pending:issues.append({"book":"Legacy resolution acknowledgement","open_count":pending,"error":"SOURCE_ACK_PENDING","path":str(LEGACY_ACCOUNT)})
+    except sqlite3.Error:
+        issues.append({"book":"Legacy resolution acknowledgement","error":"UNREADABLE_RECORDS","path":str(LEGACY_ACCOUNT)})
     if LEGACY_ACCOUNT.exists():
         try:
             data = json.loads(LEGACY_ACCOUNT.read_text(encoding="utf-8"))
@@ -101,3 +108,26 @@ def legacy_exposure(desk):
         except sqlite3.Error:
             issues.append({"book": "Legacy defined-risk spreads", "error": "UNREADABLE_RECORDS", "path": str(LEGACY_SPREADS)})
     return issues
+
+
+@contextmanager
+def legacy_write_permission(path):
+    """Serialize JSON writes with reconciliation; retire the old writer after transfer.
+
+    A stale in-memory PaperBroker must never overwrite a committed migration or
+    its recoverable JSON acknowledgement. Only the explicit resolver writes a
+    retired book. Separate test/research books retain their original behavior.
+    """
+    if not terminal_controls(path):
+        yield True
+        return
+    with closing(sqlite3.connect(TERMINAL_DB,timeout=5)) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            table=conn.execute("SELECT 1 FROM sqlite_master WHERE name='legacy_position_resolutions'").fetchone()
+            retired=bool(table and conn.execute("SELECT 1 FROM legacy_position_resolutions WHERE source=? LIMIT 1",(str(Path(path).resolve()),)).fetchone())
+            yield not retired
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise

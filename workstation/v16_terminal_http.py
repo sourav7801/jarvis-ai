@@ -18,6 +18,8 @@ CANONICAL_WORKSPACE_STATE_PATH = "/api/v16/trading/workspace-state"
 RECONCILIATION_PATH = "/api/v16/trading/reconciliation"
 OPTION_ORDER_PATH = "/api/v16/trading/option-order"
 REPAIR_RECONCILIATION_PATH = "/api/v16/trading/reconcile"
+LEGACY_POSITION_PATH = "/api/v16/trading/legacy-position"
+LEGACY_RESOLUTION_PATH = LEGACY_POSITION_PATH + "/resolve"
 
 
 def _safety(payload):
@@ -96,6 +98,12 @@ def build_handler(base, runtime):
                     return self.send_json({"success": False, "message": "Local terminal only"}, 403)
                 return self.send_json(_safety(runtime.reconcile()))
 
+            if parsed.path == LEGACY_POSITION_PATH:
+                if not self._local():
+                    return self.send_json({"success":False,"message":"Local terminal only"},403)
+                from workstation.v16_legacy_resolution import legacy_resolution_details
+                return self.send_json(_safety(legacy_resolution_details(runtime)))
+
             if parsed.path != CANONICAL_WORKSPACE_STATE_PATH:
                 return super().do_GET()
 
@@ -118,7 +126,7 @@ def build_handler(base, runtime):
 
         def do_POST(self):
             parsed = urllib.parse.urlparse(self.path)
-            if parsed.path not in {OPTION_ORDER_PATH, REPAIR_RECONCILIATION_PATH}:
+            if parsed.path not in {OPTION_ORDER_PATH, REPAIR_RECONCILIATION_PATH, LEGACY_RESOLUTION_PATH}:
                 return super().do_POST()
             if not self._authorized_v16_write():
                 return self.send_json(
@@ -133,6 +141,11 @@ def build_handler(base, runtime):
                 )
             try:
                 body = self._v16_body()
+                if parsed.path == LEGACY_RESOLUTION_PATH:
+                    from workstation.v16_legacy_resolution import resolve_legacy_position
+                    resolved=resolve_legacy_position(runtime,body)
+                    resolved["reconciliation"]=runtime.reconcile(integrity=True)
+                    return self.send_json(_safety(resolved))
                 if parsed.path == OPTION_ORDER_PATH:
                     from workstation.v16_option_paper import option_order
 
@@ -170,5 +183,7 @@ __all__ = [
     "RECONCILIATION_PATH",
     "OPTION_ORDER_PATH",
     "REPAIR_RECONCILIATION_PATH",
+    "LEGACY_POSITION_PATH",
+    "LEGACY_RESOLUTION_PATH",
     "build_handler",
 ]
