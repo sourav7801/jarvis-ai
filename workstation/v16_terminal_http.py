@@ -54,6 +54,30 @@ def build_handler(base, runtime):
                 )
             )
 
+        def _authorized_legacy_write(self):
+            """Require the local session token plus a loopback request boundary.
+
+            The legacy resolver mutates the retired JSON book as part of an
+            audited reconciliation. Keep that write surface narrower than the
+            ordinary paper-session endpoints: the TCP peer must be loopback and
+            browser requests must originate from an HTTP loopback origin. A
+            token-authenticated non-browser loopback caller may omit Origin.
+            """
+            if not self._authorized_v16_write():
+                return False
+            if self.client_address[0] not in {"127.0.0.1", "::1"}:
+                return False
+            origin = self.headers.get("Origin")
+            if not origin:
+                return True
+            parsed = urllib.parse.urlparse(origin)
+            return bool(
+                parsed.scheme == "http"
+                and parsed.hostname in {"127.0.0.1", "localhost"}
+                and not parsed.username
+                and not parsed.password
+            )
+
         def _v16_body(self):
             length = int(self.headers.get("Content-Length", "0"))
             if not 0 < length <= 32768:
@@ -100,8 +124,9 @@ def build_handler(base, runtime):
 
             if parsed.path == LEGACY_POSITION_PATH:
                 if not self._local():
-                    return self.send_json({"success":False,"message":"Local terminal only"},403)
+                    return self.send_json({"success": False, "message": "Local terminal only"}, 403)
                 from workstation.v16_legacy_resolution import legacy_resolution_details
+
                 return self.send_json(_safety(legacy_resolution_details(runtime)))
 
             if parsed.path != CANONICAL_WORKSPACE_STATE_PATH:
@@ -126,9 +151,18 @@ def build_handler(base, runtime):
 
         def do_POST(self):
             parsed = urllib.parse.urlparse(self.path)
-            if parsed.path not in {OPTION_ORDER_PATH, REPAIR_RECONCILIATION_PATH, LEGACY_RESOLUTION_PATH}:
+            if parsed.path not in {
+                OPTION_ORDER_PATH,
+                REPAIR_RECONCILIATION_PATH,
+                LEGACY_RESOLUTION_PATH,
+            }:
                 return super().do_POST()
-            if not self._authorized_v16_write():
+            authorized = (
+                self._authorized_legacy_write()
+                if parsed.path == LEGACY_RESOLUTION_PATH
+                else self._authorized_v16_write()
+            )
+            if not authorized:
                 return self.send_json(
                     _safety(
                         {
@@ -143,8 +177,9 @@ def build_handler(base, runtime):
                 body = self._v16_body()
                 if parsed.path == LEGACY_RESOLUTION_PATH:
                     from workstation.v16_legacy_resolution import resolve_legacy_position
-                    resolved=resolve_legacy_position(runtime,body)
-                    resolved["reconciliation"]=runtime.reconcile(integrity=True)
+
+                    resolved = resolve_legacy_position(runtime, body)
+                    resolved["reconciliation"] = runtime.reconcile(integrity=True)
                     return self.send_json(_safety(resolved))
                 if parsed.path == OPTION_ORDER_PATH:
                     from workstation.v16_option_paper import option_order
