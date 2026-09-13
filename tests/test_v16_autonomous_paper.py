@@ -203,8 +203,11 @@ class V16AutonomousPaperTests(unittest.TestCase):
         self.assertIn("v16_autonomy_runtime.js", http)
         self.assertIn("v16_autonomy_runtime.css", http)
         self.assertIn("install_v16_autonomous_option_bridge", launcher)
-        self.assertIn("START AUTONOMOUS PAPER", js)
+        self.assertIn("START JARVIS", js)
+        self.assertIn("PAUSE NEW ENTRIES", js)
+        self.assertIn("STOP FOR DAY", js)
         self.assertIn("MANUAL PAPER OVERRIDE", js)
+        self.assertNotIn("START AUTONOMOUS PAPER", js)
         self.assertNotIn("broker order", js.lower().replace("no broker order", ""))
 
 
