@@ -83,6 +83,14 @@ def build_handler(base, runtime):
                 self.wfile.write(content)
                 return
 
+            if parsed.path == "/v16_option_execution.js" and self._local():
+                from workstation.quant_terminal_v2 import STATIC
+
+                return self.send_file(
+                    STATIC / "v16_option_execution.js",
+                    "application/javascript; charset=utf-8",
+                )
+
             if parsed.path == RECONCILIATION_PATH:
                 if not self._local():
                     return self.send_json({"success": False, "message": "Local terminal only"}, 403)
