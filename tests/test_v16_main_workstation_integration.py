@@ -90,6 +90,24 @@ class V16MainWorkstationIntegrationTests(unittest.TestCase):
         self.assertIn("NAKED OPTION SELLING BLOCKED", workspace)
         self.assertIn("layout = chartCount(Number(result.layout))", option_runtime)
 
+    def test_rich_quant_surface_exposes_canonical_long_option_paper_controls(self):
+        html = (QUANT_ASSETS / "index.html").read_text(encoding="utf-8")
+        execution = (QUANT_ASSETS / "v16_option_execution.js").read_text(encoding="utf-8")
+        backend = (ROOT / "workstation" / "v16_option_paper.py").read_text(encoding="utf-8")
+        http = inspect.getsource(v16_terminal_http)
+        self.assertIn('<script src="/v16_option_execution.js"></script>', html)
+        self.assertIn("BUY CALL · PAPER", execution)
+        self.assertIn("BUY PUT · PAPER", execution)
+        self.assertIn("CLOSE LONG POSITION", execution)
+        self.assertIn("MANUAL_RISK_LEVELS_REQUIRED", backend)
+        self.assertIn("NAKED_SHORT_OPTION_BLOCKED", backend)
+        self.assertIn("FYERS_DAILY_SYMBOL_MASTER_EXACT_MATCH", backend)
+        self.assertIn("/api/v16/trading/option-order", http)
+        self.assertIn("/api/v16/trading/reconciliation", http)
+        self.assertIn("live_orders_locked", backend)
+        for forbidden in ("place_order(", "submit_order(", "modify_order(", "cancel_order("):
+            self.assertNotIn(forbidden, execution + backend + http)
+
     def test_v16_http_boundary_absorbs_aborted_browser_connections(self):
         source = inspect.getsource(v16_terminal_http)
         self.assertIn("ConnectionAbortedError", source)
@@ -104,8 +122,10 @@ class V16MainWorkstationIntegrationTests(unittest.TestCase):
             ROOT / "scripts" / "jarvis_runtime_supervisor_v16.py",
             ROOT / "workstation" / "jarvis_os_v16_bridge.py",
             ROOT / "workstation" / "v16_terminal_http.py",
+            ROOT / "workstation" / "v16_option_paper.py",
             ASSETS / "v16_main_trading_runtime.js",
             QUANT_ASSETS / "v16_workspace.js",
+            QUANT_ASSETS / "v16_option_execution.js",
         ]
         source = "\n".join(path.read_text(encoding="utf-8") for path in paths)
         for forbidden in ("place_order(", "submit_order(", "modify_order(", "cancel_order("):
