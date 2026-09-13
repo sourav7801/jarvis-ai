@@ -1,3 +1,4 @@
+from contextlib import closing
 import json
 from pathlib import Path
 import sqlite3
@@ -17,8 +18,11 @@ class TerminalLedgerGuardV16Tests(unittest.TestCase):
         self.legacy_account = self.root / "paper_portfolio.json"
         self.legacy_spreads = self.root / "paper_option_spreads.sqlite3"
 
-        with sqlite3.connect(self.terminal_db) as conn:
+        # sqlite3.Connection's context manager commits/rolls back but does not
+        # close the handle. Close explicitly so Windows can remove the temp DB.
+        with closing(sqlite3.connect(self.terminal_db)) as conn:
             conn.execute("CREATE TABLE terminal_workspaces (workspace TEXT PRIMARY KEY)")
+            conn.commit()
 
     def tearDown(self):
         self._tmp.cleanup()
@@ -49,12 +53,13 @@ class TerminalLedgerGuardV16Tests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
-        with sqlite3.connect(self.legacy_spreads) as conn:
+        with closing(sqlite3.connect(self.legacy_spreads)) as conn:
             conn.execute("CREATE TABLE option_spreads (status TEXT NOT NULL)")
             conn.executemany(
                 "INSERT INTO option_spreads(status) VALUES (?)",
                 [("OPEN",), ("CLOSED",), ("OPEN",)],
             )
+            conn.commit()
 
         desk = SimpleNamespace(db_path=self.terminal_db)
         with self._patch_paths():
