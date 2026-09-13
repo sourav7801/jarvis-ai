@@ -146,7 +146,13 @@
 <script src="/session_hotfix.js"></script>
 <script src="/scan_consistency_hotfix.js"></script>
 <script src="/option_chart_runtime.js"></script>
-<script src="/paper_desk_runtime.js"></script>
+<script>
+if (!window.JARVIS_V16_CANONICAL) {
+  const legacyPaperDesk = document.createElement("script");
+  legacyPaperDesk.src = "/paper_desk_runtime.js";
+  document.head.appendChild(legacyPaperDesk);
+}
+</script>
 <script src="/v12_paper_intelligence.js"></script>
 <script src="/v13_contextual_paper_runtime.js"></script>
 <script src="/v14_execution_runtime.js"></script>
@@ -237,8 +243,28 @@
       }
     }
   }
+
+  function pinAutonomousSurface() {
+    if (!window.JARVIS_V16_CANONICAL) return;
+    const intel = document.querySelector(".intel-panel");
+    const primary = $("v16AutonomyPrimary");
+    const evidence = $("v16EvidenceDeck");
+    const legacyDesk = $("paperDeskV4");
+    const reply = $("commandReply");
+    if (legacyDesk) legacyDesk.hidden = true;
+    if (reply && /^Paper desk refresh:/i.test(String(reply.textContent || "").trim())) {
+      reply.textContent = "Canonical V16 Paper Desk active. Legacy paper-desk polling is retired in this workstation.";
+    }
+    if (intel && primary) {
+      if (intel.firstElementChild !== primary) intel.prepend(primary);
+      if (evidence && primary.nextElementSibling !== evidence) primary.insertAdjacentElement("afterend", evidence);
+    }
+  }
+
   setInterval(refreshTruthfulOptionGates, 1200);
+  setInterval(pinAutonomousSurface, 750);
   setTimeout(refreshTruthfulOptionGates, 350);
+  setTimeout(pinAutonomousSurface, 500);
 })();
 </script>
 </body>
