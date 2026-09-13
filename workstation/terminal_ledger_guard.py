@@ -28,6 +28,47 @@ def terminal_controls(path):
         return True
 
 
+def _first_scalar(record, *keys):
+    if not isinstance(record, dict):
+        return None
+    for key in keys:
+        value = record.get(key)
+        if value is None or isinstance(value, (dict, list, tuple, set)):
+            continue
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                continue
+            return value[:96]
+        if isinstance(value, (int, float, bool)):
+            return value
+    return None
+
+
+def _legacy_position_summary(record, index):
+    """Return only execution-safe fields needed to identify old exposure.
+
+    Free-form notes, prompts and arbitrary metadata are deliberately excluded so
+    diagnostics can identify the blocking paper position without copying the
+    legacy payload into the canonical ledger or browser.
+    """
+    return {
+        "record": index,
+        "symbol": _first_scalar(record, "symbol", "instrument", "ticker") or "UNKNOWN",
+        "side": _first_scalar(record, "side", "direction", "action"),
+        "quantity": _first_scalar(record, "quantity", "qty", "lots"),
+        "entry_price": _first_scalar(record, "entry_price", "entry", "avg_price", "average_price", "price"),
+        "stop": _first_scalar(record, "stop_loss", "stop", "sl"),
+        "target": _first_scalar(record, "target", "target_price", "tp"),
+        "opened_at": _first_scalar(record, "opened_at", "entry_time", "timestamp", "created_at"),
+        "status": _first_scalar(record, "status", "state"),
+        "option_type": _first_scalar(record, "option_type", "type"),
+        "strike": _first_scalar(record, "strike", "strike_price"),
+        "expiry": _first_scalar(record, "expiry", "expiry_date"),
+        "workspace": _first_scalar(record, "portfolio_bucket", "workspace", "bucket", "profile"),
+    }
+
+
 def legacy_exposure(desk):
     if desk.db_path.resolve() != TERMINAL_DB.resolve():
         return []
@@ -35,9 +76,20 @@ def legacy_exposure(desk):
     if LEGACY_ACCOUNT.exists():
         try:
             data = json.loads(LEGACY_ACCOUNT.read_text(encoding="utf-8"))
-            count = len(data.get("positions") or [])
+            positions = data.get("positions") or []
+            count = len(positions)
             if count:
-                issues.append({"book": "Legacy paper account", "open_count": count, "path": str(LEGACY_ACCOUNT)})
+                issues.append(
+                    {
+                        "book": "Legacy paper account",
+                        "open_count": count,
+                        "path": str(LEGACY_ACCOUNT),
+                        "position_summaries": [
+                            _legacy_position_summary(record, index)
+                            for index, record in enumerate(positions[:10], start=1)
+                        ],
+                    }
+                )
         except (OSError, ValueError, TypeError):
             issues.append({"book": "Legacy paper account", "error": "UNREADABLE_RECORDS", "path": str(LEGACY_ACCOUNT)})
     if LEGACY_SPREADS.exists():
