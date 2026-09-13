@@ -11,6 +11,7 @@ from workstation import v16_terminal_http
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "workstation" / "jarvis_os_v3_assets"
+QUANT_ASSETS = ROOT / "workstation" / "quant_terminal_v2_static"
 
 
 class V16MainWorkstationIntegrationTests(unittest.TestCase):
@@ -73,6 +74,22 @@ class V16MainWorkstationIntegrationTests(unittest.TestCase):
         self.assertIn("index * 140", source)
         self.assertNotIn("http://127.0.0.1:8787", source)
 
+    def test_rich_quant_surface_keeps_exact_layouts_and_v16_workspace_runtime(self):
+        html = (QUANT_ASSETS / "index.html").read_text(encoding="utf-8")
+        workspace = (QUANT_ASSETS / "v16_workspace.js").read_text(encoding="utf-8")
+        option_runtime = (QUANT_ASSETS / "option_chart_runtime.js").read_text(encoding="utf-8")
+        for count in range(1, 9):
+            self.assertIn(f'data-layout="{count}"', html)
+        for mode in ("INTRADAY", "SWING", "INVESTMENT", "OPTIONS"):
+            self.assertIn(f'data-workspace="{mode}"', html)
+        self.assertIn('<script src="/v16_workspace.js"></script>', html)
+        self.assertIn("/api/v16/trading/workspace-state", workspace)
+        self.assertIn("/api/terminal/session", workspace)
+        self.assertIn("option-chain", workspace)
+        self.assertIn("LIVE BROKER EXECUTION LOCKED", workspace)
+        self.assertIn("NAKED OPTION SELLING BLOCKED", workspace)
+        self.assertIn("layout = chartCount(Number(result.layout))", option_runtime)
+
     def test_v16_http_boundary_absorbs_aborted_browser_connections(self):
         source = inspect.getsource(v16_terminal_http)
         self.assertIn("ConnectionAbortedError", source)
@@ -88,6 +105,7 @@ class V16MainWorkstationIntegrationTests(unittest.TestCase):
             ROOT / "workstation" / "jarvis_os_v16_bridge.py",
             ROOT / "workstation" / "v16_terminal_http.py",
             ASSETS / "v16_main_trading_runtime.js",
+            QUANT_ASSETS / "v16_workspace.js",
         ]
         source = "\n".join(path.read_text(encoding="utf-8") for path in paths)
         for forbidden in ("place_order(", "submit_order(", "modify_order(", "cancel_order("):
