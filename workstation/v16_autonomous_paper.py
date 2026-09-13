@@ -57,6 +57,18 @@ def _open_positions(runtime: Any, workspace: str) -> list[dict[str, Any]]:
         return []
 
 
+def _symbol_underlying(symbol: str) -> str | None:
+    token = str(symbol or "").upper()
+    # BANKNIFTY must be checked before NIFTY because its name contains NIFTY.
+    if "BANKNIFTY" in token or "NIFTYBANK" in token:
+        return "BANKNIFTY"
+    if "SENSEX" in token:
+        return "SENSEX"
+    if "NIFTY" in token:
+        return "NIFTY"
+    return None
+
+
 def _same_underlying_exposure(position: Mapping[str, Any], underlying: str) -> bool:
     metadata = position.get("metadata") if isinstance(position.get("metadata"), Mapping) else {}
     asset_type = str(position.get("asset_type") or metadata.get("asset_type") or "").upper()
@@ -65,9 +77,7 @@ def _same_underlying_exposure(position: Mapping[str, Any], underlying: str) -> b
     if position_underlying:
         return position_underlying == underlying
     # Older canonical option rows can predate the explicit underlying field.
-    if asset_type == "OPTION" and underlying in symbol:
-        return True
-    return False
+    return bool(asset_type == "OPTION" and _symbol_underlying(symbol) == underlying)
 
 
 def autonomous_option_plan(
