@@ -37,6 +37,20 @@ class V16AutonomyWorkflowUITests(unittest.TestCase):
         self.assertIn("/v16_autonomy_runtime.css", source)
         self.assertIn("window.JARVIS_V16_CANONICAL=true", source)
 
+    def test_v16_index_does_not_start_legacy_paper_desk_poller(self):
+        html = (STATIC / "index.html").read_text(encoding="utf-8")
+        self.assertIn("if (!window.JARVIS_V16_CANONICAL)", html)
+        self.assertIn('legacyPaperDesk.src = "/paper_desk_runtime.js"', html)
+        self.assertNotIn('<script src="/paper_desk_runtime.js"></script>', html)
+        self.assertIn("Canonical V16 Paper Desk active", html)
+
+    def test_autonomous_control_center_is_pinned_above_supporting_evidence(self):
+        html = (STATIC / "index.html").read_text(encoding="utf-8")
+        self.assertIn("function pinAutonomousSurface()", html)
+        self.assertIn("intel.prepend(primary)", html)
+        self.assertIn('primary.insertAdjacentElement("afterend", evidence)', html)
+        self.assertIn("legacyDesk.hidden = true", html)
+
 
 if __name__ == "__main__":
     unittest.main()
