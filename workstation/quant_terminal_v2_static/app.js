@@ -24,10 +24,56 @@ let providerTimer=null;
 let signalTimer=null;
 let watchCursor=0;
 const indicatorState={ema:true,vwap:true,bb:true,rsi:true};
+const RICH_STATE_KEY="jarvis.v16.rich.workspaces";
+const CHART_FRAMES=["1m","3m","5m","15m","30m","1h","2h","4h","1d"];
+let activeWorkspace="INTRADAY";
+let savedWorkspaces={};
+try{savedWorkspaces=JSON.parse(localStorage.getItem(RICH_STATE_KEY)||"{}")}catch{}
+if(!savedWorkspaces||typeof savedWorkspaces!=="object"||Array.isArray(savedWorkspaces))savedWorkspaces={};
+function chartCount(value){return Math.max(1,Math.min(8,Math.trunc(Number(value)||4)))}
+function workspaceView(){
+  const existing=savedWorkspaces[activeWorkspace];
+  if(existing&&typeof existing==="object"&&Array.isArray(existing.slots))return existing;
+  return savedWorkspaces[activeWorkspace]={layout:4,focus:0,slots:[]};
+}
+function slotView(index){
+  const view=workspaceView();const stored=view.slots[index]||{};
+  const tf=activeWorkspace==="SWING"?"1h":activeWorkspace==="INVESTMENT"?"1d":"5m";
+  return view.slots[index]={symbol:String(stored.symbol||SLOT_DEFAULTS[index]||"NIFTY"),timeframe:CHART_FRAMES.includes(stored.timeframe)?stored.timeframe:tf,indicators:{ema:true,vwap:true,bb:true,rsi:true,...stored.indicators},kind:stored.kind||"MARKET",optionChart:stored.optionChart||null};
+}
+function persistCharts(){
+  const view=workspaceView();view.layout=chartCount(layout);view.focus=selectedSlot;
+  chartSlots.forEach((s,i)=>{view.slots[i]={symbol:s.symbol,timeframe:s.timeframe,indicators:{...s.indicators},kind:s.kind||"MARKET",optionChart:s.optionChart||null}});
+  try{localStorage.setItem(RICH_STATE_KEY,JSON.stringify(savedWorkspaces))}catch{}
+}
+function focusChart(index){
+  const slot=chartSlots[index];if(!slot)return;
+  selectedSlot=index;selectedSymbol=slot.symbol;timeframe=slot.timeframe;Object.assign(indicatorState,slot.indicators);
+  document.querySelectorAll(".chart-cell").forEach((node,i)=>node.classList.toggle("selected",i===index));
+  $("scanSymbol").textContent=marketMeta(selectedSymbol).label;syncControls();buildWatch();persistCharts();
+}
+async function switchWorkspace(name){
+  if(!["INTRADAY","SWING","INVESTMENT","OPTIONS"].includes(name))return;
+  persistCharts();activeWorkspace=name;analysisProfile=name==="OPTIONS"?"intraday":name.toLowerCase();
+  const view=workspaceView();layout=chartCount(view.layout);selectedSlot=Math.min(Number(view.focus)||0,layout-1);
+  chartSlots.forEach(destroySlot);chartSlots=[];
+  selectedSymbol=slotView(selectedSlot).symbol;timeframe=slotView(selectedSlot).timeframe;
+  syncControls();await mountCharts();window.dispatchEvent(new CustomEvent("jarvis:workspace",{detail:{workspace:name}}));
+}
+const candleReads=new Map();const candleCache=new Map();let candleActive=0;const candleQueue=[];
+async function readCandles(url){
+  const cached=candleCache.get(url);if(cached&&Date.now()-cached.at<10000)return cached.payload;
+  if(candleReads.has(url))return candleReads.get(url);
+  const task=(async()=>{
+    if(candleActive>=4)await new Promise(resolve=>candleQueue.push(resolve));else candleActive++;
+    try{const payload=await fetchJson(url,{},32000);if(payload.success&&payload.candles?.length){candleCache.set(url,{at:Date.now(),payload});while(candleCache.size>64)candleCache.delete(candleCache.keys().next().value)}return payload}
+    finally{const next=candleQueue.shift();if(next)next();else candleActive--;candleReads.delete(url)}
+  })();candleReads.set(url,task);return task;
+}
 
 async function fetchJson(url,options={},timeoutMs=12000){
   const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),timeoutMs);
-  try{const response=await fetch(url,{...options,signal:controller.signal});if(!response.ok)throw new Error(`HTTP ${response.status}`);return await response.json()}
+  try{const response=await fetch(url,{...options,signal:controller.signal});const payload=await response.json();if(!response.ok)throw new Error(payload.message||payload.error||`Provider request failed (${response.status})`);return payload}
   catch(error){if(error?.name==="AbortError")throw new Error("Market-data request timed out. Use RELOAD DATA to retry.");throw error}
   finally{clearTimeout(timeout)}
 }
@@ -43,13 +89,14 @@ function emaSeries(rows,period){
   if(rows.length<period)return[];const alpha=2/(period+1);let value=rows.slice(0,period).reduce((sum,row)=>sum+row.close,0)/period;const result=[{time:rows[period-1].time,value}];
   for(let i=period;i<rows.length;i++){value=alpha*rows[i].close+(1-alpha)*value;result.push({time:rows[i].time,value})}return result;
 }
-function vwapSeries(rows){let weighted=0,volume=0;return rows.map(row=>{const v=Math.max(0,Number(row.volume||0));weighted+=((row.high+row.low+row.close)/3)*v;volume+=v;return{time:row.time,value:volume>0?weighted/volume:row.close}})}
+function vwapSeries(rows){let weighted=0,volume=0;const result=[];for(const row of rows){const v=Math.max(0,Number(row.volume||0));weighted+=((row.high+row.low+row.close)/3)*v;volume+=v;if(volume>0)result.push({time:row.time,value:weighted/volume})}return result}
 function bollingerSeries(rows,period=20){const upper=[],lower=[];for(let i=period-1;i<rows.length;i++){const sample=rows.slice(i-period+1,i+1).map(row=>row.close);const mean=sample.reduce((a,b)=>a+b,0)/period;const variance=sample.reduce((sum,value)=>sum+((value-mean)**2),0)/period;const sigma=Math.sqrt(variance);upper.push({time:rows[i].time,value:mean+2*sigma});lower.push({time:rows[i].time,value:mean-2*sigma})}return{upper,lower}}
 function rsiSeries(rows,period=14){const result=[];for(let i=period;i<rows.length;i++){let gain=0,loss=0;for(let j=i-period+1;j<=i;j++){const change=rows[j].close-rows[j-1].close;if(change>=0)gain+=change;else loss-=change}const avgGain=gain/period,avgLoss=loss/period;const value=avgLoss===0?100:100-(100/(1+(avgGain/avgLoss)));result.push({time:rows[i].time,value})}return result}
 function updateIndicators(slot){
   if(!slot?.data?.length||!slot.ema20)return;const bands=bollingerSeries(slot.data);
   slot.ema20.setData(emaSeries(slot.data,20));slot.ema50.setData(emaSeries(slot.data,50));slot.vwap.setData(vwapSeries(slot.data));slot.bbUpper.setData(bands.upper);slot.bbLower.setData(bands.lower);slot.rsi.setData(rsiSeries(slot.data));
-  slot.ema20.applyOptions({visible:indicatorState.ema});slot.ema50.applyOptions({visible:indicatorState.ema});slot.vwap.applyOptions({visible:indicatorState.vwap});slot.bbUpper.applyOptions({visible:indicatorState.bb});slot.bbLower.applyOptions({visible:indicatorState.bb});slot.rsi.applyOptions({visible:indicatorState.rsi});
+  const state=slot.indicators||indicatorState;
+  slot.ema20.applyOptions({visible:state.ema});slot.ema50.applyOptions({visible:state.ema});slot.vwap.applyOptions({visible:state.vwap});slot.bbUpper.applyOptions({visible:state.bb});slot.bbLower.applyOptions({visible:state.bb});slot.rsi.applyOptions({visible:state.rsi});
 }
 function decisionSignal(decision){const side=String(decision?.side||"WAIT").toUpperCase();return side==="LONG"?"BUY":side==="SHORT"?"SELL":"WAIT"}
 function clearSignalLines(slot){for(const line of slot?.signalLines||[]){try{slot.candles.removePriceLine(line)}catch{}}if(slot?.signalMarker){try{slot.signalMarker.detach()}catch{}slot.signalMarker=null}if(slot)slot.signalLines=[]}
@@ -100,6 +147,7 @@ function selectMarket(symbol){
   document.querySelectorAll(".market-tile").forEach(tile=>tile.classList.toggle("active",tile.dataset.symbol===symbol));
   if(chartSlots[selectedSlot]){
     chartSlots[selectedSlot].symbol=symbol;
+    chartSlots[selectedSlot].data=[];destroySlot(chartSlots[selectedSlot]);persistCharts();
     return loadSlot(selectedSlot).then(()=>scanSelected());
   }
   return Promise.resolve();
@@ -142,20 +190,32 @@ function mountCharts(){
   host.className=`chart-grid layout-${layout}`;
   const loads=[];
   for(let index=0;index<layout;index++){
-    const symbol=index===0?selectedSymbol:(SLOT_DEFAULTS[index]||"NIFTY");
+    const config=slotView(index);const symbol=config.symbol;
     const cell=document.createElement("div");cell.className="chart-cell"+(index===selectedSlot?" selected":"");cell.dataset.slot=String(index);
     const head=document.createElement("div");head.className="chart-head";
     head.innerHTML=`<strong>${marketMeta(symbol).label}</strong><span>${timeframe} · LOADING</span>`;
+    const controls=document.createElement("div");controls.className="chart-controls";
+    controls.innerHTML=`<select data-chart-symbol aria-label="Chart ${index+1} symbol">${[...new Set([...MARKETS.map(m=>m.symbol),symbol])].map(s=>`<option ${s===symbol?"selected":""}>${escapeHtml(s)}</option>`).join("")}</select><select data-chart-timeframe aria-label="Chart ${index+1} timeframe">${CHART_FRAMES.map(tf=>`<option ${tf===config.timeframe?"selected":""}>${tf}</option>`).join("")}</select><button data-chart-fit title="Fit chart">FIT</button>`;
+    controls.addEventListener("click",event=>event.stopPropagation());
+    controls.querySelector("[data-chart-symbol]").addEventListener("change",event=>{focusChart(index);selectMarket(event.target.value)});
+    controls.querySelector("[data-chart-timeframe]").addEventListener("change",event=>{focusChart(index);setChartTimeframe(index,event.target.value)});
+    controls.querySelector("[data-chart-fit]").addEventListener("click",()=>centerChart(chartSlots[index]));
     const chartHost=document.createElement("div");chartHost.className="chart-host";
     const signalBadge=document.createElement("div");signalBadge.className="chart-signal wait";signalBadge.textContent="WAIT · 0.0";
     const patternState=document.createElement("div");patternState.className="chart-pattern-state wait";patternState.textContent="PATTERN ENGINE · WAITING";
     const status=document.createElement("div");status.className="chart-status";status.textContent="Loading verified candles…";
-    cell.append(head,chartHost,signalBadge,patternState,status);host.appendChild(cell);
-    cell.addEventListener("click",()=>{selectedSlot=index;selectedSymbol=chartSlots[index].symbol;$("scanSymbol").textContent=marketMeta(selectedSymbol).label;document.querySelectorAll(".chart-cell").forEach((node,i)=>node.classList.toggle("selected",i===selectedSlot));buildWatch();if(chartSlots[index].decision)applyDecision(chartSlots[index],chartSlots[index].decision);scanSelected()});
-    chartSlots.push({index,symbol,cell,head,chartHost,signalBadge,patternState,status,chart:null,candles:null,volume:null,ema20:null,ema50:null,vwap:null,bbUpper:null,bbLower:null,rsi:null,signalLines:[],signalMarker:null,decision:null,data:[],cryptoSocket:null,cryptoTimer:null,pendingCrypto:null});
+    cell.append(head,controls,chartHost,signalBadge,patternState,status);host.appendChild(cell);
+    cell.addEventListener("click",()=>{if(selectedSlot===index)return;focusChart(index);if(chartSlots[index].decision)applyDecision(chartSlots[index],chartSlots[index].decision);scanSelected()});
+    chartSlots.push({...config,index,symbol,cell,head,chartHost,signalBadge,patternState,status,chart:null,candles:null,volume:null,ema20:null,ema50:null,vwap:null,bbUpper:null,bbLower:null,rsi:null,signalLines:[],signalMarker:null,decision:null,data:[],cryptoSocket:null,cryptoTimer:null,pendingCrypto:null});
     loads.push(loadSlot(index));
   }
-  return Promise.allSettled(loads);
+  focusChart(Math.min(selectedSlot,layout-1));return Promise.allSettled(loads);
+}
+
+function setChartTimeframe(index,tf){
+  const slot=chartSlots[index];if(!slot||!CHART_FRAMES.includes(tf))return;
+  slot.timeframe=tf;slot.data=[];destroySlot(slot);focusChart(index);persistCharts();
+  slot.cell.querySelector("[data-chart-timeframe]").value=tf;return loadSlot(index);
 }
 
 function setStatus(slot,text,kind=""){slot.status.textContent=text;slot.status.className="chart-status"+(kind?` ${kind}`:"")}
@@ -174,29 +234,33 @@ function createSeries(slot,payload){
   slot.rsi=slot.chart.addSeries(LightweightCharts.LineSeries,{color:"#78f2aa",lineWidth:2,priceFormat:{type:"price",precision:1,minMove:.1},priceLineVisible:false,lastValueVisible:true},1);
   slot.rsi.priceScale().applyOptions({autoScale:true,scaleMargins:{top:.1,bottom:.1}});slot.rsi.createPriceLine({price:70,color:"rgba(255,111,131,.45)",lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dotted,axisLabelVisible:false});slot.rsi.createPriceLine({price:30,color:"rgba(120,242,170,.45)",lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dotted,axisLabelVisible:false});
   slot.volume.priceScale().applyOptions({scaleMargins:{top:.82,bottom:0}});
-  slot.data=(payload.candles||[]).map(row=>({time:Number(row.time??row.timestamp),open:Number(row.open),high:Number(row.high),low:Number(row.low),close:Number(row.close),volume:Number(row.volume||0)})).filter(row=>Number.isFinite(row.time)&&Number.isFinite(row.close));
+  slot.data=(payload.candles||[]).filter(row=>[row.time??row.timestamp,row.open,row.high,row.low,row.close].every(v=>v!=null&&Number.isFinite(Number(v)))).map(row=>({time:Number(row.time??row.timestamp),open:Number(row.open),high:Number(row.high),low:Number(row.low),close:Number(row.close),volume:row.volume==null?null:Number(row.volume)})).filter(row=>row.high>=Math.max(row.open,row.close)&&row.low<=Math.min(row.open,row.close)).sort((a,b)=>a.time-b.time);
+  slot.data=slot.data.filter((row,i,rows)=>i===rows.length-1||rows[i+1].time!==row.time);
   slot.candles.setData(slot.data.map(({time,open,high,low,close})=>({time,open,high,low,close})));
-  slot.volume.setData(slot.data.map(row=>({time:row.time,value:row.volume,color:row.close>=row.open?"rgba(97,230,154,.28)":"rgba(255,102,125,.28)"})));
+  slot.volume.setData(slot.data.filter(row=>row.volume!=null&&Number.isFinite(row.volume)).map(row=>({time:row.time,value:row.volume,color:row.close>=row.open?"rgba(97,230,154,.28)":"rgba(255,102,125,.28)"})));
   updateIndicators(slot);
   centerChart(slot);
 }
 
 async function loadSlot(index){
   const slot=chartSlots[index];if(!slot)return;
+  const timeframe=slot.timeframe;const version=slot.loadVersion=(slot.loadVersion||0)+1;
   if(slot.cryptoSocket){try{slot.cryptoSocket.close()}catch{}slot.cryptoSocket=null}
   const symbol=slot.symbol;const meta=marketMeta(symbol);
   slot.head.querySelector("strong").textContent=meta.label;slot.head.querySelector("span").textContent=`${timeframe} · LOADING`;
   setStatus(slot,`Loading ${meta.label} ${timeframe} candles…`);
   try{
     const params=new URLSearchParams({symbol,timeframe,bars:"700"});
-    const payload=await fetchJson(`/api/candles?${params}`,{},32000);
+    const payload=await readCandles(`/api/candles?${params}`);
+    if(chartSlots[index]!==slot||slot.loadVersion!==version||slot.symbol!==symbol||slot.timeframe!==timeframe)return;
     if(!payload.success||!payload.candles?.length)throw new Error(payload.message||"Verified candles unavailable.");
     createSeries(slot,payload);
     slot.head.querySelector("span").textContent=`${timeframe} · ${payload.source}`;
     setStatus(slot,`${payload.source} · ${payload.provider_symbol} · ${payload.bars} bars · ${payload.data_quality}`,"live");
     if(meta.kind==="CRYPTO")connectCryptoSocket(slot);else pollSlotLive(slot);
   }catch(error){
-    setStatus(slot,error.message||"Market data unavailable.","error");
+    if(chartSlots[index]!==slot||slot.loadVersion!==version)return;
+    setStatus(slot,`${slot.data.length?"LAST VERIFIED HISTORY RETAINED · ":""}${error.message||"Market data unavailable."}`,"error");
     slot.head.querySelector("span").textContent=`${timeframe} · DATA UNAVAILABLE`;
   }
 }
@@ -204,17 +268,18 @@ async function loadSlot(index){
 function applyLivePrice(slot,snapshot){
   if(!slot?.candles||!snapshot||snapshot.ltp==null)return;
   const price=Number(snapshot.ltp);if(!Number.isFinite(price))return;
-  const now=bucketTime(currentEpoch(snapshot),timeframe);const last=slot.data[slot.data.length-1];
+  const stamp=Number(snapshot.exchange_timestamp);if(!Number.isFinite(stamp)||stamp<=0)return;
+  const epoch=stamp>1e12?stamp/1000:stamp;if(Math.abs(Date.now()/1000-epoch)>30)return;
+  const timeframe=slot.timeframe;const now=bucketTime(epoch,timeframe);const last=slot.data[slot.data.length-1];if(last&&now<last.time)return;
   let candle;
   if(last&&Number(last.time)===now){
     candle={...last,high:Math.max(Number(last.high),price),low:Math.min(Number(last.low),price),close:price};
-    if(snapshot.volume!=null&&Number.isFinite(Number(snapshot.volume)))candle.volume=Number(snapshot.volume);
     slot.data[slot.data.length-1]=candle;
   }else{
-    const open=last?Number(last.close):price;candle={time:now,open,high:Math.max(open,price),low:Math.min(open,price),close:price,volume:Number(snapshot.volume||0)};slot.data.push(candle);
+    candle={time:now,open:price,high:price,low:price,close:price,volume:null};slot.data.push(candle);
   }
   slot.candles.update({time:candle.time,open:candle.open,high:candle.high,low:candle.low,close:candle.close});
-  slot.volume.update({time:candle.time,value:candle.volume||0,color:candle.close>=candle.open?"rgba(97,230,154,.28)":"rgba(255,102,125,.28)"});
+  if(candle.volume!=null)slot.volume.update({time:candle.time,value:candle.volume,color:candle.close>=candle.open?"rgba(97,230,154,.28)":"rgba(255,102,125,.28)"});
   updateIndicators(slot);
   slot.head.querySelector("span").textContent=`${timeframe} · LIVE ${fmt(price)}`;setStatus(slot,`${marketMeta(slot.symbol).kind==="CRYPTO"?"CRYPTO TICK":"FYERS LIVE"} · ${fmt(price)} · ${new Date().toLocaleTimeString()}`,"live");
   updateWatchTile(slot.symbol,snapshot);
@@ -296,12 +361,13 @@ function openIntelligenceModule(moduleName){
   window.open(`/intelligence.html?${params.toString()}`,"_blank","noopener");
 }
 
-function syncControls(){document.querySelectorAll("[data-layout]").forEach(button=>button.classList.toggle("active",Number(button.dataset.layout)===layout));document.querySelectorAll("[data-timeframe]").forEach(button=>button.classList.toggle("active",button.dataset.timeframe===timeframe));document.querySelectorAll("[data-indicator]").forEach(button=>button.classList.toggle("active",Boolean(indicatorState[button.dataset.indicator])))}
+function syncControls(){document.querySelectorAll("[data-workspace]").forEach(button=>button.classList.toggle("active",button.dataset.workspace===activeWorkspace));document.querySelectorAll("[data-layout]").forEach(button=>button.classList.toggle("active",Number(button.dataset.layout)===layout));document.querySelectorAll("[data-timeframe]").forEach(button=>button.classList.toggle("active",button.dataset.timeframe===timeframe));document.querySelectorAll("[data-indicator]").forEach(button=>button.classList.toggle("active",Boolean(indicatorState[button.dataset.indicator])))}
 
 function bindControls(){
-  document.querySelectorAll("[data-layout]").forEach(button=>button.addEventListener("click",()=>{layout=Number(button.dataset.layout);selectedSlot=0;syncControls();mountCharts()}));
-  document.querySelectorAll("[data-timeframe]").forEach(button=>button.addEventListener("click",async()=>{timeframe=button.dataset.timeframe;analysisProfile=timeframe==="1d"?"swing":"intraday";syncControls();await Promise.allSettled(chartSlots.map((_,i)=>loadSlot(i)));scanSelected()}));
-  document.querySelectorAll("[data-indicator]").forEach(button=>button.addEventListener("click",()=>{const key=button.dataset.indicator;indicatorState[key]=!indicatorState[key];syncControls();chartSlots.forEach(updateIndicators)}));
+  document.querySelectorAll("[data-workspace]").forEach(button=>button.addEventListener("click",()=>switchWorkspace(button.dataset.workspace)));
+  document.querySelectorAll("[data-layout]").forEach(button=>button.addEventListener("click",()=>{persistCharts();layout=chartCount(button.dataset.layout);selectedSlot=Math.min(selectedSlot,layout-1);syncControls();mountCharts()}));
+  document.querySelectorAll("[data-timeframe]").forEach(button=>button.addEventListener("click",()=>setChartTimeframe(selectedSlot,button.dataset.timeframe)));
+  document.querySelectorAll("[data-indicator]").forEach(button=>button.addEventListener("click",()=>{const key=button.dataset.indicator;indicatorState[key]=!indicatorState[key];const slot=chartSlots[selectedSlot];if(slot){slot.indicators[key]=indicatorState[key];updateIndicators(slot)}syncControls();persistCharts()}));
   $("fitButton").addEventListener("click",()=>chartSlots.forEach(centerChart));
   $("reloadCharts").addEventListener("click",()=>chartSlots.forEach((_,i)=>loadSlot(i)));
   $("scanButton").addEventListener("click",scanSelected);
@@ -319,7 +385,9 @@ function startTimers(){
 }
 
 async function bootstrap(){
+  const view=workspaceView();layout=chartCount(view.layout);selectedSlot=Math.max(0,Math.min(Number(view.focus)||0,layout-1));selectedSymbol=slotView(selectedSlot).symbol;timeframe=slotView(selectedSlot).timeframe;
   const params=new URLSearchParams(window.location.search);const raw=String(params.get("symbol")||"").toUpperCase().replaceAll(" ","");let found=MARKETS.find(item=>item.symbol===raw||item.label.toUpperCase().replaceAll(" ","")===raw);if(!found&&raw){found={symbol:raw,label:raw,kind:"INDIA_EQUITY"};MARKETS.push(found)}if(found)selectedSymbol=found.symbol;const tf=params.get("timeframe");if(tf&&["1m","3m","5m","15m","30m","1h","2h","4h","1d"].includes(tf))timeframe=tf;analysisProfile=params.get("profile")||(timeframe==="1d"?"swing":"intraday");if(params.get("analyze")==="1")layout=1;
+  if(found||tf){view.slots[selectedSlot]={...slotView(selectedSlot),symbol:selectedSymbol,timeframe}};
   buildWatch();bindControls();syncControls();const watchHydration=refreshAllWatch();await mountCharts();refreshProvider();startTimers();await watchHydration;if(params.get("analyze")==="1")await scanSelected();
 }
 bootstrap();

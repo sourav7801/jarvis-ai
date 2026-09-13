@@ -82,7 +82,7 @@
 
 .v16ChartPaneHead {
     display: grid;
-    grid-template-columns: minmax(86px, 1fr) 58px auto;
+    grid-template-columns: minmax(86px, 1fr) 58px auto 34px;
     gap: 4px;
     align-items: center;
     padding: 3px 5px;
@@ -99,13 +99,13 @@
     border: 1px solid rgba(109, 225, 255, .18);
     border-radius: 4px;
     background: #031018;
-    font-size: 7px;
+    font-size: 11px;
 }
 
 .v16ChartProvider {
     justify-self: end;
     color: var(--green);
-    font-size: 6px;
+    font-size: 9px;
     letter-spacing: .5px;
     white-space: nowrap;
 }

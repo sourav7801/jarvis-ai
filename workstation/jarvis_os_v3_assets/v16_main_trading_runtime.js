@@ -25,6 +25,9 @@ const V16_CHART_SYMBOLS = [
 const V16_CHART_TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "1d"];
 const V16_LAYOUT_STORAGE = "jarvis.v16.main.chart.count";
 const V16_CHART_CACHE = new Map();
+const V16_CHART_PENDING = new Map();
+const V16_CHART_VIEWS = new Map();
+let v16ChartLibraryPromise;
 let v16SelectedChartSlot = 0;
 let v16ProviderLabel = "WAITING";
 let v16TradingHealthBusy = false;
@@ -78,6 +81,14 @@ async function v16FetchChart(symbol, timeframe) {
     const cached = V16_CHART_CACHE.get(key);
     const now = Date.now();
     if (cached && now - cached.at < 9000) return cached.payload;
+    if (V16_CHART_PENDING.has(key)) return V16_CHART_PENDING.get(key);
+    const request = v16ReadChart(symbol, timeframe, key);
+    V16_CHART_PENDING.set(key, request);
+    try { return await request; }
+    finally { if (V16_CHART_PENDING.get(key) === request) V16_CHART_PENDING.delete(key); }
+}
+
+async function v16ReadChart(symbol, timeframe, key) {
 
     const endpoint = "/api/v16/trading/chart?symbol="
         + encodeURIComponent(symbol)
@@ -95,11 +106,61 @@ async function v16FetchChart(symbol, timeframe) {
                 throw new Error(payload?.message || payload?.reason || "Verified candles unavailable");
             }
             V16_CHART_CACHE.set(key, {at: Date.now(), payload});
+            while (V16_CHART_CACHE.size > 64) V16_CHART_CACHE.delete(V16_CHART_CACHE.keys().next().value);
             return payload;
         }
         await new Promise(resolve => setTimeout(resolve, 180 + Math.min(attempt * 20, 220)));
     }
     throw new Error("Chart worker is still busy; retrying on the next refresh cycle");
+}
+
+function v16ChartLibrary() {
+    if (window.LightweightCharts) return Promise.resolve(window.LightweightCharts);
+    if (!v16ChartLibraryPromise) v16ChartLibraryPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = '/v16/lightweight-charts.js';
+        script.onload = () => resolve(window.LightweightCharts);
+        script.onerror = () => { script.remove(); v16ChartLibraryPromise = null; reject(new Error('Chart library unavailable')); };
+        document.head.appendChild(script);
+    });
+    return v16ChartLibraryPromise;
+}
+
+function v16DisposeCharts() {
+    V16_CHART_VIEWS.forEach(view => view.chart.remove());
+    V16_CHART_VIEWS.clear();
+}
+
+async function v16DrawChart(index, slot, bars) {
+    const lib = await v16ChartLibrary();
+    const host = document.getElementById('chartCanvas' + index);
+    if (!host || chartSlots[index] !== slot) return;
+    let view = V16_CHART_VIEWS.get(index);
+    const key = `${slot.symbol}|${slot.timeframe}`;
+    if (!view || view.host !== host) {
+        if (view) view.chart.remove();
+        const chart = lib.createChart(host, {
+            autoSize:true, layout:{background:{type:'solid',color:'#07121b'},textColor:'#98b1c3',fontSize:11},
+            grid:{vertLines:{color:'#152532'},horzLines:{color:'#152532'}},
+            rightPriceScale:{borderColor:'#284052'},
+            timeScale:{timeVisible:true,rightOffset:8,barSpacing:7,borderColor:'#284052'},
+            crosshair:{mode:lib.CrosshairMode.Normal},
+            handleScroll:true,handleScale:true
+        });
+        const candles = chart.addSeries(lib.CandlestickSeries,{upColor:'#54cfa4',downColor:'#ef728b',borderVisible:false,wickUpColor:'#54cfa4',wickDownColor:'#ef728b'});
+        const volume = chart.addSeries(lib.HistogramSeries,{priceFormat:{type:'volume'},priceScaleId:''});
+        volume.priceScale().applyOptions({scaleMargins:{top:.83,bottom:0}});
+        view = {host,chart,candles,volume,key:null};
+        V16_CHART_VIEWS.set(index,view);
+    }
+    // Reject incomplete OHLC; absent volume stays absent, never synthesized.
+    const clean = bars.filter(row => ['time','open','high','low','close'].every(k=>row[k] != null && Number.isFinite(Number(row[k]))))
+        .map(row=>({...row,time:Number(row.time),open:Number(row.open),high:Number(row.high),low:Number(row.low),close:Number(row.close)}));
+    const ordered = [...new Map(clean.map(row=>[row.time,row])).values()].sort((a,b)=>a.time-b.time);
+    view.candles.setData(ordered.map(({time,open,high,low,close})=>({time,open,high,low,close})));
+    view.volume.setData(ordered.filter(row=>row.volume != null && Number.isFinite(Number(row.volume))).map(row=>({time:row.time,value:Number(row.volume),color:row.close>=row.open?'#235d50':'#603142'})));
+    if (view.key !== key) { view.chart.timeScale().fitContent(); view.chart.timeScale().scrollToPosition(8,false); }
+    view.key = key;
 }
 
 function v16SyncPrimaryControls(slot, index) {
@@ -148,9 +209,14 @@ function v16ChartPane(slot, index) {
     provider.textContent = "VERIFIED DATA";
     head.append(symbol, timeframe, provider);
 
-    const canvas = document.createElement("canvas");
+    const canvas = document.createElement("div");
     canvas.className = "chartCanvas";
     canvas.id = "chartCanvas" + index;
+    const fit = document.createElement('button');
+    fit.textContent = 'FIT';
+    fit.title = 'Fit chart history';
+    fit.addEventListener('click',()=>V16_CHART_VIEWS.get(index)?.chart.timeScale().fitContent());
+    head.appendChild(fit);
 
     const status = document.createElement("div");
     status.className = "chartStatus";
@@ -202,10 +268,11 @@ async function v16LoadChart(index, force = false) {
         const bars = payload.candles || payload.bars || [];
         const canvas = document.getElementById("chartCanvas" + index);
         if (!canvas || chartSlots[index] !== slot) return;
-        drawCandles(canvas, bars);
+        await v16DrawChart(index, slot, bars);
+        if (chartSlots[index] !== slot) return;
 
         const quote = payload.quote || {};
-        const verified = quote.verified === true || quote.eligible_for_exit === true || payload.verified === true;
+        const verified = quote.verified === true && quote.eligible_for_entry === true;
         const source = quote.provider || quote.source || payload.provider || "VERIFIED";
         v16ProviderLabel = verified ? source : (quote.reason || payload.message || "DEGRADED");
         if (provider) {
@@ -251,6 +318,7 @@ setChartCount = function(count) {
 renderChartSlots = function() {
     const grid = document.getElementById("chartGrid");
     if (!grid) return;
+    v16DisposeCharts();
     grid.replaceChildren();
     v16SetGridGeometry();
     chartSlots.forEach((slot, index) => {
@@ -395,7 +463,7 @@ function v16InstallMainTradingRuntime() {
             const cached = V16_CHART_CACHE.get(`${chartSlots[index].symbol}|${chartSlots[index].timeframe}`);
             if (cached) {
                 const canvas = document.getElementById("chartCanvas" + index);
-                if (canvas) drawCandles(canvas, cached.payload.candles || cached.payload.bars || []);
+                if (canvas) v16DrawChart(index, chartSlots[index], cached.payload.candles || cached.payload.bars || []);
             }
         });
     });

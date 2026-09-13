@@ -110,6 +110,7 @@ class TerminalRuntime:
         self._research._pool.shutdown(wait=False, cancel_futures=True)
 
     def control(self, name, action):
+        action = {"resume": "start", "stop_scanner": "pause", "pause_new_entries": "pause"}.get(action, action)
         if name not in accounts.WORKSPACES or action not in {"start", "pause"}:
             raise ValueError("Choose a workspace and start or pause")
         with self._lock:
@@ -566,7 +567,7 @@ class TerminalRuntime:
     def quote(self, symbol):
         return self.job(("quote", symbol), lambda: self.mark_loader(symbol), ttl=1)
 
-    def module(self, name, symbol, module):
+    def module(self, name, symbol, module, expiry=None):
         from workstation.quant_intelligence_modules import SUPPORTED_MODULES, intelligence_module_payload
         if module not in SUPPORTED_MODULES or name not in accounts.WORKSPACES:
             raise ValueError("Unknown analysis module")
@@ -575,7 +576,7 @@ class TerminalRuntime:
             payload = {"workspace": name, "paper_only": True, "live_execution": False}
             payload.update({"account": state["account"], "rejections": state["scan"]["rejections"]} if module == "portfolio-risk" else {"trades": state["history"], "performance": state["performance"]})
             return {"success": True, "pending": False, "result": payload}
-        return self.job((name, symbol, module), lambda: intelligence_module_payload(module, symbol, profile=name.lower()), ttl=30)
+        return self.job((name, symbol, module, expiry), lambda: intelligence_module_payload(module, symbol, profile=name.lower(), expiry=expiry), ttl=30)
 
     def save_note(self, name, body):
         if name not in accounts.WORKSPACES or body.get("kind") not in {"thesis", "alert"}:
@@ -626,7 +627,7 @@ def build_handler(base, runtime):
                 if parsed.path == "/api/terminal/quote":
                     return self.send_json(runtime.quote(symbol))
                 if parsed.path == "/api/terminal/module":
-                    return self.send_json(runtime.module(name, symbol, str(params.get("module", ["patterns"])[0])))
+                    return self.send_json(runtime.module(name, symbol, str(params.get("module", ["patterns"])[0]), expiry=params.get("expiry", [None])[0]))
                 if parsed.path == "/api/terminal/health":
                     return self.send_json({"success": True, "service": "JARVIS_PROFESSIONAL_PAPER_TERMINAL", "paper_only": True, "live_execution": False})
             except (ValueError, KeyError) as exc:

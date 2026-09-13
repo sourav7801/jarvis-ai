@@ -14,6 +14,22 @@ ASSETS = ROOT / "workstation" / "jarvis_os_v3_assets"
 
 
 class V16MainWorkstationIntegrationTests(unittest.TestCase):
+    def test_chart_library_is_served_by_actual_master_handler(self):
+        import threading
+        import urllib.request
+        server = jarvis_os_v16_bridge.create_server('127.0.0.1', 0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            url = f'http://127.0.0.1:{server.server_address[1]}/v16/lightweight-charts.js'
+            with urllib.request.urlopen(url, timeout=3) as response:
+                self.assertEqual(response.status, 200)
+                self.assertIn(b'Lightweight Charts', response.read())
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=3)
+
     def test_supervisor_composes_v16_master_and_internal_professional_trading(self):
         services = {service.name: service for service in jarvis_runtime_supervisor_v16.v16_services(ROOT)}
         self.assertIn("master", services)

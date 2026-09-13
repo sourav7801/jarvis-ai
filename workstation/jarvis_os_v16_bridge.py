@@ -172,6 +172,11 @@ class V16BridgeHandler(v15.V15BridgeHandler):
         path = parsed.path
         params = parse_qs(parsed.query)
 
+        if path == "/v16/lightweight-charts.js":
+            from pathlib import Path
+            asset = Path(__file__).with_name("quant_terminal_v2_static") / "lightweight-charts.standalone.production.js"
+            return self.send_asset(asset, "application/javascript; charset=utf-8")
+
         # Keep one protected Master UI and append V16 enhancements at serve time.
         # The underlying V15 assets remain intact for rollback and comparison.
         if path == "/app.js":

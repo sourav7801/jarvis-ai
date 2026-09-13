@@ -30,6 +30,16 @@ def build_handler(base, runtime):
 
         def do_GET(self):
             parsed = urllib.parse.urlparse(self.path)
+            if parsed.path == "/" and self._local():
+                from workstation.quant_terminal_v2 import STATIC
+                content = (STATIC / "index.html").read_text(encoding="utf-8").replace("</head>", "<script>window.JARVIS_V16_CANONICAL=true;</script></head>").encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(content)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(content)
+                return
             if parsed.path != CANONICAL_WORKSPACE_STATE_PATH:
                 return super().do_GET()
 
@@ -53,6 +63,7 @@ def build_handler(base, runtime):
             payload["live_execution"] = False
             payload["automatic_broker_order"] = False
             payload["live_orders_locked"] = True
+            payload["naked_option_selling"] = False
             return self.send_json(payload)
 
     return V16TerminalHandler

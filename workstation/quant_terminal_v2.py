@@ -1403,6 +1403,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_file(STATIC / "intelligence.css", "text/css; charset=utf-8")
         if path == "/app.js":
             return self.send_file(STATIC / "app.js", "application/javascript; charset=utf-8")
+        if path in {"/v16_workspace.js", "/v16_workspace.css"}:
+            return self.send_file(STATIC / path[1:], "text/css; charset=utf-8" if path.endswith(".css") else "application/javascript; charset=utf-8")
         if path == "/lightweight-charts.standalone.production.js":
             return self.send_file(
                 STATIC / "lightweight-charts.standalone.production.js",
