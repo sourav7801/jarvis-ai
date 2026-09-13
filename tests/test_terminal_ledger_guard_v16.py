@@ -41,12 +41,22 @@ class TerminalLedgerGuardV16Tests(unittest.TestCase):
             self.assertTrue(guard.terminal_controls(self.legacy_spreads))
             self.assertFalse(guard.terminal_controls(self.root / "unrelated_book.json"))
 
-    def test_legacy_exposure_reports_counts_and_paths_without_copying_position_payloads(self):
+    def test_legacy_exposure_reports_sanitized_position_summaries(self):
         self.legacy_account.write_text(
             json.dumps(
                 {
                     "positions": [
-                        {"symbol": "NSE:NIFTY50-INDEX", "qty": 1, "private_note": "do-not-copy"},
+                        {
+                            "symbol": "NSE:NIFTY50-INDEX",
+                            "qty": 1,
+                            "side": "LONG",
+                            "entry_price": 23950.5,
+                            "stop_loss": 23800.0,
+                            "target": 24250.0,
+                            "opened_at": "2026-09-01T09:30:00+05:30",
+                            "private_note": "do-not-copy",
+                            "metadata": {"secret": "do-not-copy"},
+                        },
                         {"symbol": "NSE:SBIN-EQ", "qty": 2},
                     ]
                 }
@@ -67,12 +77,22 @@ class TerminalLedgerGuardV16Tests(unittest.TestCase):
 
         self.assertEqual(len(issues), 2)
         by_book = {item["book"]: item for item in issues}
-        self.assertEqual(by_book["Legacy paper account"]["open_count"], 2)
+        legacy = by_book["Legacy paper account"]
+        self.assertEqual(legacy["open_count"], 2)
         self.assertEqual(by_book["Legacy defined-risk spreads"]["open_count"], 2)
-        self.assertEqual(by_book["Legacy paper account"]["path"], str(self.legacy_account))
+        self.assertEqual(legacy["path"], str(self.legacy_account))
         self.assertEqual(by_book["Legacy defined-risk spreads"]["path"], str(self.legacy_spreads))
-        self.assertNotIn("positions", by_book["Legacy paper account"])
-        self.assertNotIn("private_note", json.dumps(issues))
+        self.assertEqual(len(legacy["position_summaries"]), 2)
+        self.assertEqual(legacy["position_summaries"][0]["symbol"], "NSE:NIFTY50-INDEX")
+        self.assertEqual(legacy["position_summaries"][0]["quantity"], 1)
+        self.assertEqual(legacy["position_summaries"][0]["side"], "LONG")
+        self.assertEqual(legacy["position_summaries"][0]["entry_price"], 23950.5)
+        self.assertEqual(legacy["position_summaries"][0]["stop"], 23800.0)
+        self.assertEqual(legacy["position_summaries"][0]["target"], 24250.0)
+        serialized = json.dumps(issues)
+        self.assertNotIn("private_note", serialized)
+        self.assertNotIn("do-not-copy", serialized)
+        self.assertNotIn("metadata", serialized)
 
     def test_noncanonical_desk_does_not_report_legacy_exposure(self):
         self.legacy_account.write_text(json.dumps({"positions": [{"symbol": "NIFTY"}]}), encoding="utf-8")
