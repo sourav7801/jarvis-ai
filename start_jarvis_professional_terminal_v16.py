@@ -27,8 +27,10 @@ import start_jarvis_quant_terminal as lineage
 def install_verified_reasoning_lineage() -> dict[str, object]:
     """Install only the V11 -> verified V15 reasoning chain.
 
-    V15.1 options work is deliberately not activated here until it is migrated
-    into V16 with its failed safety contract corrected and re-verified.
+    V15.1 options work is not exposed as an independent execution surface here.
+    The V16 runtime installs a canonical adapter that consumes its verified
+    option intelligence while keeping Paper Desk as the only execution/risk
+    authority.
     """
 
     states = {
@@ -69,9 +71,11 @@ def main() -> int:
 
         from workstation.paper_trading_desk import paper_desk
         from workstation.paper_portfolio_controller import paper_portfolio_controller
+        from workstation.v16_autonomous_paper import install_v16_autonomous_option_bridge
 
         terminal_data.CACHE_ENABLED = True
         runtime = TerminalRuntime(paper_desk, paper_portfolio_controller)
+        autonomy = install_v16_autonomous_option_bridge(runtime)
         server.RequestHandlerClass = build_handler(trading_app.Handler, runtime)
         runtime.start()
 
@@ -91,10 +95,13 @@ def main() -> int:
         print(f"Terminal: {url}")
         print(f"Canonical state: {url}/api/v16/trading/workspace-state?workspace=INTRADAY")
         print("Workspaces: INTRADAY / SWING / INVESTMENT")
+        print("Autonomy: explicit START -> scan -> verify -> strategy -> auto option/equity selection -> Paper Desk sizing -> manage -> journal")
+        print("Options: verified NIFTY/BANKNIFTY/SENSEX long-premium expression for qualified INTRADAY/SWING signals")
+        print(f"Autonomous bridge installed: {autonomy.status().get('installed')}")
         print("Sessions: explicit START/PAUSE; saved positions remain monitored")
         print("Data: verified provider data only; invalid/stale data blocks new entries")
         print("Decision authority: V15 PORTFOLIO-ADJUSTED CONTEXTUAL UTILITY")
-        print("Risk geometry: V14.1 VERIFIED COMPLETED-BAR GEOMETRY")
+        print("Risk geometry: V14.1 VERIFIED COMPLETED-BAR GEOMETRY + verified option-premium risk plan")
         print("Ledger: one canonical Paper Desk with workspace capital partitions")
         print("Live broker execution: LOCKED")
 
