@@ -95,6 +95,10 @@ def build_handler(base, runtime):
                     "<script>window.JARVIS_V16_CANONICAL=true;</script>"
                     "<link rel=\"stylesheet\" href=\"/v16_autonomy_runtime.css\">"
                     "<script defer src=\"/v16_autonomy_runtime.js\"></script>"
+                    # This observer must load before the router so it can reuse
+                    # the router's canonical workspace-state responses without
+                    # creating a second polling loop.
+                    "<script defer src=\"/v16_option_decision_runtime.js\"></script>"
                     "<script defer src=\"/v16_workspace_router.js\"></script></head>",
                 ).encode("utf-8")
                 self.send_response(200)
@@ -119,6 +123,7 @@ def build_handler(base, runtime):
             if parsed.path in {
                 "/v16_autonomy_runtime.js",
                 "/v16_autonomy_runtime.css",
+                "/v16_option_decision_runtime.js",
                 "/v16_workspace_router.js",
             } and self._local():
                 from workstation.quant_terminal_v2 import STATIC
