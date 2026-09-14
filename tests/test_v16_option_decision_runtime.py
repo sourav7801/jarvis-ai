@@ -41,9 +41,20 @@ class V16OptionDecisionRuntimeTests(unittest.TestCase):
         self.assertIn("AUTONOMOUS CANDIDATE · SELECTED BY JARVIS", js)
         self.assertIn("ACTIVE PAPER POSITION", js)
         self.assertIn('#v16OptionRows tr[data-v16-contract]', js)
-        # A browser-viewed chain is informative only; it must not be injected
-        # as an autonomous qualification gate.
         self.assertNotIn("gates.SELECTED_CHAIN", js)
+
+    def test_browser_age_is_labeled_stale_view_not_engine_degradation(self):
+        js = (STATIC / "v16_option_decision_runtime.js").read_text(encoding="utf-8")
+        self.assertIn('return {state: "STALE VIEW", kind: "wait", raw}', js)
+        self.assertIn('pipe.textContent = "STALE VIEW"', js)
+        self.assertIn("browser chain is research/context only", js)
+
+    def test_missing_selected_underlying_decision_is_explicit_not_blank(self):
+        js = (STATIC / "v16_option_decision_runtime.js").read_text(encoding="utf-8")
+        self.assertIn("underlyingFromSymbol", js)
+        self.assertIn("SCANNER_ROW_WITHOUT_OPTION_PROPOSAL", js)
+        self.assertIn("WAIT · NO ENGINE ROW", js)
+        self.assertIn("No ${esc(selectedUnderlying())} autonomous decision row exists", js)
 
     def test_paper_and_market_session_are_not_conflated(self):
         js = (STATIC / "v16_option_decision_runtime.js").read_text(encoding="utf-8")
