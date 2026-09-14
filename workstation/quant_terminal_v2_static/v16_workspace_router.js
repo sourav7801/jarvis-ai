@@ -5,7 +5,10 @@
 
   const $ = id => document.getElementById(id);
   const CAPITAL_WORKSPACES = ["INTRADAY", "SWING", "INVESTMENT"];
-  const EXTRA_OPTION_UNDERLYINGS = [
+  const OPTION_UNDERLYINGS = [
+    ["NIFTY", "NIFTY"],
+    ["BANKNIFTY", "BANKNIFTY"],
+    ["SENSEX", "SENSEX"],
     ["CRUDEOIL", "CRUDEOIL · MCX"],
     ["GOLD", "GOLD · MCX"],
     ["SILVER", "SILVER · MCX"],
@@ -13,6 +16,7 @@
     ["BTC", "BTC · DERIBIT"],
     ["ETH", "ETH · DERIBIT"],
   ];
+  const OPTION_SET = new Set(OPTION_UNDERLYINGS.map(([value]) => value));
   const hiddenBeforeOptions = new WeakMap();
   let latestState = null;
   let latestStateAt = 0;
@@ -20,6 +24,7 @@
   let busy = false;
   let chainSerial = 0;
   let selectedContract = null;
+  let lastMode = null;
 
   const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -46,39 +51,32 @@
     return String($("v16OptionUnderlying")?.value || "NIFTY").toUpperCase();
   }
 
+  function marketContextSymbol() {
+    let raw = "";
+    try { raw = String(selectedSymbol || "").toUpperCase(); } catch {}
+    if (!raw) raw = String($("scanSymbol")?.textContent || "").trim().toUpperCase();
+    const aliases = {
+      "NIFTY 50": "NIFTY", "NIFTY50": "NIFTY",
+      "BANK NIFTY": "BANKNIFTY", "BANKNIFTY": "BANKNIFTY",
+      "NAT GAS": "NATURALGAS", "NATURAL GAS": "NATURALGAS",
+      "BITCOIN": "BTC", "ETHEREUM": "ETH",
+    };
+    return aliases[raw] || raw.replaceAll(" ", "");
+  }
+
   function capability(underlying) {
     const value = String(underlying || "").toUpperCase();
     if (["NIFTY", "BANKNIFTY"].includes(value)) {
-      return {
-        tier: "AUTO PAPER",
-        kind: "auto",
-        source: "FYERS VERIFIED CHAIN + CANONICAL PAPER DESK",
-        detail: "Automatic long CALL/PUT expression is permitted after verified signal, exact contract, fresh quote, risk and Paper Desk gates pass."
-      };
+      return {tier: "AUTO PAPER", kind: "auto", source: "FYERS VERIFIED CHAIN + CANONICAL PAPER DESK", detail: "Automatic long CALL/PUT expression is permitted after verified signal, exact contract, fresh quote, risk and Paper Desk gates pass."};
     }
     if (value === "SENSEX") {
-      return {
-        tier: "AUTO GATED",
-        kind: "gated",
-        source: "BSE/FYERS CONTRACT PATH",
-        detail: "Autonomous expression remains fail-closed until the current provider chain and exact BSE contract verify."
-      };
+      return {tier: "AUTO GATED", kind: "gated", source: "BSE/FYERS CONTRACT PATH", detail: "Autonomous expression remains fail-closed until the current provider chain and exact BSE contract verify."};
     }
     if (["CRUDEOIL", "GOLD", "SILVER", "NATURALGAS"].includes(value)) {
-      return {
-        tier: "CHAIN / RESEARCH",
-        kind: "research",
-        source: "FYERS MCX OPTION CHAIN V3",
-        detail: "Verified MCX option-chain intelligence is available. Canonical V16 automated option execution is not yet audited for MCX."
-      };
+      return {tier: "CHAIN / RESEARCH", kind: "research", source: "FYERS MCX OPTION CHAIN V3", detail: "Verified MCX option-chain intelligence is available. Canonical V16 automated option execution is not yet audited for MCX."};
     }
     if (["BTC", "ETH"].includes(value)) {
-      return {
-        tier: "PUBLIC RESEARCH",
-        kind: "research",
-        source: "DERIBIT PUBLIC OPTIONS",
-        detail: "Verified Deribit public option-chain research is available. V16 does not use the older separate crypto paper-intent ledger."
-      };
+      return {tier: "PUBLIC RESEARCH", kind: "research", source: "DERIBIT PUBLIC OPTIONS", detail: "Verified Deribit public option-chain research is available. V16 does not use the older separate crypto paper-intent ledger."};
     }
     return {tier: "UNVERIFIED", kind: "blocked", source: "NO VERIFIED ROUTE", detail: "No verified V16 option route is enabled for this underlying."};
   }
@@ -122,21 +120,43 @@
     } catch (error) {
       if (error?.name === "AbortError") throw new Error("Request timed out");
       throw error;
-    } finally {
-      clearTimeout(timer);
-    }
+    } finally { clearTimeout(timer); }
+  }
+
+  function ensureOptionsCenter() {
+    let panel = $("v16Options");
+    if (panel) return panel;
+    const grid = $("chartGrid");
+    if (!grid?.parentElement) return null;
+    panel = document.createElement("section");
+    panel.id = "v16Options";
+    panel.hidden = true;
+    panel.innerHTML = `
+      <div class="v16-option-head">
+        <div><div class="eyebrow">OPTIONS WORKSPACE · VERIFIED PROVIDER DATA</div><strong id="v16OptionTitle">NIFTY OPTION CHAIN</strong></div>
+        <div class="v16-option-controls">
+          <label>Underlying<select id="v16OptionUnderlying">${OPTION_UNDERLYINGS.map(([value,label])=>`<option value="${value}">${label}</option>`).join("")}</select></label>
+          <label>Expiry<select id="v16OptionExpiry"><option value="">NEAREST</option></select></label>
+          <label>Capital<select id="v16OptionCapital">${CAPITAL_WORKSPACES.map(value=>`<option value="${value}">${value}</option>`).join("")}</select></label>
+          <button id="v16OptionReload" type="button">RELOAD CHAIN</button>
+        </div>
+      </div>
+      <div id="v16OptionStats" class="v16-option-stats"></div>
+      <div id="v16OptionMessage" class="v16-option-message">Select OPTIONS to load the verified chain.</div>
+      <div class="v16-option-table-wrap"><table><thead><tr><th>TYPE</th><th>STRIKE</th><th>LTP</th><th>BID</th><th>ASK</th><th>VOL</th><th>OI</th><th>ΔOI</th><th>IV</th><th>DELTA</th><th>GAMMA</th><th>THETA</th><th>VEGA</th></tr></thead><tbody id="v16OptionRows"></tbody></table></div>
+      <div id="v16SelectedOption" class="v16-selected-option">No contract selected.</div>
+      <small class="v16-option-safety">PAPER / RESEARCH ONLY · LIVE BROKER EXECUTION LOCKED · NAKED OPTION SELLING BLOCKED</small>`;
+    grid.parentElement.insertBefore(panel, grid);
+    return panel;
   }
 
   function ensureExtraOptionUnderlyings() {
     const select = $("v16OptionUnderlying");
     if (!select) return;
     const existing = new Set([...select.options].map(option => String(option.value).toUpperCase()));
-    EXTRA_OPTION_UNDERLYINGS.forEach(([value, label]) => {
+    OPTION_UNDERLYINGS.forEach(([value, label]) => {
       if (existing.has(value)) return;
-      const option = document.createElement("option");
-      option.value = value;
-      option.textContent = label;
-      select.appendChild(option);
+      const option = document.createElement("option"); option.value = value; option.textContent = label; select.appendChild(option);
     });
   }
 
@@ -148,18 +168,29 @@
     if (side && side.value !== next) side.value = next;
   }
 
+  function syncUnderlyingFromMarketContext() {
+    const select = $("v16OptionUnderlying");
+    if (!select || select.dataset.userChosen === "1") return;
+    const context = marketContextSymbol();
+    if (OPTION_SET.has(context)) select.value = context;
+  }
+
+  function syncUnderlyingChartContext() {
+    const underlying = selectedUnderlying();
+    try {
+      const slot = Array.isArray(chartSlots) ? (chartSlots[selectedSlot] || chartSlots[0]) : null;
+      if (slot?.kind === "OPTION" && slot.optionChart) return;
+      if (String(slot?.symbol || "").toUpperCase() !== underlying && typeof selectMarket === "function") selectMarket(underlying);
+    } catch {}
+  }
+
   function ensureDomainBar() {
     const panel = $("v16Options");
     if (!panel || $("v16OptionDomainBar")) return;
-    const bar = document.createElement("div");
-    bar.id = "v16OptionDomainBar";
-    bar.className = "v16-option-domain-bar";
-    bar.innerHTML = `
-      <div><small>UNDERLYING DOMAIN</small><b id="v16DomainUnderlying">NIFTY · —</b><span>Structure, support/resistance, regime and directional thesis belong to the underlying only.</span></div>
-      <div><small>OPTION PREMIUM DOMAIN</small><b id="v16DomainContract">NO CONTRACT SELECTED</b><span>Premium chart receives only option-contract indicators plus canonical option entry/SL/target geometry.</span></div>`;
+    const bar = document.createElement("div"); bar.id = "v16OptionDomainBar"; bar.className = "v16-option-domain-bar";
+    bar.innerHTML = `<div><small>UNDERLYING DOMAIN</small><b id="v16DomainUnderlying">NIFTY · —</b><span>Structure, support/resistance, regime and directional thesis belong to the underlying only.</span></div><div><small>OPTION PREMIUM DOMAIN</small><b id="v16DomainContract">NO CONTRACT SELECTED</b><span>Premium chart receives only option-contract indicators plus canonical option entry/SL/target geometry.</span></div>`;
     const head = panel.querySelector(".v16-option-head");
-    if (head?.nextSibling) panel.insertBefore(bar, head.nextSibling);
-    else panel.prepend(bar);
+    if (head?.nextSibling) panel.insertBefore(bar, head.nextSibling); else panel.prepend(bar);
   }
 
   function ensureOptionsSidebar() {
@@ -167,67 +198,34 @@
     if (!intel) return null;
     let card = $("v16OptionsSidebar");
     if (card) return card;
-    card = document.createElement("section");
-    card.id = "v16OptionsSidebar";
-    card.className = "intel-card v16-options-sidebar";
-    card.innerHTML = `
-      <div class="eyebrow">OPTIONS WORKSPACE · CANONICAL V16</div>
-      <div class="v16-options-side-head"><b>OPTIONS AUTOPILOT</b><span id="v16OptionsTier">WAITING</span></div>
-      <div class="v16-options-side-note"><strong id="v16OptionsUnderlyingLabel">NIFTY</strong> · <span id="v16OptionsSource">provider check</span><br><span id="v16OptionsCapabilityText">Loading capability state…</span></div>
-      <div class="v16-options-side-select"><label>CAPITAL MANDATE</label><select id="v16OptionsSideCapital"><option>INTRADAY</option><option>SWING</option><option>INVESTMENT</option></select></div>
-      <div class="v16-options-session"><div><small>ENTRY SESSION</small><b id="v16OptionsSessionState">—</b></div><div><small>SCANNER</small><b id="v16OptionsScannerState">—</b></div><div><small>RECONCILIATION</small><b id="v16OptionsReconState">—</b></div><div><small>STATE AGE</small><b id="v16OptionsStateAge">—</b></div></div>
-      <div class="v16-options-controls"><button data-v16-option-control="start">START SESSION</button><button data-v16-option-control="pause_new_entries">PAUSE NEW ENTRIES</button><button data-v16-option-control="resume">RESUME</button><button data-v16-option-control="stop_scanner">STOP SCANNER</button></div>
-      <div class="v16-options-pipeline"><span><small>CHAIN</small><b id="v16OptionsPipeChain">VERIFY</b></span><span><small>CONTRACT</small><b id="v16OptionsPipeContract">AUTO</b></span><span><small>RISK</small><b id="v16OptionsPipeRisk">AUTO</b></span><span><small>SIZE</small><b id="v16OptionsPipeSize">PAPER DESK</b></span><span><small>MANAGE</small><b>AUTO</b></span><span><small>LIVE BROKER</small><b>LOCKED</b></span></div>
-      <div class="v16-options-open" id="v16OptionsOpenPosition"><b>POSITION</b><br>No open canonical option position in this mandate.</div>
-      <div class="v16-options-capabilities"><b>MARKET CAPABILITY</b>
-        <div class="v16-cap-row auto"><strong>NIFTY / BANKNIFTY · AUTO PAPER</strong><span>Verified FYERS chain → auto CALL/PUT → canonical Paper Desk.</span></div>
-        <div class="v16-cap-row gated"><strong>SENSEX · AUTO GATED</strong><span>Provider chain and exact BSE contract must verify or the route fails closed.</span></div>
-        <div class="v16-cap-row research"><strong>CRUDEOIL / GOLD / SILVER / NAT GAS · CHAIN / RESEARCH</strong><span>Verified FYERS MCX option-chain data is selectable in the center workspace. Canonical auto execution is not yet audited.</span></div>
-        <div class="v16-cap-row research"><strong>BTC / ETH · PUBLIC RESEARCH</strong><span>Verified Deribit public option chain is selectable. No separate crypto paper ledger is used in V16.</span></div>
-      </div>
-      <div class="v16-options-side-msg" id="v16OptionsSideMessage">Loading canonical option state…</div>`;
+    card = document.createElement("section"); card.id = "v16OptionsSidebar"; card.className = "intel-card v16-options-sidebar";
+    card.innerHTML = `<div class="eyebrow">OPTIONS WORKSPACE · CANONICAL V16</div><div class="v16-options-side-head"><b>OPTIONS AUTOPILOT</b><span id="v16OptionsTier">WAITING</span></div><div class="v16-options-side-note"><strong id="v16OptionsUnderlyingLabel">NIFTY</strong> · <span id="v16OptionsSource">provider check</span><br><span id="v16OptionsCapabilityText">Loading capability state…</span></div><div class="v16-options-side-select"><label>CAPITAL MANDATE</label><select id="v16OptionsSideCapital"><option>INTRADAY</option><option>SWING</option><option>INVESTMENT</option></select></div><div class="v16-options-session"><div><small>ENTRY SESSION</small><b id="v16OptionsSessionState">—</b></div><div><small>SCANNER</small><b id="v16OptionsScannerState">—</b></div><div><small>RECONCILIATION</small><b id="v16OptionsReconState">—</b></div><div><small>STATE AGE</small><b id="v16OptionsStateAge">—</b></div></div><div class="v16-options-controls"><button data-v16-option-control="start">START SESSION</button><button data-v16-option-control="pause_new_entries">PAUSE NEW ENTRIES</button><button data-v16-option-control="resume">RESUME</button><button data-v16-option-control="stop_scanner">STOP SCANNER</button></div><div class="v16-options-pipeline"><span><small>CHAIN</small><b id="v16OptionsPipeChain">VERIFY</b></span><span><small>CONTRACT</small><b id="v16OptionsPipeContract">AUTO</b></span><span><small>RISK</small><b id="v16OptionsPipeRisk">AUTO</b></span><span><small>SIZE</small><b id="v16OptionsPipeSize">PAPER DESK</b></span><span><small>MANAGE</small><b>AUTO</b></span><span><small>LIVE BROKER</small><b>LOCKED</b></span></div><div class="v16-options-open" id="v16OptionsOpenPosition"><b>POSITION</b><br>No open canonical option position in this mandate.</div><div class="v16-options-capabilities"><b>MARKET CAPABILITY</b><div class="v16-cap-row auto"><strong>NIFTY / BANKNIFTY · AUTO PAPER</strong><span>Verified FYERS chain → auto CALL/PUT → canonical Paper Desk.</span></div><div class="v16-cap-row gated"><strong>SENSEX · AUTO GATED</strong><span>Provider chain and exact BSE contract must verify or the route fails closed.</span></div><div class="v16-cap-row research"><strong>CRUDEOIL / GOLD / SILVER / NAT GAS · CHAIN / RESEARCH</strong><span>Verified FYERS MCX option-chain data is selectable in the center workspace. Canonical V16 automated option execution is not yet audited.</span></div><div class="v16-cap-row research"><strong>BTC / ETH · PUBLIC RESEARCH</strong><span>Verified Deribit public option chain is selectable. No separate crypto paper ledger is used in V16.</span></div></div><div class="v16-options-side-msg" id="v16OptionsSideMessage">Loading canonical option state…</div>`;
     intel.prepend(card);
-    $("v16OptionsSideCapital")?.addEventListener("change", event => {
-      syncCapital(event.target.value);
-      refreshState(true);
-    });
-    card.querySelectorAll("[data-v16-option-control]").forEach(button => {
-      button.addEventListener("click", () => controlSession(button.dataset.v16OptionControl, button));
-    });
+    $("v16OptionsSideCapital")?.addEventListener("change", event => { syncCapital(event.target.value); refreshState(true); });
+    card.querySelectorAll("[data-v16-option-control]").forEach(button => button.addEventListener("click", () => controlSession(button.dataset.v16OptionControl, button)));
     return card;
   }
 
   function movePrimaryToTop() {
-    const intel = document.querySelector(".intel-panel");
-    const primary = $("v16AutonomyPrimary");
+    const intel = document.querySelector(".intel-panel"); const primary = $("v16AutonomyPrimary");
     if (!intel || !primary || activeMode() === "OPTIONS") return;
-    primary.classList.add("intel-card");
-    if (primary.parentElement !== intel || intel.firstElementChild !== primary) intel.prepend(primary);
+    primary.classList.add("intel-card"); if (primary.parentElement !== intel || intel.firstElementChild !== primary) intel.prepend(primary);
   }
 
   function setOptionsVisibility(enabled) {
-    const intel = document.querySelector(".intel-panel");
-    const optionsCard = ensureOptionsSidebar();
+    const intel = document.querySelector(".intel-panel"); const optionsCard = ensureOptionsSidebar();
     if (!intel || !optionsCard) return;
     document.documentElement.classList.toggle("v16-options-workspace", enabled);
     [...intel.children].forEach(node => {
-      if (node === optionsCard) {
-        node.hidden = !enabled;
-        return;
-      }
-      if (enabled) {
-        if (!hiddenBeforeOptions.has(node)) hiddenBeforeOptions.set(node, Boolean(node.hidden));
-        node.hidden = true;
-      } else if (hiddenBeforeOptions.has(node)) {
-        node.hidden = hiddenBeforeOptions.get(node);
-        hiddenBeforeOptions.delete(node);
-      }
+      if (node === optionsCard) { node.hidden = !enabled; return; }
+      if (enabled) { if (!hiddenBeforeOptions.has(node)) hiddenBeforeOptions.set(node, Boolean(node.hidden)); node.hidden = true; }
+      else if (hiddenBeforeOptions.has(node)) { node.hidden = hiddenBeforeOptions.get(node); hiddenBeforeOptions.delete(node); }
     });
     if (enabled && intel.firstElementChild !== optionsCard) intel.prepend(optionsCard);
   }
 
   function setCenterOptionsVisibility(enabled) {
-    const panel = $("v16Options");
+    const panel = ensureOptionsCenter();
     if (!panel) return false;
     panel.hidden = !enabled;
     if (enabled) {
@@ -239,9 +237,7 @@
   }
 
   function renderCapability() {
-    const underlying = selectedUnderlying();
-    const cap = capability(underlying);
-    const tier = $("v16OptionsTier");
+    const underlying = selectedUnderlying(); const cap = capability(underlying); const tier = $("v16OptionsTier");
     if (tier) { tier.textContent = cap.tier; tier.dataset.kind = cap.kind; }
     if ($("v16OptionsUnderlyingLabel")) $("v16OptionsUnderlyingLabel").textContent = underlying;
     if ($("v16OptionsSource")) $("v16OptionsSource").textContent = cap.source;
@@ -250,28 +246,13 @@
     if ($("v16OptionsPipeRisk")) $("v16OptionsPipeRisk").textContent = cap.kind === "auto" ? "AUTO" : cap.kind === "gated" ? "GATED" : "NO ENTRY";
     if ($("v16OptionsPipeSize")) $("v16OptionsPipeSize").textContent = cap.kind === "auto" ? "PAPER DESK" : "N/A";
     if ($("v16DomainUnderlying")) $("v16DomainUnderlying").textContent = `${underlying} · UNDERLYING LEVELS ONLY`;
-
-    const banner = $("v16AutoOptionsBanner");
-    if (banner) {
-      banner.innerHTML = cap.kind === "auto"
-        ? `<b>AUTONOMOUS OPTIONS ENABLED</b><span>${underlying}: qualified long CALL/PUT plans can flow to the canonical Paper Desk automatically. No manual contract/lot/SL/target/BUY click is required.</span>`
-        : `<b>${cap.tier}</b><span>${underlying}: ${cap.detail}</span>`;
-    }
-    const manualToggle = $("v16ManualOptionToggle");
-    if (manualToggle) manualToggle.hidden = cap.kind === "research" || cap.kind === "blocked";
-    const order = $("v16OptionOrder");
-    if (order && (cap.kind === "research" || cap.kind === "blocked")) order.hidden = true;
   }
 
   function optionUnderlyingFromPosition(item) {
-    const meta = item?.metadata || {};
-    const explicit = String(meta.underlying || "").toUpperCase();
-    if (explicit) return explicit;
+    const meta = item?.metadata || {}; const explicit = String(meta.underlying || "").toUpperCase(); if (explicit) return explicit;
     const symbol = String(item?.symbol || "").toUpperCase();
     if (symbol.includes("BANKNIFTY") || symbol.includes("NIFTYBANK")) return "BANKNIFTY";
-    for (const token of ["SENSEX", "CRUDEOIL", "NATURALGAS", "SILVER", "GOLD", "BTC", "ETH", "NIFTY"]) {
-      if (symbol.includes(token)) return token;
-    }
+    for (const token of ["SENSEX", "CRUDEOIL", "NATURALGAS", "SILVER", "GOLD", "BTC", "ETH", "NIFTY"]) if (symbol.includes(token)) return token;
     return null;
   }
 
@@ -290,24 +271,18 @@
 
   function renderPositionContext(state) {
     const positions = Array.isArray(state?.positions) ? state.positions.filter(isOptionPosition) : [];
-    const underlying = selectedUnderlying();
-    const matching = positions.filter(item => optionUnderlyingFromPosition(item) === underlying);
-    const other = positions.filter(item => optionUnderlyingFromPosition(item) !== underlying);
-    const host = $("v16OptionsOpenPosition");
+    const underlying = selectedUnderlying(); const matching = positions.filter(item => optionUnderlyingFromPosition(item) === underlying); const other = positions.filter(item => optionUnderlyingFromPosition(item) !== underlying); const host = $("v16OptionsOpenPosition");
     if (!host) return;
     if (matching.length) {
-      const item = matching[0];
-      const meta = item.metadata || {};
-      host.innerHTML = `<b>${esc(underlying)} POSITION OPEN</b><br>${esc(item.symbol || "OPTION")} · ${esc(meta.option_type || item.side || "LONG")} · qty ${esc(item.quantity ?? "—")}<br>entry ${esc(item.entry ?? item.entry_price ?? "—")} · SL ${esc(item.stop ?? "—")} · target ${esc(item.target ?? "—")}<div class="v16-option-provenance"><strong>PROVENANCE</strong> · ${esc(positionProvenance(item))}</div>`;
-      return;
+      const item = matching[0]; const meta = item.metadata || {};
+      host.innerHTML = `<b>${esc(underlying)} POSITION OPEN</b><br>${esc(item.symbol || "OPTION")} · ${esc(meta.option_type || item.side || "LONG")} · qty ${esc(item.quantity ?? "—")}<br>entry ${esc(item.entry ?? item.entry_price ?? "—")} · SL ${esc(item.stop ?? "—")} · target ${esc(item.target ?? "—")}<div class="v16-option-provenance"><strong>PROVENANCE</strong> · ${esc(positionProvenance(item))}</div>`; return;
     }
     const others = other.slice(0, 3).map(item => `${optionUnderlyingFromPosition(item) || "OTHER"}: ${item.symbol} [${positionProvenance(item)}]`);
     host.innerHTML = `<b>${esc(underlying)} POSITION</b><br>No open canonical ${esc(underlying)} option position in this mandate.${others.length ? `<div class="v16-option-provenance"><strong>OTHER CANONICAL OPTION EXPOSURE</strong><br>${others.map(esc).join("<br>")}</div>` : ""}`;
   }
 
   function syncSessionButtons(session) {
-    const running = String(session?.entry_session || "PAUSED").toUpperCase() === "RUNNING";
-    const scanning = Boolean(session?.scanning);
+    const running = String(session?.entry_session || "PAUSED").toUpperCase() === "RUNNING"; const scanning = Boolean(session?.scanning);
     document.querySelectorAll("[data-v16-option-control]").forEach(button => {
       const action = button.dataset.v16OptionControl;
       if (action === "start" || action === "resume") button.disabled = running || busy;
@@ -317,265 +292,110 @@
   }
 
   function renderState(state) {
-    latestState = state;
-    latestStateAt = Date.now();
-    const session = state?.session || {};
-    const running = String(session.entry_session || "PAUSED").toUpperCase();
+    latestState = state; latestStateAt = Date.now(); const session = state?.session || {}; const running = String(session.entry_session || "PAUSED").toUpperCase();
     if ($("v16OptionsSessionState")) $("v16OptionsSessionState").textContent = running;
     if ($("v16OptionsScannerState")) $("v16OptionsScannerState").textContent = session.scanning ? "RUNNING" : "IDLE";
     if ($("v16OptionsReconState")) $("v16OptionsReconState").textContent = session.reconciliation_ok === false ? "BLOCKED" : "CLEAN";
     if ($("v16OptionsStateAge")) $("v16OptionsStateAge").textContent = "FRESH";
-    if ($("v16OptionsPipeChain")) {
-      const providers = Object.values(state?.market_data?.providers || {});
-      const bad = providers.some(item => ["DEGRADED", "RATE_LIMITED", "LOGIN_REQUIRED"].includes(String(item?.state || "").toUpperCase()));
-      $("v16OptionsPipeChain").textContent = bad ? "DEGRADED" : "VERIFIED";
-      const msg = $("v16OptionsSideMessage");
-      if (msg && bad) {
-        msg.textContent = "NEW OPTION ENTRIES BLOCKED · provider/chain health is degraded. Existing canonical positions remain managed.";
-        msg.dataset.kind = "warn";
-      } else if (msg) {
-        msg.textContent = "Canonical option state is fresh. New entries still require session, signal, contract, quote, risk and capital gates.";
-        msg.dataset.kind = "ok";
-      }
-    }
-    renderPositionContext(state);
-    syncSessionButtons(session);
+    const providers = Object.values(state?.market_data?.providers || {}); const bad = providers.some(item => ["DEGRADED", "RATE_LIMITED", "LOGIN_REQUIRED"].includes(String(item?.state || "").toUpperCase()));
+    if ($("v16OptionsPipeChain")) $("v16OptionsPipeChain").textContent = bad ? "DEGRADED" : "VERIFIED";
+    const msg = $("v16OptionsSideMessage");
+    if (msg) { msg.textContent = bad ? "NEW OPTION ENTRIES BLOCKED · provider/chain health is degraded. Existing canonical positions remain managed." : "Canonical option state is fresh. New entries still require session, signal, contract, quote, risk and capital gates."; msg.dataset.kind = bad ? "warn" : "ok"; }
+    renderPositionContext(state); syncSessionButtons(session);
   }
 
   function markStateStale(error) {
-    for (const id of ["v16OptionsSessionState", "v16OptionsScannerState", "v16OptionsReconState"]) {
-      if ($(id)) $(id).textContent = "STALE";
-    }
+    for (const id of ["v16OptionsSessionState", "v16OptionsScannerState", "v16OptionsReconState"]) if ($(id)) $(id).textContent = "STALE";
     if ($("v16OptionsStateAge")) $("v16OptionsStateAge").textContent = latestStateAt ? `${Math.max(1, Math.round((Date.now() - latestStateAt) / 1000))}s+` : "NO STATE";
     if ($("v16OptionsPipeChain")) $("v16OptionsPipeChain").textContent = "DEGRADED";
-    const msg = $("v16OptionsSideMessage");
-    if (msg) {
-      msg.textContent = `NEW OPTION ENTRIES BLOCKED · canonical state unavailable: ${error.message}. Existing positions remain managed by the server.`;
-      msg.dataset.kind = "error";
-    }
+    const msg = $("v16OptionsSideMessage"); if (msg) { msg.textContent = `NEW OPTION ENTRIES BLOCKED · canonical state unavailable: ${error.message}. Existing positions remain managed by the server.`; msg.dataset.kind = "error"; }
     syncSessionButtons({entry_session: "PAUSED", scanning: false});
   }
 
   async function refreshState(force = false) {
     if (activeMode() !== "OPTIONS" && !force) return null;
-    try {
-      const workspace = optionCapitalWorkspace();
-      const state = await requestJson(`/api/v16/trading/workspace-state?workspace=${encodeURIComponent(workspace)}`, {}, 10000);
-      if (!state?.success) throw new Error(state?.message || "Canonical state unavailable");
-      renderState(state);
-      return state;
-    } catch (error) {
-      markStateStale(error);
-      return null;
-    }
+    try { const workspace = optionCapitalWorkspace(); const state = await requestJson(`/api/v16/trading/workspace-state?workspace=${encodeURIComponent(workspace)}`, {}, 10000); if (!state?.success) throw new Error(state?.message || "Canonical state unavailable"); renderState(state); return state; }
+    catch (error) { markStateStale(error); return null; }
   }
 
   async function controlSession(action, button) {
-    if (busy) return;
-    busy = true;
-    const old = button?.textContent;
-    if (button) { button.disabled = true; button.textContent = "WORKING…"; }
+    if (busy) return; busy = true; const old = button?.textContent; if (button) { button.disabled = true; button.textContent = "WORKING…"; }
     try {
-      const workspace = optionCapitalWorkspace();
-      if (!latestState?.csrf_token || String(latestState?.workspace || "").toUpperCase() !== workspace) await refreshState(true);
-      const token = String(latestState?.csrf_token || "");
-      if (!token) throw new Error("Local V16 session token is unavailable; refresh the terminal.");
-      const payload = await requestJson("/api/terminal/session", {
-        method: "POST",
-        headers: {"Content-Type": "application/json", "X-Jarvis-Token": token},
-        body: JSON.stringify({workspace, action}),
-      });
-      const msg = $("v16OptionsSideMessage");
-      if (msg) {
-        msg.textContent = `${workspace}: ${payload.message || action}. Existing positions remain governed by the canonical Paper Desk.`;
-        msg.dataset.kind = "ok";
-      }
+      const workspace = optionCapitalWorkspace(); if (!latestState?.csrf_token || String(latestState?.workspace || "").toUpperCase() !== workspace) await refreshState(true);
+      const token = String(latestState?.csrf_token || ""); if (!token) throw new Error("Local V16 session token is unavailable; refresh the terminal.");
+      const payload = await requestJson("/api/terminal/session", {method: "POST", headers: {"Content-Type": "application/json", "X-Jarvis-Token": token}, body: JSON.stringify({workspace, action})});
+      const msg = $("v16OptionsSideMessage"); if (msg) { msg.textContent = `${workspace}: ${payload.message || action}. Existing positions remain governed by the canonical Paper Desk.`; msg.dataset.kind = "ok"; }
       await refreshState(true);
-    } catch (error) {
-      const msg = $("v16OptionsSideMessage");
-      if (msg) { msg.textContent = `${action} failed: ${error.message}`; msg.dataset.kind = "error"; }
-    } finally {
-      busy = false;
-      if (button) button.textContent = old;
-      syncSessionButtons(latestState?.session || {});
-    }
+    } catch (error) { const msg = $("v16OptionsSideMessage"); if (msg) { msg.textContent = `${action} failed: ${error.message}`; msg.dataset.kind = "error"; } }
+    finally { busy = false; if (button) button.textContent = old; syncSessionButtons(latestState?.session || {}); }
   }
 
   async function resolveModule(url, serial) {
-    for (let attempt = 0; attempt < 16; attempt++) {
-      if (serial !== chainSerial) return null;
-      const payload = await requestJson(url, {}, 15000);
-      if (!payload?.pending) return payload?.result ?? payload;
-      await new Promise(resolve => setTimeout(resolve, 400));
-    }
+    for (let attempt = 0; attempt < 16; attempt++) { if (serial !== chainSerial) return null; const payload = await requestJson(url, {}, 15000); if (!payload?.pending) return payload?.result ?? payload; await new Promise(resolve => setTimeout(resolve, 400)); }
     throw new Error("Verified option-chain analysis is still busy; retry shortly.");
   }
 
   function updateExpiryChoices(payload) {
-    const select = $("v16OptionExpiry");
-    if (!select) return;
-    const current = select.value;
-    const expiries = Array.isArray(payload?.available_expiries) ? payload.available_expiries.filter(Boolean) : [];
-    select.innerHTML = `<option value="">NEAREST</option>` + expiries.map(value => `<option value="${esc(value)}">${esc(value)}</option>`).join("");
-    if (current && expiries.includes(current)) select.value = current;
+    const select = $("v16OptionExpiry"); if (!select) return; const current = select.value; const expiries = Array.isArray(payload?.available_expiries) ? payload.available_expiries.filter(Boolean) : [];
+    select.innerHTML = `<option value="">NEAREST</option>` + expiries.map(value => `<option value="${esc(value)}">${esc(value)}</option>`).join(""); if (current && expiries.includes(current)) select.value = current;
   }
 
   function renderChain(payload) {
-    const underlying = selectedUnderlying();
-    const rows = Array.isArray(payload?.chain) ? payload.chain : [];
-    const analytics = payload?.chain_analytics || {};
+    const underlying = selectedUnderlying(); const rows = Array.isArray(payload?.chain) ? payload.chain : []; const analytics = payload?.chain_analytics || {};
     if ($("v16OptionTitle")) $("v16OptionTitle").textContent = `${underlying} OPTION CHAIN`;
     if ($("v16OptionMessage")) $("v16OptionMessage").textContent = payload?.message || (rows.length ? `Loaded ${rows.length} verified contracts.` : "No verified contracts returned.");
     updateExpiryChoices(payload);
     if ($("v16OptionStats")) {
-      const stats = [
-        ["SPOT", payload?.spot],
-        ["PCR OI", payload?.pcr_oi ?? analytics.pcr_oi],
-        ["CALL WALL", analytics.call_oi_wall?.strike],
-        ["PUT WALL", analytics.put_oi_wall?.strike],
-        ["MAX PAIN", analytics.max_pain?.strike],
-      ];
-      $("v16OptionStats").innerHTML = stats.map(([name, value]) => `<span><small>${esc(name)}</small><b>${fmt(value)}</b></span>`).join("");
+      const stats = [["SPOT", payload?.spot], ["PCR OI", payload?.pcr_oi ?? analytics.pcr_oi], ["CALL WALL", analytics.call_oi_wall?.strike], ["PUT WALL", analytics.put_oi_wall?.strike], ["MAX PAIN", analytics.max_pain?.strike]];
+      $("v16OptionStats").innerHTML = stats.map(([name,value]) => `<span><small>${esc(name)}</small><b>${fmt(value)}</b></span>`).join("");
     }
     if ($("v16DomainUnderlying")) $("v16DomainUnderlying").textContent = `${underlying} · ${payload?.spot == null ? "SPOT —" : `SPOT ${fmt(payload.spot)}`}`;
-    const body = $("v16OptionRows");
-    if (!body) return;
-    body.innerHTML = rows.map((contract, index) => {
-      const symbol = String(contract.symbol || contract.instrument_name || "");
-      const selected = selectedContract && String(selectedContract.symbol || selectedContract.instrument_name || "") === symbol ? " selected" : "";
-      return `<tr data-v16-contract="${index}" class="${selected}"><td>${esc(contract.option_type || "—")}</td><td>${fmt(contract.strike, 0)}</td><td>${fmt(contract.ltp)}</td><td>${fmt(contract.bid)}</td><td>${fmt(contract.ask)}</td><td>${fmt(contract.volume, 0)}</td><td>${fmt(contract.open_interest, 0)}</td><td>${fmt(contract.change_in_oi, 0)}</td><td>${fmt(contract.iv)}</td><td>${fmt(contract.delta, 3)}</td><td>${fmt(contract.gamma, 4)}</td><td>${fmt(contract.theta, 3)}</td><td>${fmt(contract.vega, 3)}</td></tr>`;
-    }).join("");
-    body.querySelectorAll("[data-v16-contract]").forEach(row => {
-      row.addEventListener("click", () => selectContract(rows[Number(row.dataset.v16Contract)], payload));
-    });
+    const body = $("v16OptionRows"); if (!body) return;
+    body.innerHTML = rows.map((contract,index) => { const symbol = String(contract.symbol || contract.instrument_name || ""); const selected = selectedContract && String(selectedContract.symbol || selectedContract.instrument_name || "") === symbol ? " selected" : ""; return `<tr data-v16-contract="${index}" class="${selected}"><td>${esc(contract.option_type || "—")}</td><td>${fmt(contract.strike,0)}</td><td>${fmt(contract.ltp)}</td><td>${fmt(contract.bid)}</td><td>${fmt(contract.ask)}</td><td>${fmt(contract.volume,0)}</td><td>${fmt(contract.open_interest,0)}</td><td>${fmt(contract.change_in_oi,0)}</td><td>${fmt(contract.iv)}</td><td>${fmt(contract.delta,3)}</td><td>${fmt(contract.gamma,4)}</td><td>${fmt(contract.theta,3)}</td><td>${fmt(contract.vega,3)}</td></tr>`; }).join("");
+    body.querySelectorAll("[data-v16-contract]").forEach(row => row.addEventListener("click", () => selectContract(rows[Number(row.dataset.v16Contract)], payload)));
   }
 
   function selectContract(contract, payload) {
-    const symbol = String(contract?.symbol || contract?.instrument_name || "").trim();
-    if (!symbol) return;
-    selectedContract = contract;
-    const underlying = selectedUnderlying();
-    const provider = String(payload?.provider || "FYERS_READ_ONLY").toUpperCase();
-    if ($("v16SelectedOption")) {
-      $("v16SelectedOption").innerHTML = `<b>${esc(symbol)}</b> · ${esc(contract.option_type || "OPTION")} ${fmt(contract.strike, 0)} · LTP ${fmt(contract.ltp)} · IV ${fmt(contract.iv)} · OI ${fmt(contract.open_interest, 0)}<br><span>Selected contract premium chart is isolated from ${esc(underlying)} underlying price levels.</span>`;
-    }
+    const symbol = String(contract?.symbol || contract?.instrument_name || "").trim(); if (!symbol) return; selectedContract = contract;
+    const underlying = selectedUnderlying(); const provider = String(payload?.provider || "FYERS_READ_ONLY").toUpperCase();
+    if ($("v16SelectedOption")) $("v16SelectedOption").innerHTML = `<b>${esc(symbol)}</b> · ${esc(contract.option_type || "OPTION")} ${fmt(contract.strike,0)} · LTP ${fmt(contract.ltp)} · IV ${fmt(contract.iv)} · OI ${fmt(contract.open_interest,0)}<br><span>Selected contract premium chart is isolated from ${esc(underlying)} underlying price levels.</span>`;
     if ($("v16DomainContract")) $("v16DomainContract").textContent = `${symbol} · PREMIUM ${fmt(contract.ltp)}`;
-    try {
-      window.JARVIS_OPTION_CHART?.open({
-        kind: "OPTION",
-        provider,
-        instrument_name: symbol,
-        label: symbol,
-        underlying,
-        strike: contract.strike,
-        option_type: contract.option_type,
-        expiry: contract.expiry || payload?.expiry?.date || payload?.expiry || $("v16OptionExpiry")?.value || null,
-      });
-    } catch {}
+    try { window.JARVIS_OPTION_CHART?.open({kind:"OPTION", provider, instrument_name:symbol, label:symbol, underlying, strike:contract.strike, option_type:contract.option_type, expiry:contract.expiry || payload?.expiry?.date || payload?.expiry || $("v16OptionExpiry")?.value || null}); } catch {}
     renderChain(payload);
   }
 
   async function loadChain() {
     if (activeMode() !== "OPTIONS") return;
-    const serial = ++chainSerial;
-    selectedContract = null;
-    if ($("v16OptionMessage")) $("v16OptionMessage").textContent = "Loading verified option chain…";
-    const query = new URLSearchParams({workspace: optionCapitalWorkspace(), symbol: selectedUnderlying(), module: "option-chain"});
-    const expiry = $("v16OptionExpiry")?.value || "";
-    if (expiry) query.set("expiry", expiry);
-    try {
-      const payload = await resolveModule(`/api/terminal/module?${query}`, serial);
-      if (!payload || serial !== chainSerial) return;
-      renderChain(payload);
-      const chain = $("v16OptionsPipeChain");
-      if (chain) chain.textContent = payload.success ? "VERIFIED" : "UNAVAILABLE";
-    } catch (error) {
-      if (serial !== chainSerial) return;
-      renderChain({success: false, message: error.message, chain: []});
-      if ($("v16OptionsPipeChain")) $("v16OptionsPipeChain").textContent = "DEGRADED";
-    }
+    const serial = ++chainSerial; selectedContract = null; if ($("v16OptionMessage")) $("v16OptionMessage").textContent = "Loading verified option chain…";
+    const query = new URLSearchParams({workspace:optionCapitalWorkspace(), symbol:selectedUnderlying(), module:"option-chain"}); const expiry = $("v16OptionExpiry")?.value || ""; if (expiry) query.set("expiry",expiry);
+    try { const payload = await resolveModule(`/api/terminal/module?${query}`,serial); if (!payload || serial !== chainSerial) return; renderChain(payload); if ($("v16OptionsPipeChain")) $("v16OptionsPipeChain").textContent = payload.success ? "VERIFIED" : "UNAVAILABLE"; }
+    catch (error) { if (serial !== chainSerial) return; renderChain({success:false,message:error.message,chain:[]}); if ($("v16OptionsPipeChain")) $("v16OptionsPipeChain").textContent = "DEGRADED"; }
   }
 
   function bindCenterControls() {
     const underlying = $("v16OptionUnderlying");
-    if (underlying && !underlying.dataset.v16RouterBound) {
-      underlying.dataset.v16RouterBound = "1";
-      underlying.addEventListener("change", () => {
-        selectedContract = null;
-        const expiry = $("v16OptionExpiry");
-        if (expiry) expiry.value = "";
-        renderCapability();
-        loadChain();
-        refreshState(true);
-      });
-    }
-    const expiry = $("v16OptionExpiry");
-    if (expiry && !expiry.dataset.v16RouterBound) {
-      expiry.dataset.v16RouterBound = "1";
-      expiry.addEventListener("change", () => { selectedContract = null; loadChain(); });
-    }
-    const reload = $("v16OptionReload");
-    if (reload && !reload.dataset.v16RouterBound) {
-      reload.dataset.v16RouterBound = "1";
-      reload.addEventListener("click", loadChain);
-    }
-    const capital = $("v16OptionCapital");
-    if (capital && !capital.dataset.v16RouterBound) {
-      capital.dataset.v16RouterBound = "1";
-      capital.addEventListener("change", event => {
-        syncCapital(event.target.value);
-        refreshState(true);
-      });
-    }
+    if (underlying && !underlying.dataset.v16RouterBound) { underlying.dataset.v16RouterBound = "1"; underlying.addEventListener("change", () => { underlying.dataset.userChosen = "1"; selectedContract = null; const expiry=$("v16OptionExpiry"); if(expiry)expiry.value=""; syncUnderlyingChartContext(); renderCapability(); loadChain(); refreshState(true); }); }
+    const expiry = $("v16OptionExpiry"); if (expiry && !expiry.dataset.v16RouterBound) { expiry.dataset.v16RouterBound="1"; expiry.addEventListener("change",()=>{selectedContract=null;loadChain();}); }
+    const reload = $("v16OptionReload"); if (reload && !reload.dataset.v16RouterBound) { reload.dataset.v16RouterBound="1"; reload.addEventListener("click",loadChain); }
+    const capital = $("v16OptionCapital"); if (capital && !capital.dataset.v16RouterBound) { capital.dataset.v16RouterBound="1"; capital.addEventListener("change",event=>{syncCapital(event.target.value);refreshState(true);}); }
   }
 
   function route() {
-    ensureStyle();
-    ensureExtraOptionUnderlyings();
-    ensureOptionsSidebar();
-    bindCenterControls();
-    const options = activeMode() === "OPTIONS";
-    setOptionsVisibility(options);
-    setCenterOptionsVisibility(options);
-    if (options) {
-      syncCapital(optionCapitalWorkspace());
-      renderCapability();
-      refreshState(true);
-      loadChain();
-    } else {
-      movePrimaryToTop();
-    }
+    ensureStyle(); ensureOptionsCenter(); ensureExtraOptionUnderlyings(); ensureOptionsSidebar(); bindCenterControls();
+    const mode = activeMode(); const options = mode === "OPTIONS"; const entering = options && lastMode !== "OPTIONS"; lastMode = mode;
+    if (entering) { const select=$("v16OptionUnderlying"); if(select)select.dataset.userChosen=""; syncUnderlyingFromMarketContext(); syncUnderlyingChartContext(); }
+    setOptionsVisibility(options); setCenterOptionsVisibility(options);
+    if (options) { syncCapital(optionCapitalWorkspace()); renderCapability(); refreshState(true); loadChain(); }
+    else movePrimaryToTop();
   }
 
   function boot() {
     route();
-    document.querySelector(".workspace-modes")?.addEventListener("click", event => {
-      if (!event.target.closest("button[data-workspace]")) return;
-      setTimeout(route, 0);
-    });
-
-    const intel = document.querySelector(".intel-panel");
-    if (intel) {
-      new MutationObserver(() => {
-        if (activeMode() === "OPTIONS") setOptionsVisibility(true);
-        else movePrimaryToTop();
-      }).observe(intel, {childList: true});
-    }
-
-    pollTimer = setInterval(() => {
-      ensureExtraOptionUnderlyings();
-      bindCenterControls();
-      if (activeMode() === "OPTIONS") {
-        setCenterOptionsVisibility(true);
-        renderCapability();
-        refreshState(false);
-        if ($("v16OptionsStateAge") && latestStateAt) $("v16OptionsStateAge").textContent = `${Math.max(0, Math.round((Date.now() - latestStateAt) / 1000))}s`;
-      } else movePrimaryToTop();
-    }, 2500);
+    document.querySelector(".workspace-modes")?.addEventListener("click",event=>{if(!event.target.closest("button[data-workspace]"))return;setTimeout(route,0);});
+    const intel=document.querySelector(".intel-panel"); if(intel)new MutationObserver(()=>{if(activeMode()==="OPTIONS")setOptionsVisibility(true);else movePrimaryToTop();}).observe(intel,{childList:true});
+    pollTimer=setInterval(()=>{ensureOptionsCenter();ensureExtraOptionUnderlyings();bindCenterControls();if(activeMode()==="OPTIONS"){setCenterOptionsVisibility(true);renderCapability();refreshState(false);if($("v16OptionsStateAge")&&latestStateAt)$("v16OptionsStateAge").textContent=`${Math.max(0,Math.round((Date.now()-latestStateAt)/1000))}s`;}else movePrimaryToTop();},2500);
   }
 
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => setTimeout(boot, 0), {once: true});
-  else setTimeout(boot, 0);
-
-  window.addEventListener("beforeunload", () => { if (pollTimer) clearInterval(pollTimer); }, {once: true});
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>setTimeout(boot,0),{once:true});else setTimeout(boot,0);
+  window.addEventListener("beforeunload",()=>{if(pollTimer)clearInterval(pollTimer);},{once:true});
 })();
