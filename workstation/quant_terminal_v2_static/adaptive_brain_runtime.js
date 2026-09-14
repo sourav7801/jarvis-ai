@@ -39,11 +39,32 @@
     }
   }
 
+  function optionInstrument(slot) {
+    return String(slot?.optionChart?.instrument_name || "").trim().toUpperCase();
+  }
+
   function renderBrainState(slot, payload) {
     if (!slot || !payload?.success || !payload?.decision) return;
     const decision = payload.decision;
     const structure = decision.structure || {};
     clearLines(slot);
+
+    // An option premium and its underlying index/commodity live in different
+    // price domains. Never paint NIFTY/MCX support, resistance, entry, stop or
+    // target levels onto a CE/PE premium chart. Underlying intelligence remains
+    // contextual only; canonical option entry/SL/target comes from the option
+    // plan / Paper Desk and is rendered by the V16 option geometry layer.
+    const contract = optionInstrument(slot);
+    if (contract) {
+      try {
+        const regime = decision.regime || "UNKNOWN";
+        const side = decision.side || "WAIT";
+        const score = Number(decision.score || 0).toFixed(1);
+        slot.status.textContent = `UNDERLYING CONTEXT · ${regime} · ${side} ${score} · OPTION PREMIUM DOMAIN ISOLATED`;
+        slot.status.className = "chart-status live";
+      } catch (_) {}
+      return;
+    }
 
     for (const support of (structure.supports || []).slice(0, 3)) {
       addLine(slot, support, "SUPPORT", 2, 1);
