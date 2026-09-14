@@ -11,7 +11,7 @@ STATIC = ROOT / "workstation" / "quant_terminal_v2_static"
 class V16OptionsWorkspaceRouterTests(unittest.TestCase):
     def test_options_workspace_owns_sidebar_and_center_chain_surface(self):
         js = (STATIC / "v16_workspace_router.js").read_text(encoding="utf-8")
-        self.assertIn('id = "v16OptionsSidebar"', js)
+        self.assertIn('card.id = "v16OptionsSidebar"', js)
         self.assertIn("OPTIONS AUTOPILOT", js)
         self.assertIn("setOptionsVisibility", js)
         self.assertIn("setCenterOptionsVisibility", js)
@@ -19,6 +19,26 @@ class V16OptionsWorkspaceRouterTests(unittest.TestCase):
         self.assertIn("loadChain", js)
         self.assertIn("OPTION CHAIN", js)
         self.assertIn("/api/terminal/module", js)
+
+    def test_router_can_create_center_options_surface_without_legacy_workspace_runtime(self):
+        js = (STATIC / "v16_workspace_router.js").read_text(encoding="utf-8")
+        self.assertIn("function ensureOptionsCenter()", js)
+        self.assertIn('panel.id = "v16Options"', js)
+        self.assertIn('id="v16OptionUnderlying"', js)
+        self.assertIn('id="v16OptionExpiry"', js)
+        self.assertIn('id="v16OptionRows"', js)
+        self.assertIn('grid.parentElement.insertBefore(panel, grid)', js)
+        self.assertIn("ensureOptionsCenter(); ensureExtraOptionUnderlyings()", js)
+
+    def test_entering_options_syncs_chain_underlying_with_selected_market_context(self):
+        js = (STATIC / "v16_workspace_router.js").read_text(encoding="utf-8")
+        self.assertIn("marketContextSymbol", js)
+        self.assertIn("syncUnderlyingFromMarketContext", js)
+        self.assertIn("syncUnderlyingChartContext", js)
+        self.assertIn('const entering = options && lastMode !== "OPTIONS"', js)
+        self.assertIn("if (OPTION_SET.has(context)) select.value = context", js)
+        for symbol in ("GOLD", "CRUDEOIL", "BTC", "ETH"):
+            self.assertIn(symbol, js)
 
     def test_options_sidebar_exposes_authenticated_state_aware_session_controls(self):
         js = (STATIC / "v16_workspace_router.js").read_text(encoding="utf-8")
