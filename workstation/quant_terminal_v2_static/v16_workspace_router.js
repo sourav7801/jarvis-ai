@@ -20,6 +20,7 @@
   const hiddenBeforeOptions = new WeakMap();
   let latestState = null;
   let latestStateAt = 0;
+  let latestChain = null;
   let pollTimer = null;
   let busy = false;
   let chainSerial = 0;
@@ -199,7 +200,7 @@
     let card = $("v16OptionsSidebar");
     if (card) return card;
     card = document.createElement("section"); card.id = "v16OptionsSidebar"; card.className = "intel-card v16-options-sidebar";
-    card.innerHTML = `<div class="eyebrow">OPTIONS WORKSPACE · CANONICAL V16</div><div class="v16-options-side-head"><b>OPTIONS AUTOPILOT</b><span id="v16OptionsTier">WAITING</span></div><div class="v16-options-side-note"><strong id="v16OptionsUnderlyingLabel">NIFTY</strong> · <span id="v16OptionsSource">provider check</span><br><span id="v16OptionsCapabilityText">Loading capability state…</span></div><div class="v16-options-side-select"><label>CAPITAL MANDATE</label><select id="v16OptionsSideCapital"><option>INTRADAY</option><option>SWING</option><option>INVESTMENT</option></select></div><div class="v16-options-session"><div><small>ENTRY SESSION</small><b id="v16OptionsSessionState">—</b></div><div><small>SCANNER</small><b id="v16OptionsScannerState">—</b></div><div><small>RECONCILIATION</small><b id="v16OptionsReconState">—</b></div><div><small>STATE AGE</small><b id="v16OptionsStateAge">—</b></div></div><div class="v16-options-controls"><button data-v16-option-control="start">START SESSION</button><button data-v16-option-control="pause_new_entries">PAUSE NEW ENTRIES</button><button data-v16-option-control="resume">RESUME</button><button data-v16-option-control="stop_scanner">STOP SCANNER</button></div><div class="v16-options-pipeline"><span><small>CHAIN</small><b id="v16OptionsPipeChain">VERIFY</b></span><span><small>CONTRACT</small><b id="v16OptionsPipeContract">AUTO</b></span><span><small>RISK</small><b id="v16OptionsPipeRisk">AUTO</b></span><span><small>SIZE</small><b id="v16OptionsPipeSize">PAPER DESK</b></span><span><small>MANAGE</small><b>AUTO</b></span><span><small>LIVE BROKER</small><b>LOCKED</b></span></div><div class="v16-options-open" id="v16OptionsOpenPosition"><b>POSITION</b><br>No open canonical option position in this mandate.</div><div class="v16-options-capabilities"><b>MARKET CAPABILITY</b><div class="v16-cap-row auto"><strong>NIFTY / BANKNIFTY · AUTO PAPER</strong><span>Verified FYERS chain → auto CALL/PUT → canonical Paper Desk.</span></div><div class="v16-cap-row gated"><strong>SENSEX · AUTO GATED</strong><span>Provider chain and exact BSE contract must verify or the route fails closed.</span></div><div class="v16-cap-row research"><strong>CRUDEOIL / GOLD / SILVER / NAT GAS · CHAIN / RESEARCH</strong><span>Verified FYERS MCX option-chain data is selectable in the center workspace. Canonical V16 automated option execution is not yet audited.</span></div><div class="v16-cap-row research"><strong>BTC / ETH · PUBLIC RESEARCH</strong><span>Verified Deribit public option chain is selectable. No separate crypto paper ledger is used in V16.</span></div></div><div class="v16-options-side-msg" id="v16OptionsSideMessage">Loading canonical option state…</div>`;
+    card.innerHTML = `<div class="eyebrow">OPTIONS WORKSPACE · CANONICAL V16</div><div class="v16-options-side-head"><b>OPTIONS AUTOPILOT</b><span id="v16OptionsTier">WAITING</span></div><div class="v16-options-side-note"><strong id="v16OptionsUnderlyingLabel">NIFTY</strong> · <span id="v16OptionsSource">provider check</span><br><span id="v16OptionsCapabilityText">Loading capability state…</span></div><div class="v16-options-side-select"><label>CAPITAL MANDATE</label><select id="v16OptionsSideCapital"><option>INTRADAY</option><option>SWING</option><option>INVESTMENT</option></select></div><div class="v16-options-session"><div><small>ENTRY SESSION</small><b id="v16OptionsSessionState">—</b></div><div><small>SCANNER</small><b id="v16OptionsScannerState">—</b></div><div><small>RECONCILIATION</small><b id="v16OptionsReconState">—</b></div><div><small>STATE AGE</small><b id="v16OptionsStateAge">—</b></div></div><div class="v16-options-controls"><button data-v16-option-control="start">START SESSION</button><button data-v16-option-control="pause_new_entries">PAUSE NEW ENTRIES</button><button data-v16-option-control="resume">RESUME</button><button data-v16-option-control="stop_scanner">STOP SCANNER</button></div><div class="v16-options-pipeline"><span><small>CHAIN</small><b id="v16OptionsPipeChain">VERIFY</b></span><span><small>CONTRACT</small><b id="v16OptionsPipeContract">AUTO</b></span><span><small>RISK</small><b id="v16OptionsPipeRisk">AUTO</b></span><span><small>SIZE</small><b id="v16OptionsPipeSize">PAPER DESK</b></span><span><small>MANAGE</small><b>AUTO</b></span><span><small>LIVE BROKER</small><b>LOCKED</b></span></div><div class="v16-options-open" id="v16OptionsOpenPosition"><b>POSITION</b><br>No open canonical option position in this mandate.</div><div class="v16-options-capabilities"><b>MARKET CAPABILITY</b><div class="v16-cap-row auto"><strong>NIFTY / BANKNIFTY · AUTO PAPER</strong><span>Verified FYERS chain → auto CALL/PUT → canonical Paper Desk.</span></div><div class="v16-cap-row gated"><strong>SENSEX · AUTO GATED</strong><span>Provider chain and exact BSE contract must verify or the route fails closed.</span></div><div class="v16-cap-row research"><strong>CRUDEOIL / GOLD / SILVER / NAT GAS · CHAIN / RESEARCH</strong><span>Verified FYERS MCX option-chain data is selectable in the center workspace. Canonical V16 auto execution is not yet audited.</span></div><div class="v16-cap-row research"><strong>BTC / ETH · PUBLIC RESEARCH</strong><span>Verified Deribit public option chain is selectable. No separate crypto paper ledger is used in V16.</span></div></div><div class="v16-options-side-msg" id="v16OptionsSideMessage">Loading canonical option state…</div>`;
     intel.prepend(card);
     $("v16OptionsSideCapital")?.addEventListener("change", event => { syncCapital(event.target.value); refreshState(true); });
     card.querySelectorAll("[data-v16-option-control]").forEach(button => button.addEventListener("click", () => controlSession(button.dataset.v16OptionControl, button)));
@@ -291,16 +292,44 @@
     });
   }
 
+  function selectedChainHealth() {
+    const underlying = selectedUnderlying();
+    if (!latestChain || latestChain.underlying !== underlying) return {status: "WAITING", reason: "chain not loaded for selected underlying"};
+    const ageMs = Date.now() - latestChain.receivedAt;
+    if (ageMs > 30000) return {status: "DEGRADED", reason: "selected option chain is stale"};
+    if (latestChain.status !== "VERIFIED") return {status: latestChain.status, reason: latestChain.message || "selected option chain is unavailable"};
+    return {status: "VERIFIED", reason: `${latestChain.provider || "provider"} · ${latestChain.rows} contracts · fresh`};
+  }
+
+  function applyChainGateMessage(stateFresh = true) {
+    const cap = capability(selectedUnderlying());
+    const chain = selectedChainHealth();
+    const node = $("v16OptionsPipeChain");
+    if (node) node.textContent = chain.status;
+    const msg = $("v16OptionsSideMessage");
+    if (!msg) return;
+    if (!stateFresh) return;
+    if (cap.kind === "research" || cap.kind === "blocked") {
+      msg.textContent = `${cap.tier} · ${cap.detail} No automatic paper entry is permitted for this underlying.`;
+      msg.dataset.kind = "warn";
+      return;
+    }
+    if (chain.status !== "VERIFIED") {
+      msg.textContent = `NEW OPTION ENTRIES BLOCKED · ${chain.reason}. Existing canonical positions remain managed.`;
+      msg.dataset.kind = "warn";
+      return;
+    }
+    msg.textContent = `SELECTED CHAIN VERIFIED · ${chain.reason}. New entries still require session, signal, exact contract, fresh quote, risk and capital gates.`;
+    msg.dataset.kind = "ok";
+  }
+
   function renderState(state) {
     latestState = state; latestStateAt = Date.now(); const session = state?.session || {}; const running = String(session.entry_session || "PAUSED").toUpperCase();
     if ($("v16OptionsSessionState")) $("v16OptionsSessionState").textContent = running;
     if ($("v16OptionsScannerState")) $("v16OptionsScannerState").textContent = session.scanning ? "RUNNING" : "IDLE";
     if ($("v16OptionsReconState")) $("v16OptionsReconState").textContent = session.reconciliation_ok === false ? "BLOCKED" : "CLEAN";
     if ($("v16OptionsStateAge")) $("v16OptionsStateAge").textContent = "FRESH";
-    const providers = Object.values(state?.market_data?.providers || {}); const bad = providers.some(item => ["DEGRADED", "RATE_LIMITED", "LOGIN_REQUIRED"].includes(String(item?.state || "").toUpperCase()));
-    if ($("v16OptionsPipeChain")) $("v16OptionsPipeChain").textContent = bad ? "DEGRADED" : "VERIFIED";
-    const msg = $("v16OptionsSideMessage");
-    if (msg) { msg.textContent = bad ? "NEW OPTION ENTRIES BLOCKED · provider/chain health is degraded. Existing canonical positions remain managed." : "Canonical option state is fresh. New entries still require session, signal, contract, quote, risk and capital gates."; msg.dataset.kind = bad ? "warn" : "ok"; }
+    applyChainGateMessage(true);
     renderPositionContext(state); syncSessionButtons(session);
   }
 
@@ -366,16 +395,27 @@
 
   async function loadChain() {
     if (activeMode() !== "OPTIONS") return;
-    const serial = ++chainSerial; selectedContract = null; if ($("v16OptionMessage")) $("v16OptionMessage").textContent = "Loading verified option chain…";
+    const serial = ++chainSerial; selectedContract = null; latestChain = {underlying:selectedUnderlying(), status:"LOADING", provider:"", rows:0, receivedAt:Date.now(), message:"loading selected option chain"};
+    if ($("v16OptionMessage")) $("v16OptionMessage").textContent = "Loading verified option chain…";
+    if ($("v16OptionsPipeChain")) $("v16OptionsPipeChain").textContent = "LOADING";
     const query = new URLSearchParams({workspace:optionCapitalWorkspace(), symbol:selectedUnderlying(), module:"option-chain"}); const expiry = $("v16OptionExpiry")?.value || ""; if (expiry) query.set("expiry",expiry);
-    try { const payload = await resolveModule(`/api/terminal/module?${query}`,serial); if (!payload || serial !== chainSerial) return; renderChain(payload); if ($("v16OptionsPipeChain")) $("v16OptionsPipeChain").textContent = payload.success ? "VERIFIED" : "UNAVAILABLE"; }
-    catch (error) { if (serial !== chainSerial) return; renderChain({success:false,message:error.message,chain:[]}); if ($("v16OptionsPipeChain")) $("v16OptionsPipeChain").textContent = "DEGRADED"; }
+    try {
+      const payload = await resolveModule(`/api/terminal/module?${query}`,serial); if (!payload || serial !== chainSerial) return;
+      const rows = Array.isArray(payload?.chain) ? payload.chain : [];
+      const verified = payload?.success !== false && payload?.stale !== true && payload?.verified !== false && rows.length > 0;
+      latestChain = {underlying:selectedUnderlying(), status:verified?"VERIFIED":"UNAVAILABLE", provider:String(payload?.provider || payload?.source || "OPTION_PROVIDER"), rows:rows.length, receivedAt:Date.now(), message:payload?.message || (verified?"verified selected option chain":"no verified contracts returned")};
+      renderChain(payload); applyChainGateMessage(Boolean(latestState));
+    } catch (error) {
+      if (serial !== chainSerial) return;
+      latestChain = {underlying:selectedUnderlying(), status:"DEGRADED", provider:"", rows:0, receivedAt:Date.now(), message:error.message};
+      renderChain({success:false,message:error.message,chain:[]}); applyChainGateMessage(Boolean(latestState));
+    }
   }
 
   function bindCenterControls() {
     const underlying = $("v16OptionUnderlying");
-    if (underlying && !underlying.dataset.v16RouterBound) { underlying.dataset.v16RouterBound = "1"; underlying.addEventListener("change", () => { underlying.dataset.userChosen = "1"; selectedContract = null; const expiry=$("v16OptionExpiry"); if(expiry)expiry.value=""; syncUnderlyingChartContext(); renderCapability(); loadChain(); refreshState(true); }); }
-    const expiry = $("v16OptionExpiry"); if (expiry && !expiry.dataset.v16RouterBound) { expiry.dataset.v16RouterBound="1"; expiry.addEventListener("change",()=>{selectedContract=null;loadChain();}); }
+    if (underlying && !underlying.dataset.v16RouterBound) { underlying.dataset.v16RouterBound = "1"; underlying.addEventListener("change", () => { underlying.dataset.userChosen = "1"; selectedContract = null; latestChain=null; const expiry=$("v16OptionExpiry"); if(expiry)expiry.value=""; syncUnderlyingChartContext(); renderCapability(); loadChain(); refreshState(true); }); }
+    const expiry = $("v16OptionExpiry"); if (expiry && !expiry.dataset.v16RouterBound) { expiry.dataset.v16RouterBound="1"; expiry.addEventListener("change",()=>{selectedContract=null;latestChain=null;loadChain();}); }
     const reload = $("v16OptionReload"); if (reload && !reload.dataset.v16RouterBound) { reload.dataset.v16RouterBound="1"; reload.addEventListener("click",loadChain); }
     const capital = $("v16OptionCapital"); if (capital && !capital.dataset.v16RouterBound) { capital.dataset.v16RouterBound="1"; capital.addEventListener("change",event=>{syncCapital(event.target.value);refreshState(true);}); }
   }
@@ -383,7 +423,7 @@
   function route() {
     ensureStyle(); ensureOptionsCenter(); ensureExtraOptionUnderlyings(); ensureOptionsSidebar(); bindCenterControls();
     const mode = activeMode(); const options = mode === "OPTIONS"; const entering = options && lastMode !== "OPTIONS"; lastMode = mode;
-    if (entering) { const select=$("v16OptionUnderlying"); if(select)select.dataset.userChosen=""; syncUnderlyingFromMarketContext(); syncUnderlyingChartContext(); }
+    if (entering) { const select=$("v16OptionUnderlying"); if(select)select.dataset.userChosen=""; syncUnderlyingFromMarketContext(); latestChain=null; syncUnderlyingChartContext(); }
     setOptionsVisibility(options); setCenterOptionsVisibility(options);
     if (options) { syncCapital(optionCapitalWorkspace()); renderCapability(); refreshState(true); loadChain(); }
     else movePrimaryToTop();
