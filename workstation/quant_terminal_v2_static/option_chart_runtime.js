@@ -7,8 +7,22 @@
     return String(spec?.label || spec?.instrument_name || "OPTION");
   }
 
+  function abortOptionLoad(slot) {
+    if (!slot) return;
+    slot.optionLoadVersion = Number(slot.optionLoadVersion || 0) + 1;
+    if (slot.optionAbortController) {
+      try { slot.optionAbortController.abort(); } catch {}
+      slot.optionAbortController = null;
+    }
+    if (slot.cryptoSocket) {
+      try { slot.cryptoSocket.close(); } catch {}
+      slot.cryptoSocket = null;
+    }
+  }
+
   function clearOptionMode(slot) {
     if (!slot) return;
+    abortOptionLoad(slot);
     slot.kind = "MARKET";
     slot.optionChart = null;
     slot.optionSocket = null;
@@ -19,6 +33,17 @@
     if (slot) clearOptionMode(slot);
     return originalSelectMarket(symbol);
   };
+
+  function sameOptionRequest(slot, spec, version) {
+    return Boolean(
+      slot
+      && Number(slot.optionLoadVersion || 0) === Number(version)
+      && slot.kind === "OPTION"
+      && slot.optionChart
+      && String(slot.optionChart.instrument_name || "") === String(spec?.instrument_name || "")
+      && String(slot.optionChart.provider || "") === String(spec?.provider || "")
+    );
+  }
 
   function applyOptionLivePrice(slot, snapshot) {
     if (!slot?.candles || !snapshot) return;
@@ -64,13 +89,16 @@
     setStatus(slot, parts.join(" · "), "live");
   }
 
-  function connectDeribitOptionSocket(slot) {
-    const spec = slot?.optionChart;
+  function connectDeribitOptionSocket(slot, spec, version) {
     if (!spec || spec.provider !== "DERIBIT_PUBLIC" || !spec.instrument_name) return;
     try {
       const socket = new WebSocket(spec.websocket_url || "wss://www.deribit.com/ws/api/v2");
       slot.cryptoSocket = socket;
       socket.onopen = () => {
+        if (!sameOptionRequest(slot, spec, version)) {
+          try { socket.close(); } catch {}
+          return;
+        }
         socket.send(JSON.stringify({
           jsonrpc: "2.0",
           id: Date.now(),
@@ -79,6 +107,7 @@
         }));
       };
       socket.onmessage = event => {
+        if (!sameOptionRequest(slot, spec, version)) return;
         try {
           const message = JSON.parse(event.data);
           const data = message?.params?.data;
@@ -95,16 +124,19 @@
         } catch {}
       };
       socket.onerror = () => {
-        setStatus(slot, "Deribit option WebSocket unavailable; REST option ticker fallback remains available.", "error");
+        if (sameOptionRequest(slot, spec, version)) {
+          setStatus(slot, "Deribit option WebSocket unavailable; REST option ticker fallback remains available.", "error");
+        }
       };
     } catch (error) {
-      setStatus(slot, error.message || "Unable to start Deribit option stream.", "error");
+      if (sameOptionRequest(slot, spec, version)) {
+        setStatus(slot, error.message || "Unable to start Deribit option stream.", "error");
+      }
     }
   }
 
-  async function pollOptionLive(slot) {
-    const spec = slot?.optionChart;
-    if (!spec || !spec.instrument_name) return;
+  async function pollOptionLive(slot, spec, version) {
+    if (!spec || !spec.instrument_name || !sameOptionRequest(slot, spec, version)) return;
     try {
       const params = new URLSearchParams({
         provider: spec.provider,
@@ -112,23 +144,36 @@
       });
       const response = await fetch(`/api/option-live?${params}`);
       const payload = await response.json();
+      if (!sameOptionRequest(slot, spec, version)) return;
       if (payload.success && payload.snapshot) applyOptionLivePrice(slot, payload.snapshot);
     } catch {}
   }
 
   async function loadOptionSlot(index) {
     const slot = chartSlots[index];
-    const spec = slot?.optionChart;
-    if (!slot || !spec?.instrument_name) return originalLoadSlot(index);
+    const currentSpec = slot?.optionChart;
+    if (!slot || !currentSpec?.instrument_name) return originalLoadSlot(index);
+
+    if (slot.optionAbortController) {
+      try { slot.optionAbortController.abort(); } catch {}
+    }
     if (slot.cryptoSocket) {
       try { slot.cryptoSocket.close(); } catch {}
       slot.cryptoSocket = null;
     }
+
+    const spec = {...currentSpec};
+    const version = Number(slot.optionLoadVersion || 0) + 1;
+    slot.optionLoadVersion = version;
+    const controller = new AbortController();
+    slot.optionAbortController = controller;
+
     const slotFrame = slot.timeframe || timeframe;
     const label = optionLabel(spec);
     slot.head.querySelector("strong").textContent = label;
     slot.head.querySelector("span").textContent = `${slotFrame} · OPTION LOADING`;
     setStatus(slot, `Loading verified option candles for ${label}…`);
+
     try {
       const params = new URLSearchParams({
         provider: spec.provider,
@@ -136,12 +181,14 @@
         timeframe: slotFrame,
         bars: "700",
       });
-      const response = await fetch(`/api/option-candles?${params}`);
+      const response = await fetch(`/api/option-candles?${params}`, {signal: controller.signal, cache: "no-store"});
       const payload = await response.json();
+      if (!sameOptionRequest(slot, spec, version)) return;
       if (!payload.success || !payload.candles?.length) {
         throw new Error(payload.message || "Verified option candles unavailable.");
       }
       createSeries(slot, payload);
+      if (!sameOptionRequest(slot, spec, version)) return;
       slot.head.querySelector("strong").textContent = label;
       slot.head.querySelector("span").textContent = `${slotFrame} · ${payload.source}`;
       setStatus(
@@ -149,11 +196,14 @@
         `${payload.source} · ${payload.provider_symbol} · ${payload.bars} bars · ${payload.data_quality || "OPTION DATA"}`,
         "live",
       );
-      if (spec.provider === "DERIBIT_PUBLIC") connectDeribitOptionSocket(slot);
-      else pollOptionLive(slot);
+      if (spec.provider === "DERIBIT_PUBLIC") connectDeribitOptionSocket(slot, spec, version);
+      else void pollOptionLive(slot, spec, version);
     } catch (error) {
+      if (error?.name === "AbortError" || !sameOptionRequest(slot, spec, version)) return;
       setStatus(slot, error.message || "Option chart data unavailable.", "error");
       slot.head.querySelector("span").textContent = `${slotFrame} · OPTION DATA UNAVAILABLE`;
+    } finally {
+      if (slot.optionAbortController === controller) slot.optionAbortController = null;
     }
   }
 
@@ -170,14 +220,23 @@
     if (index < 0) index = selectedSlot;
     const slot = chartSlots[index];
     if (!slot) return;
+
     selectedSlot = index;
     if (underlying) selectedSymbol = underlying;
     slot.kind = "OPTION";
     slot.optionChart = {...spec};
     if (underlying) slot.symbol = underlying;
+
+    // Update the visible contract immediately.  The async candle load below is
+    // generation-guarded so an older request can never repaint a newer click.
+    const label = optionLabel(slot.optionChart);
+    if (slot.head) {
+      slot.head.querySelector("strong").textContent = label;
+      slot.head.querySelector("span").textContent = `${slot.timeframe || timeframe} · OPTION SELECTED`;
+    }
     document.querySelectorAll(".chart-cell").forEach((node, i) => node.classList.toggle("selected", i === index));
     try { persistCharts(); } catch {}
-    loadSlot(index);
+    void loadSlot(index);
   }
 
   async function enhancedSendCommand() {
