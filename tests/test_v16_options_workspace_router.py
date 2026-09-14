@@ -28,7 +28,7 @@ class V16OptionsWorkspaceRouterTests(unittest.TestCase):
         self.assertIn('id="v16OptionExpiry"', js)
         self.assertIn('id="v16OptionRows"', js)
         self.assertIn('grid.parentElement.insertBefore(panel, grid)', js)
-        self.assertIn("ensureOptionsCenter(); ensureExtraOptionUnderlyings()", js)
+        self.assertIn("ensureOptionsCenter(); ensureOptionChartActions(); ensureExtraOptionUnderlyings()", js)
 
     def test_entering_options_syncs_chain_underlying_with_selected_market_context(self):
         js = (STATIC / "v16_workspace_router.js").read_text(encoding="utf-8")
@@ -110,6 +110,46 @@ class V16OptionsWorkspaceRouterTests(unittest.TestCase):
         support = brain.index("for (const support", guard)
         self.assertLess(guard, support)
         self.assertIn("if (contract)", brain[guard:support])
+
+    def test_chain_row_selects_contract_without_opening_chart_until_explicit_button(self):
+        js = (STATIC / "v16_workspace_router.js").read_text(encoding="utf-8")
+        self.assertIn("OPEN OPTION CHART", js)
+        self.assertIn("BACK TO CHAIN", js)
+        self.assertIn('id="v16OpenOptionChart"', js)
+        self.assertIn('id="v16BackToOptionChain"', js)
+        self.assertIn("function openSelectedOptionChart()", js)
+        self.assertIn("function setOptionChartFocus(enabled)", js)
+        self.assertIn("v16-option-chart-focus", js)
+        self.assertIn("scrollIntoView", js)
+        selection_start = js.index("function selectContract(")
+        open_start = js.index("function openSelectedOptionChart()")
+        self.assertNotIn("JARVIS_OPTION_CHART", js[selection_start:])
+        self.assertIn("JARVIS_OPTION_CHART.open", js[open_start:selection_start])
+        self.assertIn("Row selection no longer opens the chart", js)
+
+    def test_options_sidebar_shows_canonical_capital_allocation_independent_of_trade_plan(self):
+        js = (STATIC / "v16_workspace_router.js").read_text(encoding="utf-8")
+        self.assertIn("CAPITAL ALLOCATION · CANONICAL PAPER DESK", js)
+        self.assertIn("function renderCapitalAccount(state)", js)
+        self.assertIn("state?.account", js)
+        for field in (
+            "account.allocation",
+            "account.starting_capital",
+            "account.available_capital",
+            "account.committed_capital",
+            "account.open_risk",
+            "account.equity",
+        ):
+            self.assertIn(field, js)
+        for node_id in (
+            "v16OptionsCapitalMandate",
+            "v16OptionsCapitalAllocated",
+            "v16OptionsCapitalAvailable",
+            "v16OptionsCapitalCommitted",
+            "v16OptionsCapitalRisk",
+            "v16OptionsCapitalEquity",
+        ):
+            self.assertIn(node_id, js)
 
     def test_v16_http_loads_router_and_retires_legacy_browser_poller(self):
         source = (ROOT / "workstation" / "v16_terminal_http.py").read_text(encoding="utf-8")
