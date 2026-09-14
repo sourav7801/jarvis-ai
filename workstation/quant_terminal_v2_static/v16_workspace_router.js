@@ -25,6 +25,8 @@
   let busy = false;
   let chainSerial = 0;
   let selectedContract = null;
+  let selectedContractPayload = null;
+  let chartFocus = false;
   let lastMode = null;
 
   const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({
@@ -37,6 +39,16 @@
   const fmt = (value, digits = 2) => {
     const n = num(value);
     return n === null ? "—" : n.toLocaleString("en-IN", {maximumFractionDigits: digits, minimumFractionDigits: digits});
+  };
+  const fmtMoney = value => {
+    const n = num(value);
+    return n === null ? "—" : n.toLocaleString("en-IN", {style: "currency", currency: "INR", maximumFractionDigits: 0});
+  };
+  const fmtAllocation = value => {
+    const n = num(value);
+    if (n === null) return "—";
+    const pct = Math.abs(n) <= 1 ? n * 100 : n;
+    return `${pct.toFixed(pct % 1 ? 1 : 0)}%`;
   };
 
   function activeMode() {
@@ -92,17 +104,24 @@
       .v16-options-side-head span[data-kind="auto"]{color:#7df1ad;border-color:#287a56}.v16-options-side-head span[data-kind="research"]{color:#ffd166;border-color:#7d6727}.v16-options-side-head span[data-kind="gated"]{color:#ffc66e;border-color:#805e2f}
       .v16-options-side-note{font-size:8px;line-height:1.45;color:#8fb5c4;margin:6px 0}.v16-options-side-note strong{color:#d7f4ff}
       .v16-options-side-select{display:grid;grid-template-columns:1fr;gap:4px;margin:7px 0}.v16-options-side-select label{font-size:7px;color:#6f94a4;letter-spacing:.08em}.v16-options-side-select select{width:100%;background:#071820;border:1px solid #285266;color:#d9f5ff;padding:6px;border-radius:5px}
+      .v16-options-capital-head{margin:7px 0 4px;color:#8fcde1;font-size:7px;letter-spacing:.09em}.v16-options-capital{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;margin-bottom:7px}.v16-options-capital div{border:1px solid #1c4556;background:#07161e;padding:5px;min-width:0}.v16-options-capital small{display:block;color:#6d94a4;font-size:6px;letter-spacing:.07em}.v16-options-capital b{display:block;margin-top:2px;color:#dff7ff;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.v16-options-capital b[data-kind="available"]{color:#7ee9ae}.v16-options-capital b[data-kind="risk"]{color:#ffd166}
       .v16-options-session{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:7px 0}.v16-options-session div{border:1px solid #173949;background:#06131a;padding:6px;border-radius:5px}.v16-options-session small{display:block;color:#6d94a4;font-size:7px}.v16-options-session b{font-size:10px;color:#d7f4ff}
       .v16-options-controls{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:7px 0}.v16-options-controls button{font-size:8px;min-height:29px;padding:5px}.v16-options-controls button:first-child{border-color:#2e8b61;color:#83f2b1;background:#08251a}.v16-options-controls button:disabled{opacity:.38;cursor:not-allowed}
       .v16-options-pipeline{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;margin:7px 0}.v16-options-pipeline span{border:1px solid #173849;background:#07131b;padding:5px;min-width:0}.v16-options-pipeline small{display:block;color:#678d9c;font-size:7px}.v16-options-pipeline b{display:block;color:#ccecf7;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .v16-options-capabilities{border-top:1px solid #173849;margin-top:8px;padding-top:7px}.v16-options-capabilities>b{font-size:8px;color:#9fd8ec;letter-spacing:.08em}.v16-cap-row{margin-top:5px;padding:5px;border-left:2px solid #315368;background:#061219}.v16-cap-row strong{display:block;font-size:8px;color:#d8f5ff}.v16-cap-row span{display:block;margin-top:2px;font-size:7px;color:#7fa3b1;line-height:1.35}.v16-cap-row.auto{border-color:#2e8b61}.v16-cap-row.research{border-color:#99772f}.v16-cap-row.gated{border-color:#a46b34}
       .v16-options-side-msg{margin-top:7px;padding:6px;border-left:2px solid #337d99;background:#061219;color:#9fc4d2;font-size:8px;line-height:1.4}.v16-options-side-msg[data-kind="error"]{border-color:#ff647d;color:#ff9aad}.v16-options-side-msg[data-kind="ok"]{border-color:#45d68b;color:#8cedb4}.v16-options-side-msg[data-kind="warn"]{border-color:#ffd166;color:#e7d18a}
       .v16-options-open{border-top:1px solid #173849;margin-top:7px;padding-top:6px;font-size:8px;color:#8fb1be;line-height:1.45}.v16-options-open b{color:#dff7ff}
+      .v16-option-chart-actions{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;align-items:center;margin:7px 0;padding:7px;border:1px solid #24566a;background:#071922}.v16-option-chart-actions span{min-width:0}.v16-option-chart-actions small{display:block;color:#6e9cad;font-size:7px;letter-spacing:.09em}.v16-option-chart-actions b{display:block;margin-top:2px;color:#d8f5ff;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.v16-option-chart-actions button{min-height:30px;padding:5px 9px;font-size:8px;white-space:nowrap}.v16-option-chart-actions button:disabled{opacity:.4;cursor:not-allowed}.v16-option-chart-actions #v16OpenOptionChart{border-color:#2d8b61;color:#83f2b1;background:#08251a}.v16-option-chart-actions #v16BackToOptionChain{border-color:#4b7589;color:#caefff;background:#0a202b}
       html.v16-options-workspace .intel-panel>#v16OptionsSidebar{display:block!important}
       html.v16-options-workspace #v16Options{display:block!important;max-height:none!important;min-height:250px;border-color:#2a657d;background:#06151d}
       html.v16-options-workspace #v16Options .v16-option-table-wrap{max-height:275px}
       html.v16-options-workspace #chartGrid{min-height:330px}
       html.v16-options-workspace .workspace-toolbar{border-color:#1e4c60}
+      html.v16-options-workspace.v16-option-chart-focus #v16Options{min-height:0!important;padding-top:5px!important;padding-bottom:5px!important}
+      html.v16-options-workspace.v16-option-chart-focus #v16Options>:not(#v16SelectedOption):not(#v16OptionChartActions){display:none!important}
+      html.v16-options-workspace.v16-option-chart-focus #v16SelectedOption{margin-top:0!important}
+      html.v16-options-workspace.v16-option-chart-focus #v16OptionChartActions{margin-bottom:0!important}
+      html.v16-options-workspace.v16-option-chart-focus #chartGrid{min-height:560px!important}
       .v16-option-domain-bar{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:6px 0}.v16-option-domain-bar>div{border:1px solid #1a4152;background:#07151d;padding:6px;border-radius:5px}.v16-option-domain-bar small{display:block;color:#6f94a4;font-size:7px;letter-spacing:.08em}.v16-option-domain-bar b{display:block;color:#d7f4ff;font-size:10px;margin-top:2px}.v16-option-domain-bar span{display:block;color:#82a9b7;font-size:8px;margin-top:2px;line-height:1.35}
       .v16-option-provenance{margin-top:5px;color:#87aebb;font-size:8px}.v16-option-provenance strong{color:#ccecf7}
     `;
@@ -194,13 +213,60 @@
     if (head?.nextSibling) panel.insertBefore(bar, head.nextSibling); else panel.prepend(bar);
   }
 
+  function syncOptionChartActions() {
+    const symbol = String(selectedContract?.symbol || selectedContract?.instrument_name || "").trim();
+    const open = $("v16OpenOptionChart"); const back = $("v16BackToOptionChain"); const label = $("v16OptionChartSelection");
+    if (open) { open.disabled = !symbol; open.hidden = chartFocus; }
+    if (back) back.hidden = !chartFocus;
+    if (label) label.textContent = symbol || "Select a chain row first.";
+  }
+
+  function setOptionChartFocus(enabled) {
+    chartFocus = Boolean(enabled && selectedContract);
+    document.documentElement.classList.toggle("v16-option-chart-focus", chartFocus);
+    syncOptionChartActions();
+    if (chartFocus) {
+      requestAnimationFrame(() => $("chartGrid")?.scrollIntoView({behavior: "smooth", block: "start"}));
+    }
+  }
+
+  function openSelectedOptionChart() {
+    const contract = selectedContract; const payload = selectedContractPayload || {};
+    const symbol = String(contract?.symbol || contract?.instrument_name || "").trim();
+    if (!symbol) return;
+    const provider = String(payload?.provider || "FYERS_READ_ONLY").toUpperCase(); const underlying = selectedUnderlying();
+    if (typeof window.JARVIS_OPTION_CHART?.open !== "function") {
+      if ($("v16OptionMessage")) $("v16OptionMessage").textContent = "Option chart runtime is unavailable. The selected contract remains viewing-only.";
+      return;
+    }
+    try {
+      window.JARVIS_OPTION_CHART.open({kind:"OPTION", provider, instrument_name:symbol, label:symbol, underlying, strike:contract.strike, option_type:contract.option_type, expiry:contract.expiry || payload?.expiry?.date || payload?.expiry || $("v16OptionExpiry")?.value || null});
+      setOptionChartFocus(true);
+    } catch (error) {
+      if ($("v16OptionMessage")) $("v16OptionMessage").textContent = `Option chart could not be opened: ${error?.message || "unknown error"}`;
+    }
+  }
+
+  function ensureOptionChartActions() {
+    const panel = $("v16Options"); if (!panel) return null;
+    let actions = $("v16OptionChartActions"); if (actions) { syncOptionChartActions(); return actions; }
+    actions = document.createElement("div"); actions.id = "v16OptionChartActions"; actions.className = "v16-option-chart-actions";
+    actions.innerHTML = `<span><small>VIEWING CONTRACT · MANUAL RESEARCH CONTROL</small><b id="v16OptionChartSelection">Select a chain row first.</b></span><button id="v16OpenOptionChart" type="button" disabled>OPEN OPTION CHART</button><button id="v16BackToOptionChain" type="button" hidden>BACK TO CHAIN</button>`;
+    const selected = $("v16SelectedOption");
+    if (selected?.parentElement === panel) selected.insertAdjacentElement("afterend", actions); else panel.appendChild(actions);
+    $("v16OpenOptionChart")?.addEventListener("click", openSelectedOptionChart);
+    $("v16BackToOptionChain")?.addEventListener("click", () => { setOptionChartFocus(false); requestAnimationFrame(() => $("v16Options")?.scrollIntoView({behavior: "smooth", block: "start"})); });
+    syncOptionChartActions();
+    return actions;
+  }
+
   function ensureOptionsSidebar() {
     const intel = document.querySelector(".intel-panel");
     if (!intel) return null;
     let card = $("v16OptionsSidebar");
     if (card) return card;
     card = document.createElement("section"); card.id = "v16OptionsSidebar"; card.className = "intel-card v16-options-sidebar";
-    card.innerHTML = `<div class="eyebrow">OPTIONS WORKSPACE · CANONICAL V16</div><div class="v16-options-side-head"><b>OPTIONS AUTOPILOT</b><span id="v16OptionsTier">WAITING</span></div><div class="v16-options-side-note"><strong id="v16OptionsUnderlyingLabel">NIFTY</strong> · <span id="v16OptionsSource">provider check</span><br><span id="v16OptionsCapabilityText">Loading capability state…</span></div><div class="v16-options-side-select"><label>CAPITAL MANDATE</label><select id="v16OptionsSideCapital"><option>INTRADAY</option><option>SWING</option><option>INVESTMENT</option></select></div><div class="v16-options-session"><div><small>ENTRY SESSION</small><b id="v16OptionsSessionState">—</b></div><div><small>SCANNER</small><b id="v16OptionsScannerState">—</b></div><div><small>RECONCILIATION</small><b id="v16OptionsReconState">—</b></div><div><small>STATE AGE</small><b id="v16OptionsStateAge">—</b></div></div><div class="v16-options-controls"><button data-v16-option-control="start">START SESSION</button><button data-v16-option-control="pause_new_entries">PAUSE NEW ENTRIES</button><button data-v16-option-control="resume">RESUME</button><button data-v16-option-control="stop_scanner">STOP SCANNER</button></div><div class="v16-options-pipeline"><span><small>CHAIN</small><b id="v16OptionsPipeChain">VERIFY</b></span><span><small>CONTRACT</small><b id="v16OptionsPipeContract">AUTO</b></span><span><small>RISK</small><b id="v16OptionsPipeRisk">AUTO</b></span><span><small>SIZE</small><b id="v16OptionsPipeSize">PAPER DESK</b></span><span><small>MANAGE</small><b>AUTO</b></span><span><small>LIVE BROKER</small><b>LOCKED</b></span></div><div class="v16-options-open" id="v16OptionsOpenPosition"><b>POSITION</b><br>No open canonical option position in this mandate.</div><div class="v16-options-capabilities"><b>MARKET CAPABILITY</b><div class="v16-cap-row auto"><strong>NIFTY / BANKNIFTY · AUTO PAPER</strong><span>Verified FYERS chain → auto CALL/PUT → canonical Paper Desk.</span></div><div class="v16-cap-row gated"><strong>SENSEX · AUTO GATED</strong><span>Provider chain and exact BSE contract must verify or the route fails closed.</span></div><div class="v16-cap-row research"><strong>CRUDEOIL / GOLD / SILVER / NAT GAS · CHAIN / RESEARCH</strong><span>Verified FYERS MCX option-chain data is selectable in the center workspace. Canonical V16 auto execution is not yet audited.</span></div><div class="v16-cap-row research"><strong>BTC / ETH · PUBLIC RESEARCH</strong><span>Verified Deribit public option chain is selectable. No separate crypto paper ledger is used in V16.</span></div></div><div class="v16-options-side-msg" id="v16OptionsSideMessage">Loading canonical option state…</div>`;
+    card.innerHTML = `<div class="eyebrow">OPTIONS WORKSPACE · CANONICAL V16</div><div class="v16-options-side-head"><b>OPTIONS AUTOPILOT</b><span id="v16OptionsTier">WAITING</span></div><div class="v16-options-side-note"><strong id="v16OptionsUnderlyingLabel">NIFTY</strong> · <span id="v16OptionsSource">provider check</span><br><span id="v16OptionsCapabilityText">Loading capability state…</span></div><div class="v16-options-side-select"><label>CAPITAL MANDATE</label><select id="v16OptionsSideCapital"><option>INTRADAY</option><option>SWING</option><option>INVESTMENT</option></select></div><div class="v16-options-capital-head">CAPITAL ALLOCATION · CANONICAL PAPER DESK</div><div class="v16-options-capital"><div><small>MANDATE</small><b id="v16OptionsCapitalMandate">—</b></div><div><small>ALLOCATED</small><b id="v16OptionsCapitalAllocated">—</b></div><div><small>AVAILABLE</small><b id="v16OptionsCapitalAvailable" data-kind="available">—</b></div><div><small>COMMITTED</small><b id="v16OptionsCapitalCommitted">—</b></div><div><small>OPEN RISK</small><b id="v16OptionsCapitalRisk" data-kind="risk">—</b></div><div><small>EQUITY</small><b id="v16OptionsCapitalEquity">—</b></div></div><div class="v16-options-session"><div><small>ENTRY SESSION</small><b id="v16OptionsSessionState">—</b></div><div><small>SCANNER</small><b id="v16OptionsScannerState">—</b></div><div><small>RECONCILIATION</small><b id="v16OptionsReconState">—</b></div><div><small>STATE AGE</small><b id="v16OptionsStateAge">—</b></div></div><div class="v16-options-controls"><button data-v16-option-control="start">START SESSION</button><button data-v16-option-control="pause_new_entries">PAUSE NEW ENTRIES</button><button data-v16-option-control="resume">RESUME</button><button data-v16-option-control="stop_scanner">STOP SCANNER</button></div><div class="v16-options-pipeline"><span><small>CHAIN</small><b id="v16OptionsPipeChain">VERIFY</b></span><span><small>CONTRACT</small><b id="v16OptionsPipeContract">AUTO</b></span><span><small>RISK</small><b id="v16OptionsPipeRisk">AUTO</b></span><span><small>SIZE</small><b id="v16OptionsPipeSize">PAPER DESK</b></span><span><small>MANAGE</small><b>AUTO</b></span><span><small>LIVE BROKER</small><b>LOCKED</b></span></div><div class="v16-options-open" id="v16OptionsOpenPosition"><b>POSITION</b><br>No open canonical option position in this mandate.</div><div class="v16-options-capabilities"><b>MARKET CAPABILITY</b><div class="v16-cap-row auto"><strong>NIFTY / BANKNIFTY · AUTO PAPER</strong><span>Verified FYERS chain → auto CALL/PUT → canonical Paper Desk.</span></div><div class="v16-cap-row gated"><strong>SENSEX · AUTO GATED</strong><span>Provider chain and exact BSE contract must verify or the route fails closed.</span></div><div class="v16-cap-row research"><strong>CRUDEOIL / GOLD / SILVER / NAT GAS · CHAIN / RESEARCH</strong><span>Verified FYERS MCX option-chain data is selectable in the center workspace. Canonical V16 auto execution is not yet audited.</span></div><div class="v16-cap-row research"><strong>BTC / ETH · PUBLIC RESEARCH</strong><span>Verified Deribit public option chain is selectable. No separate crypto paper ledger is used in V16.</span></div></div><div class="v16-options-side-msg" id="v16OptionsSideMessage">Loading canonical option state…</div>`;
     intel.prepend(card);
     $("v16OptionsSideCapital")?.addEventListener("change", event => { syncCapital(event.target.value); refreshState(true); });
     card.querySelectorAll("[data-v16-option-control]").forEach(button => button.addEventListener("click", () => controlSession(button.dataset.v16OptionControl, button)));
@@ -230,9 +296,11 @@
     if (!panel) return false;
     panel.hidden = !enabled;
     if (enabled) {
-      ensureDomainBar();
+      ensureDomainBar(); ensureOptionChartActions();
       const grid = $("chartGrid");
       if (grid?.parentElement && panel.nextElementSibling !== grid) grid.parentElement.insertBefore(panel, grid);
+    } else {
+      setOptionChartFocus(false);
     }
     return true;
   }
@@ -282,6 +350,17 @@
     host.innerHTML = `<b>${esc(underlying)} POSITION</b><br>No open canonical ${esc(underlying)} option position in this mandate.${others.length ? `<div class="v16-option-provenance"><strong>OTHER CANONICAL OPTION EXPOSURE</strong><br>${others.map(esc).join("<br>")}</div>` : ""}`;
   }
 
+  function renderCapitalAccount(state) {
+    const account = state?.account || {};
+    const workspace = String(state?.workspace || optionCapitalWorkspace()).toUpperCase();
+    if ($("v16OptionsCapitalMandate")) $("v16OptionsCapitalMandate").textContent = `${workspace} · ${fmtAllocation(account.allocation)}`;
+    if ($("v16OptionsCapitalAllocated")) $("v16OptionsCapitalAllocated").textContent = fmtMoney(account.starting_capital);
+    if ($("v16OptionsCapitalAvailable")) $("v16OptionsCapitalAvailable").textContent = fmtMoney(account.available_capital);
+    if ($("v16OptionsCapitalCommitted")) $("v16OptionsCapitalCommitted").textContent = fmtMoney(account.committed_capital);
+    if ($("v16OptionsCapitalRisk")) $("v16OptionsCapitalRisk").textContent = fmtMoney(account.open_risk);
+    if ($("v16OptionsCapitalEquity")) $("v16OptionsCapitalEquity").textContent = fmtMoney(account.equity);
+  }
+
   function syncSessionButtons(session) {
     const running = String(session?.entry_session || "PAUSED").toUpperCase() === "RUNNING"; const scanning = Boolean(session?.scanning);
     document.querySelectorAll("[data-v16-option-control]").forEach(button => {
@@ -329,7 +408,7 @@
     if ($("v16OptionsScannerState")) $("v16OptionsScannerState").textContent = session.scanning ? "RUNNING" : "IDLE";
     if ($("v16OptionsReconState")) $("v16OptionsReconState").textContent = session.reconciliation_ok === false ? "BLOCKED" : "CLEAN";
     if ($("v16OptionsStateAge")) $("v16OptionsStateAge").textContent = "FRESH";
-    applyChainGateMessage(true);
+    renderCapitalAccount(state); applyChainGateMessage(true);
     renderPositionContext(state); syncSessionButtons(session);
   }
 
@@ -382,20 +461,23 @@
     const body = $("v16OptionRows"); if (!body) return;
     body.innerHTML = rows.map((contract,index) => { const symbol = String(contract.symbol || contract.instrument_name || ""); const selected = selectedContract && String(selectedContract.symbol || selectedContract.instrument_name || "") === symbol ? " selected" : ""; return `<tr data-v16-contract="${index}" class="${selected}"><td>${esc(contract.option_type || "—")}</td><td>${fmt(contract.strike,0)}</td><td>${fmt(contract.ltp)}</td><td>${fmt(contract.bid)}</td><td>${fmt(contract.ask)}</td><td>${fmt(contract.volume,0)}</td><td>${fmt(contract.open_interest,0)}</td><td>${fmt(contract.change_in_oi,0)}</td><td>${fmt(contract.iv)}</td><td>${fmt(contract.delta,3)}</td><td>${fmt(contract.gamma,4)}</td><td>${fmt(contract.theta,3)}</td><td>${fmt(contract.vega,3)}</td></tr>`; }).join("");
     body.querySelectorAll("[data-v16-contract]").forEach(row => row.addEventListener("click", () => selectContract(rows[Number(row.dataset.v16Contract)], payload)));
+    syncOptionChartActions();
   }
 
   function selectContract(contract, payload) {
-    const symbol = String(contract?.symbol || contract?.instrument_name || "").trim(); if (!symbol) return; selectedContract = contract;
-    const underlying = selectedUnderlying(); const provider = String(payload?.provider || "FYERS_READ_ONLY").toUpperCase();
-    if ($("v16SelectedOption")) $("v16SelectedOption").innerHTML = `<b>${esc(symbol)}</b> · ${esc(contract.option_type || "OPTION")} ${fmt(contract.strike,0)} · LTP ${fmt(contract.ltp)} · IV ${fmt(contract.iv)} · OI ${fmt(contract.open_interest,0)}<br><span>Selected contract premium chart is isolated from ${esc(underlying)} underlying price levels.</span>`;
+    const symbol = String(contract?.symbol || contract?.instrument_name || "").trim(); if (!symbol) return; selectedContract = contract; selectedContractPayload = payload; setOptionChartFocus(false);
+    const underlying = selectedUnderlying();
+    if ($("v16SelectedOption")) $("v16SelectedOption").innerHTML = `<span class="v16-viewing-contract-label">VIEWING CONTRACT · NOT EXECUTION AUTHORITY</span><b>${esc(symbol)}</b> · ${esc(contract.option_type || "OPTION")} ${fmt(contract.strike,0)} · LTP ${fmt(contract.ltp)} · IV ${fmt(contract.iv)} · OI ${fmt(contract.open_interest,0)}<br><span>Row selection no longer opens the chart. Use OPEN OPTION CHART when you want a focused premium chart. The premium chart is isolated from ${esc(underlying)} underlying price levels.</span>`;
     if ($("v16DomainContract")) $("v16DomainContract").textContent = `${symbol} · PREMIUM ${fmt(contract.ltp)}`;
-    try { window.JARVIS_OPTION_CHART?.open({kind:"OPTION", provider, instrument_name:symbol, label:symbol, underlying, strike:contract.strike, option_type:contract.option_type, expiry:contract.expiry || payload?.expiry?.date || payload?.expiry || $("v16OptionExpiry")?.value || null}); } catch {}
-    renderChain(payload);
+    renderChain(payload); syncOptionChartActions();
   }
 
   async function loadChain() {
     if (activeMode() !== "OPTIONS") return;
-    const serial = ++chainSerial; selectedContract = null; latestChain = {underlying:selectedUnderlying(), status:"LOADING", provider:"", rows:0, receivedAt:Date.now(), message:"loading selected option chain"};
+    const serial = ++chainSerial; selectedContract = null; selectedContractPayload = null; setOptionChartFocus(false); latestChain = {underlying:selectedUnderlying(), status:"LOADING", provider:"", rows:0, receivedAt:Date.now(), message:"loading selected option chain"};
+    if ($("v16SelectedOption")) $("v16SelectedOption").textContent = "No contract selected. Click a row to select it, then use OPEN OPTION CHART.";
+    if ($("v16DomainContract")) $("v16DomainContract").textContent = "NO CONTRACT SELECTED";
+    syncOptionChartActions();
     if ($("v16OptionMessage")) $("v16OptionMessage").textContent = "Loading verified option chain…";
     if ($("v16OptionsPipeChain")) $("v16OptionsPipeChain").textContent = "LOADING";
     const query = new URLSearchParams({workspace:optionCapitalWorkspace(), symbol:selectedUnderlying(), module:"option-chain"}); const expiry = $("v16OptionExpiry")?.value || ""; if (expiry) query.set("expiry",expiry);
@@ -413,27 +495,28 @@
   }
 
   function bindCenterControls() {
+    ensureOptionChartActions();
     const underlying = $("v16OptionUnderlying");
-    if (underlying && !underlying.dataset.v16RouterBound) { underlying.dataset.v16RouterBound = "1"; underlying.addEventListener("change", () => { underlying.dataset.userChosen = "1"; selectedContract = null; latestChain=null; const expiry=$("v16OptionExpiry"); if(expiry)expiry.value=""; syncUnderlyingChartContext(); renderCapability(); loadChain(); refreshState(true); }); }
-    const expiry = $("v16OptionExpiry"); if (expiry && !expiry.dataset.v16RouterBound) { expiry.dataset.v16RouterBound="1"; expiry.addEventListener("change",()=>{selectedContract=null;latestChain=null;loadChain();}); }
+    if (underlying && !underlying.dataset.v16RouterBound) { underlying.dataset.v16RouterBound = "1"; underlying.addEventListener("change", () => { underlying.dataset.userChosen = "1"; selectedContract = null; selectedContractPayload = null; setOptionChartFocus(false); latestChain=null; const expiry=$("v16OptionExpiry"); if(expiry)expiry.value=""; syncUnderlyingChartContext(); renderCapability(); loadChain(); refreshState(true); }); }
+    const expiry = $("v16OptionExpiry"); if (expiry && !expiry.dataset.v16RouterBound) { expiry.dataset.v16RouterBound="1"; expiry.addEventListener("change",()=>{selectedContract=null;selectedContractPayload=null;setOptionChartFocus(false);latestChain=null;loadChain();}); }
     const reload = $("v16OptionReload"); if (reload && !reload.dataset.v16RouterBound) { reload.dataset.v16RouterBound="1"; reload.addEventListener("click",loadChain); }
     const capital = $("v16OptionCapital"); if (capital && !capital.dataset.v16RouterBound) { capital.dataset.v16RouterBound="1"; capital.addEventListener("change",event=>{syncCapital(event.target.value);refreshState(true);}); }
   }
 
   function route() {
-    ensureStyle(); ensureOptionsCenter(); ensureExtraOptionUnderlyings(); ensureOptionsSidebar(); bindCenterControls();
+    ensureStyle(); ensureOptionsCenter(); ensureOptionChartActions(); ensureExtraOptionUnderlyings(); ensureOptionsSidebar(); bindCenterControls();
     const mode = activeMode(); const options = mode === "OPTIONS"; const entering = options && lastMode !== "OPTIONS"; lastMode = mode;
-    if (entering) { const select=$("v16OptionUnderlying"); if(select)select.dataset.userChosen=""; syncUnderlyingFromMarketContext(); latestChain=null; syncUnderlyingChartContext(); }
+    if (entering) { const select=$("v16OptionUnderlying"); if(select)select.dataset.userChosen=""; syncUnderlyingFromMarketContext(); selectedContract=null; selectedContractPayload=null; setOptionChartFocus(false); latestChain=null; syncUnderlyingChartContext(); }
     setOptionsVisibility(options); setCenterOptionsVisibility(options);
     if (options) { syncCapital(optionCapitalWorkspace()); renderCapability(); refreshState(true); loadChain(); }
-    else movePrimaryToTop();
+    else { setOptionChartFocus(false); movePrimaryToTop(); }
   }
 
   function boot() {
     route();
     document.querySelector(".workspace-modes")?.addEventListener("click",event=>{if(!event.target.closest("button[data-workspace]"))return;setTimeout(route,0);});
     const intel=document.querySelector(".intel-panel"); if(intel)new MutationObserver(()=>{if(activeMode()==="OPTIONS")setOptionsVisibility(true);else movePrimaryToTop();}).observe(intel,{childList:true});
-    pollTimer=setInterval(()=>{ensureOptionsCenter();ensureExtraOptionUnderlyings();bindCenterControls();if(activeMode()==="OPTIONS"){setCenterOptionsVisibility(true);renderCapability();refreshState(false);if($("v16OptionsStateAge")&&latestStateAt)$("v16OptionsStateAge").textContent=`${Math.max(0,Math.round((Date.now()-latestStateAt)/1000))}s`;}else movePrimaryToTop();},2500);
+    pollTimer=setInterval(()=>{ensureOptionsCenter();ensureOptionChartActions();ensureExtraOptionUnderlyings();bindCenterControls();if(activeMode()==="OPTIONS"){setCenterOptionsVisibility(true);renderCapability();refreshState(false);if($("v16OptionsStateAge")&&latestStateAt)$("v16OptionsStateAge").textContent=`${Math.max(0,Math.round((Date.now()-latestStateAt)/1000))}s`;}else movePrimaryToTop();},2500);
   }
 
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>setTimeout(boot,0),{once:true});else setTimeout(boot,0);
