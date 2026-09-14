@@ -99,7 +99,11 @@ def build_handler(base, runtime):
                     # the router's canonical workspace-state responses without
                     # creating a second polling loop.
                     "<script defer src=\"/v16_option_decision_runtime.js\"></script>"
-                    "<script defer src=\"/v16_workspace_router.js\"></script></head>",
+                    "<script defer src=\"/v16_workspace_router.js\"></script>"
+                    # Experience runtime is observer-only: it consumes the same
+                    # canonical responses, makes row selection chart-first, and
+                    # surfaces Paper Desk capital without adding another engine.
+                    "<script defer src=\"/v16_option_experience_runtime.js\"></script></head>",
                 ).encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -125,6 +129,7 @@ def build_handler(base, runtime):
                 "/v16_autonomy_runtime.css",
                 "/v16_option_decision_runtime.js",
                 "/v16_workspace_router.js",
+                "/v16_option_experience_runtime.js",
             } and self._local():
                 from workstation.quant_terminal_v2 import STATIC
 
