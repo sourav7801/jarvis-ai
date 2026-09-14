@@ -49,11 +49,20 @@
     return String($("v16OptionUnderlying")?.value || "NIFTY").toUpperCase();
   }
 
+  function underlyingFromSymbol(value) {
+    const text = String(value || "").toUpperCase().replaceAll(" ", "");
+    if (text.includes("BANKNIFTY") || text.includes("NIFTYBANK")) return "BANKNIFTY";
+    if (text.includes("SENSEX")) return "SENSEX";
+    if (text.includes("NIFTY")) return "NIFTY";
+    return null;
+  }
+
   function viewingChainState() {
     const raw = String($("v16OptionsPipeChain")?.textContent || "WAITING").trim().toUpperCase();
-    if (raw === "VERIFIED") return {state: "VERIFIED", kind: "ok"};
-    if (["DEGRADED", "UNAVAILABLE"].includes(raw)) return {state: raw, kind: "blocked"};
-    return {state: raw || "WAITING", kind: "wait"};
+    if (raw === "VERIFIED") return {state: "VERIFIED", kind: "ok", raw};
+    if (raw === "DEGRADED" || raw === "STALE VIEW") return {state: "STALE VIEW", kind: "wait", raw};
+    if (raw === "UNAVAILABLE") return {state: "UNAVAILABLE", kind: "blocked", raw};
+    return {state: raw || "WAITING", kind: "wait", raw};
   }
 
   function ensureStyle() {
@@ -66,7 +75,7 @@
       .v16-auto-decision-head span[data-state="ACTIONABLE"],.v16-auto-decision-head span[data-state="POSITION_OPEN"],.v16-auto-decision-head span[data-state="MANAGING"]{color:#7ef0ac;border-color:#2f7f59}.v16-auto-decision-head span[data-state="BLOCKED"]{color:#ff8196;border-color:#8a4051}.v16-auto-decision-head span[data-state="WAIT"]{color:#ffd166;border-color:#7b652f}
       .v16-auto-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-top:5px}.v16-auto-grid div{background:#06151d;border:1px solid #173b4b;padding:4px;min-width:0}.v16-auto-grid small{display:block;font-size:6px;color:#6d94a4;letter-spacing:.07em}.v16-auto-grid b{display:block;font-size:8px;color:#d8f5ff;line-height:1.2;overflow-wrap:anywhere;max-height:2.4em;overflow:hidden}
       .v16-auto-contract{margin-top:5px;border-left:2px solid #2f7591;background:#06151d;padding:5px}.v16-auto-contract small{display:block;color:#6d94a4;font-size:7px;letter-spacing:.08em}.v16-auto-contract b{display:block;color:#dff7ff;font-size:9px;margin-top:2px;overflow-wrap:anywhere}.v16-auto-contract[data-active="1"]{border-color:#38d486}.v16-auto-contract[data-active="1"] small{color:#79e7a7}
-      .v16-view-context{display:grid;grid-template-columns:1fr auto;gap:5px;align-items:center;margin-top:5px;padding:5px;background:#061219;border:1px solid #173847}.v16-view-context small{display:block;color:#6d94a4;font-size:6px;letter-spacing:.08em}.v16-view-context b{font-size:8px;color:#9fd9ec}.v16-view-context b[data-kind="ok"]{color:#69dda1}.v16-view-context b[data-kind="blocked"]{color:#ff7a91}.v16-view-context span{grid-column:1/-1;color:#759ba9;font-size:7px;line-height:1.3}
+      .v16-view-context{display:grid;grid-template-columns:1fr auto;gap:5px;align-items:center;margin-top:5px;padding:5px;background:#061219;border:1px solid #173847}.v16-view-context small{display:block;color:#6d94a4;font-size:6px;letter-spacing:.08em}.v16-view-context b{font-size:8px;color:#9fd9ec}.v16-view-context b[data-kind="ok"]{color:#69dda1}.v16-view-context b[data-kind="blocked"]{color:#ff7a91}.v16-view-context b[data-kind="wait"]{color:#d5b85d}.v16-view-context span{grid-column:1/-1;color:#759ba9;font-size:7px;line-height:1.3}
       .v16-auto-gates{display:grid;grid-template-columns:1fr 1fr;gap:2px 6px;margin-top:5px}.v16-auto-gate{display:flex;justify-content:space-between;gap:4px;border-bottom:1px solid #102f3b;padding:2px 1px;font-size:7px}.v16-auto-gate span:first-child{color:#8baebb}.v16-auto-gate b{font-size:7px}.v16-auto-gate[data-state="PASS"] b{color:#61dda0}.v16-auto-gate[data-state="BLOCKED"] b{color:#ff7189}.v16-auto-gate[data-state="WAIT"] b{color:#d5b85d}
       .v16-auto-reasons{margin-top:5px;padding:5px;background:#07141b;border-left:2px solid #c59a37;color:#d8c37f;font-size:7px;line-height:1.35}.v16-auto-reasons strong{color:#f0d67f}
       .v16-viewing-contract-label{display:inline-block;margin-right:6px;padding:2px 5px;border:1px solid #2c6075;border-radius:999px;color:#81cde8;font-size:7px;letter-spacing:.08em}.v16-auto-stale{opacity:.62}
@@ -109,7 +118,32 @@
   }
 
   function decisionForState(state) {
-    return state?.scan_decisions?.autonomous_options?.[selectedUnderlying()] || null;
+    const exact = state?.scan_decisions?.autonomous_options?.[selectedUnderlying()] || null;
+    if (exact) return exact;
+
+    const rows = Array.isArray(state?.scan_decisions?.candidates) ? state.scan_decisions.candidates : [];
+    const row = rows.find(item => underlyingFromSymbol(item?.symbol) === selectedUnderlying());
+    if (!row) return null;
+
+    const side = String(row.side || "").toUpperCase();
+    const reason = row.reason || (String(row.stage || "").toUpperCase() !== "ACTIONABLE" ? row.stage : null);
+    return {
+      status: "WAIT",
+      underlying: selectedUnderlying(),
+      bias: ["LONG", "SHORT"].includes(side) ? side : null,
+      direction: ["LONG", "SHORT"].includes(side) ? side : null,
+      strategy: row.strategy || null,
+      expected_value_r: row.expected_value_r,
+      execution_stage: row.stage || "DISCOVERED",
+      primary_reason: reason || "NO_OPTION_PROPOSAL",
+      rejection_reasons: reason ? [reason] : ["NO_OPTION_PROPOSAL"],
+      updated_at: null,
+      source: "SCANNER_ROW_WITHOUT_OPTION_PROPOSAL",
+      gates: {},
+      paper_only: true,
+      live_execution: false,
+      automatic_broker_order: false,
+    };
   }
 
   function renderViewingContext() {
@@ -123,11 +157,14 @@
     const label = pipe?.closest("span")?.querySelector("small");
     if (label) label.textContent = "VIEW CHAIN";
 
-    // The router historically described a stale browser-viewed chain as a
-    // blocker for new autonomous entries.  That is misleading: autonomous
-    // admission is based on the engine proposal/server gates, not this table.
     const msg = $("v16OptionsSideMessage");
-    if (msg && !String(msg.textContent || "").includes("canonical state unavailable")) {
+    const canonicalUnavailable = Boolean(msg && String(msg.textContent || "").includes("canonical state unavailable"));
+    if (pipe && chain.raw === "DEGRADED" && !canonicalUnavailable) pipe.textContent = "STALE VIEW";
+
+    // A stale browser-viewed chain is context freshness, not autonomous
+    // execution authority.  Exact engine proposal + live quote + Paper Desk
+    // remain the only admission path.
+    if (msg && !canonicalUnavailable) {
       const text = String(msg.textContent || "");
       if (text.startsWith("NEW OPTION ENTRIES BLOCKED") && /option chain|selected option chain|chain/i.test(text)) {
         msg.textContent = `VIEWING CHAIN ${chain.state} · browser chain is research/context only. Autonomous entry authority remains the scanner proposal + exact fresh quote + canonical Paper Desk gates.`;
@@ -188,6 +225,8 @@
     if (reasonsNode) {
       if (["ACTIONABLE", "POSITION_OPEN", "MANAGING"].includes(status)) {
         reasonsNode.innerHTML = `<strong>${esc(status)}</strong><br>${status === "ACTIONABLE" ? "JARVIS has a qualified engine-selected contract. Final fresh-quote and Paper Desk gates remain authoritative." : "Canonical Paper Desk owns execution and position management."}`;
+      } else if (!decision) {
+        reasonsNode.innerHTML = `<strong>WAIT · NO ENGINE ROW</strong><br>No ${esc(selectedUnderlying())} autonomous decision row exists in the latest canonical scanner snapshot yet. No contract or trade is inferred from the manually viewed chain.`;
       } else {
         const detail = primary ? `${esc(primary)}${extras.length ? ` · also: ${extras.map(esc).join(" · ")}` : ""}` : "no qualified engine decision yet";
         reasonsNode.innerHTML = `<strong>${esc(status)}${primary ? ` · ${esc(primary)}` : ""}</strong><br>JARVIS chose not to trade · ${detail}.`;
