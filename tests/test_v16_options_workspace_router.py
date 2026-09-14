@@ -58,7 +58,8 @@ class V16OptionsWorkspaceRouterTests(unittest.TestCase):
             self.assertIn(symbol, js)
         self.assertIn("FYERS MCX OPTION CHAIN V3", js)
         self.assertIn("DERIBIT PUBLIC OPTIONS", js)
-        self.assertIn("Canonical V16 auto execution is not yet audited for MCX", js)
+        self.assertIn("CHAIN / RESEARCH", js)
+        self.assertIn("not yet audited for MCX", js)
         self.assertIn("No separate crypto paper ledger is used in V16", js)
         self.assertIn("ensureExtraOptionUnderlyings", js)
 
