@@ -241,7 +241,7 @@
       if (!option) host.innerHTML = "<b>POSITION</b><br>No open canonical option position in this mandate.";
       else {
         const meta = option.metadata || {};
-        host.innerHTML = `<b>POSITION OPEN</b><br>${String(option.symbol || "OPTION")} · ${String(meta.option_type || "LONG")} · qty ${String(option.quantity ?? "—")}<br>entry ${String(option.entry ?? option.entry_price ?? "—")} · SL ${String(option.stop ?? "—")} · target ${String(option.target ?? "—")}`;
+        host.textContent = `POSITION OPEN · ${String(option.symbol || "OPTION")} · ${String(meta.option_type || "LONG")} · qty ${String(option.quantity ?? "—")} · entry ${String(option.entry ?? option.entry_price ?? "—")} · SL ${String(option.stop ?? "—")} · target ${String(option.target ?? "—")}`;
       }
     }
   }
@@ -252,9 +252,11 @@
       const workspace = optionCapitalWorkspace();
       const state = await requestJson(`/api/v16/trading/workspace-state?workspace=${encodeURIComponent(workspace)}`);
       renderState(state);
+      return state;
     } catch (error) {
       const msg = $("v16OptionsSideMessage");
       if (msg) { msg.textContent = `Canonical option state unavailable: ${error.message}`; msg.dataset.kind = "error"; }
+      return null;
     }
   }
 
@@ -265,9 +267,14 @@
     if (button) { button.disabled = true; button.textContent = "WORKING…"; }
     try {
       const workspace = optionCapitalWorkspace();
+      if (!latestState?.csrf_token || String(latestState?.workspace || "").toUpperCase() !== workspace) {
+        await refreshState(true);
+      }
+      const token = String(latestState?.csrf_token || "");
+      if (!token) throw new Error("Local V16 session token is unavailable; refresh the terminal.");
       const payload = await requestJson("/api/terminal/session", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: {"Content-Type": "application/json", "X-Jarvis-Token": token},
         body: JSON.stringify({workspace, action}),
       });
       if (payload.state) renderState(payload.state);
