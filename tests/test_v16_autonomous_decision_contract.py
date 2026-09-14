@@ -20,6 +20,7 @@ class V16AutonomousDecisionContractTests(unittest.TestCase):
             "adaptive_confidence": 0.71,
             "adaptive_probability_win": 0.58,
             "success": True,
+            "session_open": True,
             "hard_blockers": [],
         }
         row.update(updates)
@@ -38,6 +39,7 @@ class V16AutonomousDecisionContractTests(unittest.TestCase):
         self.assertEqual(decision["status"], "WAIT")
         self.assertIsNone(decision["candidate_contract"])
         self.assertIn("INSUFFICIENT_TIMEFRAME_DATA", decision["rejection_reasons"])
+        self.assertEqual(decision["gates"]["AUTONOMOUS_CHAIN"]["state"], "WAIT")
 
     def test_actionable_contract_and_expression_come_from_engine_proposal(self):
         row = self._row(
@@ -64,6 +66,8 @@ class V16AutonomousDecisionContractTests(unittest.TestCase):
         self.assertEqual(decision["expression"], "LONG CALL")
         self.assertEqual(decision["candidate_contract"], "NSE:NIFTY2691523400CE")
         self.assertEqual(decision["strike"], 23400)
+        self.assertEqual(decision["gates"]["MARKET_SESSION"]["state"], "PASS")
+        self.assertEqual(decision["gates"]["AUTONOMOUS_CHAIN"]["state"], "PASS")
 
     def test_option_risk_geometry_never_uses_underlying_geometry(self):
         row = self._row(
@@ -88,6 +92,36 @@ class V16AutonomousDecisionContractTests(unittest.TestCase):
         self.assertEqual(decision["target"], 91.25)
         self.assertNotEqual(decision["entry"], row["entry"])
         self.assertEqual(decision["gates"]["RISK_GEOMETRY"]["state"], "PASS")
+
+    def test_missing_premium_plan_is_not_rendered_as_zero_geometry(self):
+        decision = stages.summarise([
+            self._row(
+                adaptive_executable=False,
+                adaptive_side="WAIT",
+                adaptive_expected_value_r=-0.25,
+                option_proposal=None,
+            )
+        ])["autonomous_options"]["NIFTY"]
+        self.assertIsNone(decision["entry"])
+        self.assertIsNone(decision["stop"])
+        self.assertIsNone(decision["target"])
+        self.assertEqual(decision["gates"]["RISK_GEOMETRY"]["state"], "WAIT")
+        self.assertIn("NON_POSITIVE_EV", decision["rejection_reasons"])
+
+    def test_market_session_is_distinct_from_paper_entry_session(self):
+        decision = stages.summarise([
+            self._row(
+                session_open=False,
+                adaptive_executable=False,
+                adaptive_side="WAIT",
+                adaptive_expected_value_r=-0.4,
+                hard_blockers=["MARKET_SESSION_CLOSED"],
+            )
+        ])["autonomous_options"]["NIFTY"]
+        self.assertEqual(decision["status"], "WAIT")
+        self.assertEqual(decision["primary_reason"], "MARKET_SESSION_CLOSED")
+        self.assertEqual(decision["gates"]["MARKET_SESSION"]["state"], "BLOCKED")
+        self.assertIn("NON_POSITIVE_EV", decision["rejection_reasons"])
 
     def test_paper_open_surfaces_position_stage_and_paper_desk_sizing(self):
         row = self._row(
