@@ -55,14 +55,7 @@ def build_handler(base, runtime):
             )
 
         def _authorized_legacy_write(self):
-            """Require the local session token plus a loopback request boundary.
-
-            The legacy resolver mutates the retired JSON book as part of an
-            audited reconciliation. Keep that write surface narrower than the
-            ordinary paper-session endpoints: the TCP peer must be loopback and
-            browser requests must originate from an HTTP loopback origin. A
-            token-authenticated non-browser loopback caller may omit Origin.
-            """
+            """Require the local session token plus a loopback request boundary."""
             if not self._authorized_v16_write():
                 return False
             if self.client_address[0] not in {"127.0.0.1", "::1"}:
@@ -92,23 +85,27 @@ def build_handler(base, runtime):
             if parsed.path == "/" and self._local():
                 from workstation.quant_terminal_v2 import STATIC
 
-                content = (
-                    (STATIC / "index.html")
-                    .read_text(encoding="utf-8")
-                    .replace(
-                        "</head>",
-                        "<script>window.JARVIS_V16_CANONICAL=true;</script>"
-                        "<link rel=\"stylesheet\" href=\"/v16_autonomy_runtime.css\">"
-                        "<script defer src=\"/v16_autonomy_runtime.js\"></script></head>",
-                    )
-                    .encode("utf-8")
-                )
+                # V16 owns paper state through the canonical Paper Desk.  Do not
+                # also start the retired V8.1 browser poller, which creates a
+                # competing sidebar surface and duplicate state requests.
+                html = (STATIC / "index.html").read_text(encoding="utf-8")
+                html = html.replace('<script src="/paper_desk_runtime.js"></script>', "")
+                content = html.replace(
+                    "</head>",
+                    "<script>window.JARVIS_V16_CANONICAL=true;</script>"
+                    "<link rel=\"stylesheet\" href=\"/v16_autonomy_runtime.css\">"
+                    "<script defer src=\"/v16_autonomy_runtime.js\"></script>"
+                    "<script defer src=\"/v16_workspace_router.js\"></script></head>",
+                ).encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.send_header("Content-Length", str(len(content)))
                 self.send_header("Cache-Control", "no-store")
                 self.end_headers()
-                self.wfile.write(content)
+                try:
+                    self.wfile.write(content)
+                except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
+                    pass
                 return
 
             if parsed.path == "/v16_option_execution.js" and self._local():
@@ -119,7 +116,11 @@ def build_handler(base, runtime):
                     "application/javascript; charset=utf-8",
                 )
 
-            if parsed.path in {"/v16_autonomy_runtime.js", "/v16_autonomy_runtime.css"} and self._local():
+            if parsed.path in {
+                "/v16_autonomy_runtime.js",
+                "/v16_autonomy_runtime.css",
+                "/v16_workspace_router.js",
+            } and self._local():
                 from workstation.quant_terminal_v2 import STATIC
 
                 return self.send_file(
@@ -157,8 +158,6 @@ def build_handler(base, runtime):
             except (ValueError, KeyError) as exc:
                 return self.send_json({"success": False, "message": str(exc)}, 400)
 
-            # Safety contract is asserted again at the HTTP boundary so future
-            # refactors cannot accidentally expose an execution-capable state.
             return self.send_json(_safety(payload))
 
         def do_POST(self):
