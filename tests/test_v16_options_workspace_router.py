@@ -16,13 +16,15 @@ class V16OptionsWorkspaceRouterTests(unittest.TestCase):
         self.assertIn("setOptionsVisibility", js)
         self.assertIn("intel.prepend(optionsCard)", js)
 
-    def test_options_sidebar_exposes_session_controls(self):
+    def test_options_sidebar_exposes_authenticated_session_controls(self):
         js = (STATIC / "v16_workspace_router.js").read_text(encoding="utf-8")
         for text in ("START SESSION", "PAUSE NEW ENTRIES", "RESUME", "STOP SCANNER"):
             self.assertIn(text, js)
         for action in ("start", "pause_new_entries", "resume", "stop_scanner"):
             self.assertIn(f'data-v16-option-control="{action}"', js)
         self.assertIn("/api/terminal/session", js)
+        self.assertIn("X-Jarvis-Token", js)
+        self.assertIn("csrf_token", js)
 
     def test_verified_non_index_option_chains_are_visible_but_not_overstated(self):
         js = (STATIC / "v16_workspace_router.js").read_text(encoding="utf-8")
