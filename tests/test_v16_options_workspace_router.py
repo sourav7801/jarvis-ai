@@ -58,7 +58,7 @@ class V16OptionsWorkspaceRouterTests(unittest.TestCase):
             self.assertIn(symbol, js)
         self.assertIn("FYERS MCX OPTION CHAIN V3", js)
         self.assertIn("DERIBIT PUBLIC OPTIONS", js)
-        self.assertIn("Canonical V16 automated option execution is not yet audited for MCX", js)
+        self.assertIn("Canonical V16 auto execution is not yet audited for MCX", js)
         self.assertIn("No separate crypto paper ledger is used in V16", js)
         self.assertIn("ensureExtraOptionUnderlyings", js)
 
@@ -68,6 +68,17 @@ class V16OptionsWorkspaceRouterTests(unittest.TestCase):
         self.assertIn("canonical Paper Desk", js)
         self.assertIn("LIVE BROKER", js)
         self.assertIn("LOCKED", js)
+
+    def test_selected_chain_health_does_not_use_unrelated_global_provider_failure(self):
+        js = (STATIC / "v16_workspace_router.js").read_text(encoding="utf-8")
+        self.assertIn("function selectedChainHealth()", js)
+        self.assertIn("function applyChainGateMessage", js)
+        self.assertIn("latestChain", js)
+        self.assertIn("SELECTED CHAIN VERIFIED", js)
+        self.assertIn("latestChain.underlying !== underlying", js)
+        self.assertIn("latestChain.status !== \"VERIFIED\"", js)
+        self.assertNotIn('const bad = providers.some', js)
+        self.assertNotIn('provider/chain health is degraded', js)
 
     def test_stale_canonical_state_blocks_new_entries_visibly(self):
         js = (STATIC / "v16_workspace_router.js").read_text(encoding="utf-8")
