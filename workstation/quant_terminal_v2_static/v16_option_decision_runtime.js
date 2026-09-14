@@ -119,6 +119,21 @@
       $("v16ViewingChainState").textContent = chain.state;
       $("v16ViewingChainState").dataset.kind = chain.kind;
     }
+    const pipe = $("v16OptionsPipeChain");
+    const label = pipe?.closest("span")?.querySelector("small");
+    if (label) label.textContent = "VIEW CHAIN";
+
+    // The router historically described a stale browser-viewed chain as a
+    // blocker for new autonomous entries.  That is misleading: autonomous
+    // admission is based on the engine proposal/server gates, not this table.
+    const msg = $("v16OptionsSideMessage");
+    if (msg && !String(msg.textContent || "").includes("canonical state unavailable")) {
+      const text = String(msg.textContent || "");
+      if (text.startsWith("NEW OPTION ENTRIES BLOCKED") && /option chain|selected option chain|chain/i.test(text)) {
+        msg.textContent = `VIEWING CHAIN ${chain.state} · browser chain is research/context only. Autonomous entry authority remains the scanner proposal + exact fresh quote + canonical Paper Desk gates.`;
+        msg.dataset.kind = chain.kind === "ok" ? "ok" : "warn";
+      }
+    }
   }
 
   function render(state) {
