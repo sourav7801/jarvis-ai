@@ -192,7 +192,7 @@
         hiddenBeforeOptions.delete(node);
       }
     });
-    if (enabled) intel.prepend(optionsCard);
+    if (enabled && intel.firstElementChild !== optionsCard) intel.prepend(optionsCard);
   }
 
   function renderCapability() {
