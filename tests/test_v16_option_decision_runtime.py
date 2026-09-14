@@ -37,9 +37,20 @@ class V16OptionDecisionRuntimeTests(unittest.TestCase):
     def test_manual_viewing_and_engine_candidate_are_distinct_states(self):
         js = (STATIC / "v16_option_decision_runtime.js").read_text(encoding="utf-8")
         self.assertIn("VIEWING CONTRACT", js)
+        self.assertIn("VIEWING CONTEXT · NOT EXECUTION AUTHORITY", js)
         self.assertIn("AUTONOMOUS CANDIDATE · SELECTED BY JARVIS", js)
         self.assertIn("ACTIVE PAPER POSITION", js)
         self.assertIn('#v16OptionRows tr[data-v16-contract]', js)
+        # A browser-viewed chain is informative only; it must not be injected
+        # as an autonomous qualification gate.
+        self.assertNotIn("gates.SELECTED_CHAIN", js)
+
+    def test_paper_and_market_session_are_not_conflated(self):
+        js = (STATIC / "v16_option_decision_runtime.js").read_text(encoding="utf-8")
+        backend = (ROOT / "workstation" / "v16_trading_stages.py").read_text(encoding="utf-8")
+        self.assertIn("gates.PAPER_SESSION", js)
+        self.assertIn('gates["MARKET_SESSION"]', backend)
+        self.assertIn("formatTime", js)
 
     def test_decision_surface_preserves_paper_safety_contract(self):
         backend = (ROOT / "workstation" / "v16_trading_stages.py").read_text(encoding="utf-8")
