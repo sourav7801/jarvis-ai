@@ -145,6 +145,80 @@ class V16OptionPaperTests(TestCase):
         self.assertEqual(call["metadata"]["session_generation"], 8)
         self.assertIs(call["metadata"]["live_execution"], False)
 
+    def test_invalid_lot_values_are_rejected_before_open_position(self):
+        spec = {
+            "symbol": SYMBOL,
+            "provider_symbol": SYMBOL,
+            "asset_class": "OPTION",
+            "instrument_type": "OPTION",
+            "native_currency": "INR",
+            "valuation_currency": "INR",
+            "quantity_step": 1.0,
+            "contract_multiplier": 75.0,
+            "tick_size": .05,
+            "source": "FYERS_NSE_FO_SYMBOL_MASTER",
+            "verified": True,
+            "verification_reason": "FYERS_DAILY_SYMBOL_MASTER_EXACT_MATCH",
+        }
+        invalid_values = (0, -1, 1.9, "1.9", "abc", True, 101, float("nan"), float("inf"))
+        with (
+            patch.object(v16_option_paper.accounts, "session", return_value={"state": "RUNNING", "generation": 9, "allocation": .5}),
+            patch.object(v16_option_paper, "option_instrument_spec", return_value=spec),
+        ):
+            for lots in invalid_values:
+                with self.subTest(lots=lots):
+                    runtime = FakeRuntime()
+                    result = v16_option_paper.option_order(
+                        runtime,
+                        {
+                            "action": "BUY",
+                            "workspace": "INTRADAY",
+                            "symbol": SYMBOL,
+                            "option_type": "PE",
+                            "lots": lots,
+                            "stop": 90,
+                            "target": 120,
+                        },
+                    )
+                    self.assertFalse(result["success"])
+                    self.assertEqual(result["reason"], "INVALID_QUANTITY")
+                    self.assertFalse(runtime.desk.open_calls)
+
+    def test_omitted_lots_preserves_one_lot_default(self):
+        runtime = FakeRuntime()
+        spec = {
+            "symbol": SYMBOL,
+            "provider_symbol": SYMBOL,
+            "asset_class": "OPTION",
+            "instrument_type": "OPTION",
+            "native_currency": "INR",
+            "valuation_currency": "INR",
+            "quantity_step": 1.0,
+            "contract_multiplier": 75.0,
+            "tick_size": .05,
+            "source": "FYERS_NSE_FO_SYMBOL_MASTER",
+            "verified": True,
+            "verification_reason": "FYERS_DAILY_SYMBOL_MASTER_EXACT_MATCH",
+        }
+        with (
+            patch.object(v16_option_paper.accounts, "session", return_value={"state": "RUNNING", "generation": 10, "allocation": .5}),
+            patch.object(v16_option_paper, "option_instrument_spec", return_value=spec),
+        ):
+            result = v16_option_paper.option_order(
+                runtime,
+                {
+                    "action": "BUY",
+                    "workspace": "INTRADAY",
+                    "symbol": SYMBOL,
+                    "option_type": "PE",
+                    "stop": 90,
+                    "target": 120,
+                },
+            )
+        self.assertTrue(result["success"])
+        self.assertEqual(result["lots_requested"], 1)
+        self.assertEqual(runtime.desk.open_calls[0]["quantity"], 1.0)
+
     def test_close_long_option_is_allowed_as_risk_reduction_without_starting_scanner(self):
         runtime = FakeRuntime(
             reconciliation=False,

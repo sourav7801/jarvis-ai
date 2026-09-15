@@ -225,7 +225,15 @@ def option_order(runtime: Any, body: dict[str, Any]) -> dict[str, Any]:
     entry = _number(certificate.get("ask"), _number(certificate.get("mark")))
     stop = _number(body.get("stop"))
     target = _number(body.get("target"))
-    lots_value = _number(body.get("lots"), 1.0) or 1.0
+    raw_lots = body["lots"] if "lots" in body else 1
+    if isinstance(raw_lots, bool):
+        return _failure("INVALID_QUANTITY", "Paper option quantity must be a whole number between 1 and 100 lots.")
+    try:
+        lots_value = float(raw_lots)
+    except (TypeError, ValueError):
+        return _failure("INVALID_QUANTITY", "Paper option quantity must be a whole number between 1 and 100 lots.")
+    if not math.isfinite(lots_value) or not lots_value.is_integer():
+        return _failure("INVALID_QUANTITY", "Paper option quantity must be a whole number between 1 and 100 lots.")
     lots = int(lots_value)
     if not entry or entry <= 0:
         return _failure("INVALID_ENTRY", "A verified positive option entry quote is required.")
@@ -240,7 +248,7 @@ def option_order(runtime: Any, body: dict[str, Any]) -> dict[str, Any]:
             f"For a long option require STOP < live entry ({entry:.2f}) < TARGET.",
         )
     if lots < 1 or lots > 100:
-        return _failure("INVALID_QUANTITY", "Paper option quantity must be between 1 and 100 lots.")
+        return _failure("INVALID_QUANTITY", "Paper option quantity must be a whole number between 1 and 100 lots.")
 
     risk_reward = (target - entry) / (entry - stop) if entry > stop else None
     external_id = str(body.get("client_order_id") or "").strip()
