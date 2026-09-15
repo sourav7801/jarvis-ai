@@ -143,14 +143,15 @@
 
     const requestSerial = ++serial;
     controller?.abort();
-    controller = new AbortController();
-    const timeout = setTimeout(() => controller?.abort(), 5000);
+    const requestController = new AbortController();
+    controller = requestController;
+    const timeout = setTimeout(() => requestController.abort(), 5000);
     try {
       const query = new URLSearchParams(current);
       const response = await fetch(`${ENDPOINT}?${query.toString()}`, {
         method: "GET",
         cache: "no-store",
-        signal: controller.signal,
+        signal: requestController.signal,
       });
       const payload = await response.json().catch(() => ({}));
       if (requestSerial !== serial) return;
@@ -171,6 +172,7 @@
       );
     } finally {
       clearTimeout(timeout);
+      if (controller === requestController) controller = null;
     }
   }
 
