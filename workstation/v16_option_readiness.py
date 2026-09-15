@@ -7,6 +7,7 @@ the small daily-equity bookkeeping writes performed while sizing a preview.
 """
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from workstation import workspace_accounts as accounts
@@ -41,8 +42,9 @@ _MESSAGES = {
     "LEDGER_RECONCILIATION_REQUIRED": "Canonical ledger reconciliation must be clean before new exposure.",
     "WORKSPACE_PAUSED": "Start the selected paper workspace session before opening exposure.",
     "MANUAL_RISK_LEVELS_REQUIRED": "Enter an explicit stop and target; JARVIS will not fabricate risk levels.",
+    "INVALID_ENTRY": "A verified positive option entry quote is required.",
     "INVALID_RISK_LEVELS": "For a long option require STOP < authoritative live entry < TARGET.",
-    "INVALID_QUANTITY": "Paper option quantity must be an integer between 1 and 100 lots.",
+    "INVALID_QUANTITY": "Paper option quantity must be a whole number between 1 and 100 lots.",
     "INSTRUMENT_SPEC_UNAVAILABLE": "The exact provider-verified option specification is unavailable.",
     "REQUEST_EXCEEDS_RISK_ADMISSION": "Requested lots exceed the canonical risk/capital admission. Use the safe lot count shown.",
 }
@@ -54,6 +56,27 @@ def _block(code: str, detail: str | None = None) -> dict[str, str]:
         "code": token,
         "message": detail or _MESSAGES.get(token, token.replace("_", " ").title()),
     }
+
+
+def _requested_lots(params: dict[str, Any]) -> int | None:
+    """Mirror canonical option-order lot semantics without coercing booleans.
+
+    The execution path defaults an omitted lot field to one lot. A present but
+    empty/invalid value is rejected. Keeping readiness and execution identical
+    prevents the browser from displaying READY for a ticket the Paper Desk will
+    later reject (or vice versa).
+    """
+    raw = params["lots"] if "lots" in params else 1
+    if isinstance(raw, bool):
+        return None
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(value) or not value.is_integer():
+        return None
+    lots = int(value)
+    return lots if 1 <= lots <= 100 else None
 
 
 def _quote_view(certificate: dict[str, Any]) -> dict[str, Any]:
@@ -142,22 +165,21 @@ def option_readiness(runtime: Any, params: dict[str, Any]) -> dict[str, Any]:
     if not match or option_type not in {"CE", "PE"} or match.group(2) != option_type:
         blockers.append(_block("INVALID_OPTION_CONTRACT"))
 
-    lots_raw = _number(params.get("lots"))
-    requested_lots: int | None = None
-    if lots_raw is None or not float(lots_raw).is_integer() or not 1 <= int(lots_raw) <= 100:
+    requested_lots = _requested_lots(params)
+    if requested_lots is None:
         blockers.append(_block("INVALID_QUANTITY"))
-    else:
-        requested_lots = int(lots_raw)
 
     stop = _number(params.get("stop"))
     target = _number(params.get("target"))
     if stop is None or target is None:
         blockers.append(_block("MANUAL_RISK_LEVELS_REQUIRED"))
+    elif not (0 < stop < target):
+        blockers.append(_block("INVALID_RISK_LEVELS"))
 
-    if blockers and any(
-        item["code"] in {"LIVE_EXECUTION_LOCKED", "UNKNOWN_WORKSPACE", "INVALID_OPTION_CONTRACT"}
-        for item in blockers
-    ):
+    # Ticket-shape failures are deterministic. Do not hit the ledger, session,
+    # quote provider or symbol master while the user is still editing an invalid
+    # ticket. This also keeps the 4-second browser readiness poll inexpensive.
+    if blockers:
         return _response(
             workspace=workspace,
             symbol=symbol,
@@ -179,7 +201,9 @@ def option_readiness(runtime: Any, params: dict[str, Any]) -> dict[str, Any]:
         blockers.append(_block(quote_reason, f"Authoritative option quote blocked entry: {quote_reason.replace('_', ' ')}."))
 
     entry = _number(certificate.get("ask"), _number(certificate.get("mark")))
-    if entry is not None and stop is not None and target is not None and not (0 < stop < entry < target):
+    if entry is None or entry <= 0:
+        blockers.append(_block("INVALID_ENTRY"))
+    elif not (0 < stop < entry < target):
         blockers.append(_block("INVALID_RISK_LEVELS"))
 
     if blockers:
