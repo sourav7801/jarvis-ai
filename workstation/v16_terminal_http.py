@@ -17,6 +17,7 @@ from workstation.professional_terminal import build_handler as build_compat_hand
 CANONICAL_WORKSPACE_STATE_PATH = "/api/v16/trading/workspace-state"
 RECONCILIATION_PATH = "/api/v16/trading/reconciliation"
 OPTION_ORDER_PATH = "/api/v16/trading/option-order"
+OPTION_READINESS_PATH = "/api/v16/trading/option-readiness"
 REPAIR_RECONCILIATION_PATH = "/api/v16/trading/reconcile"
 LEGACY_POSITION_PATH = "/api/v16/trading/legacy-position"
 LEGACY_RESOLUTION_PATH = LEGACY_POSITION_PATH + "/resolve"
@@ -85,7 +86,7 @@ def build_handler(base, runtime):
             if parsed.path == "/" and self._local():
                 from workstation.quant_terminal_v2 import STATIC
 
-                # V16 owns paper state through the canonical Paper Desk.  Do not
+                # V16 owns paper state through the canonical Paper Desk. Do not
                 # also start the retired V8.1 browser poller, which creates a
                 # competing sidebar surface and duplicate state requests.
                 html = (STATIC / "index.html").read_text(encoding="utf-8")
@@ -103,7 +104,11 @@ def build_handler(base, runtime):
                     # Experience runtime is observer-only: it consumes the same
                     # canonical responses, makes row selection chart-first, and
                     # surfaces Paper Desk capital without adding another engine.
-                    "<script defer src=\"/v16_option_experience_runtime.js\"></script></head>",
+                    "<script defer src=\"/v16_option_experience_runtime.js\"></script>"
+                    # Readiness is a fail-closed observer over the existing manual
+                    # option ticket. It never POSTs; canonical order submission
+                    # still revalidates independently in v16_option_paper.
+                    "<script defer src=\"/v16_option_readiness_runtime.js\"></script></head>",
                 ).encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -130,6 +135,7 @@ def build_handler(base, runtime):
                 "/v16_option_decision_runtime.js",
                 "/v16_workspace_router.js",
                 "/v16_option_experience_runtime.js",
+                "/v16_option_readiness_runtime.js",
             } and self._local():
                 from workstation.quant_terminal_v2 import STATIC
 
@@ -144,6 +150,29 @@ def build_handler(base, runtime):
                 if not self._local():
                     return self.send_json({"success": False, "message": "Local terminal only"}, 403)
                 return self.send_json(_safety(runtime.reconcile()))
+
+            if parsed.path == OPTION_READINESS_PATH:
+                if not self._local():
+                    return self.send_json({"success": False, "message": "Local terminal only"}, 403)
+                params = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
+                payload = {key: values[0] if values else "" for key, values in params.items()}
+                try:
+                    from workstation.v16_option_readiness import option_readiness
+
+                    return self.send_json(_safety(option_readiness(runtime, payload)))
+                except Exception as exc:
+                    # A preview failure must lock BUY rather than crash the local
+                    # server or tempt the browser to fall back to local geometry.
+                    return self.send_json(
+                        _safety(
+                            {
+                                "success": False,
+                                "execution_ready": False,
+                                "reason": "READINESS_CHECK_FAILED",
+                                "message": str(exc)[:400],
+                            }
+                        )
+                    )
 
             if parsed.path == LEGACY_POSITION_PATH:
                 if not self._local():
@@ -238,6 +267,7 @@ __all__ = [
     "CANONICAL_WORKSPACE_STATE_PATH",
     "RECONCILIATION_PATH",
     "OPTION_ORDER_PATH",
+    "OPTION_READINESS_PATH",
     "REPAIR_RECONCILIATION_PATH",
     "LEGACY_POSITION_PATH",
     "LEGACY_RESOLUTION_PATH",
