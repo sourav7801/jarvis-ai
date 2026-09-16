@@ -2,9 +2,9 @@
 
 ## What V17 changes
 
-V17 converges the existing V16 professional terminal into one autonomous-options PAPER runtime. It does not create a second Paper Desk or a second scanner.
+V17 converges the existing V16 professional terminal into one supervised autonomous-options PAPER workstation. It preserves one canonical scanner, one Paper Desk, one ledger and the existing V12-V16 reasoning/risk lineage.
 
-The normal autonomous option path is:
+The autonomous option path is:
 
 `verified live provider data -> completed bars -> multi-timeframe scanner -> strategy decision -> option intelligence -> exact contract selection -> fresh quote -> deterministic risk/capital sizing -> Paper Desk -> position management -> journal/learning`
 
@@ -12,7 +12,7 @@ For a qualified autonomous plan, the user does **not** need to click a strike, e
 
 ## Safety and execution scope
 
-V17 remains PAPER-only. There is no live broker-order method in the V17 autonomy layer. Live execution is locked.
+V17 remains PAPER-only while the autonomous loop is stabilized. The V17 autonomy layer has no live broker-order method and live execution is locked.
 
 Verified automatic option execution currently covers:
 
@@ -24,7 +24,7 @@ The broader market universe can still be scanned/researched where provider data 
 
 There is no forced daily trade count. JARVIS can scan many symbols and timeframes continuously, but only qualified setups may create paper exposure.
 
-## Install on the current Windows machine
+## Install on Windows
 
 Open PowerShell:
 
@@ -39,7 +39,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 The installer reuses `.venv` if it already exists. Python 3.13 is preferred; the project supports Python >=3.11 and <3.14.
 
-## Start V17
+## Start the full V17 workstation
 
 Either double-click:
 
@@ -50,10 +50,16 @@ or run:
 ```powershell
 cd C:\Jarvis
 .\.venv\Scripts\Activate.ps1
-python .\start_jarvis_professional_terminal_v17.py
+python -m scripts.jarvis_runtime_supervisor_v17
 ```
 
-The terminal remains on the canonical professional-terminal port (normally 8787).
+The supervisor owns the product as one runtime. The protected Master/workstation is normally on port 8797 and the professional trading service is internal on port 8787.
+
+For trading-terminal-only debugging you may still run:
+
+```powershell
+python .\start_jarvis_professional_terminal_v17.py
+```
 
 ## Daily autonomous workflow
 
@@ -62,7 +68,7 @@ The terminal remains on the canonical professional-terminal port (normally 8787)
 3. Start that paper session once.
 4. Leave autonomous scanning running.
 5. JARVIS reads provider market data and completed candles, not chart screenshots.
-6. When a supported underlying produces a qualified setup, JARVIS can choose the verified CE/PE contract automatically and route it through the canonical Paper Desk.
+6. When a supported underlying produces a qualified setup, JARVIS chooses the verified CE/PE contract automatically and routes it through the canonical Paper Desk.
 7. The canonical risk engine sizes the paper position and the existing position manager/journal owns the lifecycle.
 
 Manual option selection remains available for inspection/research, but it is not required for qualified autonomous plans.
@@ -81,4 +87,4 @@ Provider rate limits, stale quotes, invalid timestamps, closed sessions, unverif
 - No forced target number of daily trades.
 - No bypass of stale-data, market-session, reconciliation or risk gates.
 
-Those constraints keep the autonomous loop testable while we validate data quality, option selection, reconciliation, resource stability and paper performance.
+These constraints keep the autonomous loop testable while data quality, option selection, reconciliation, resource stability and paper performance are validated.
