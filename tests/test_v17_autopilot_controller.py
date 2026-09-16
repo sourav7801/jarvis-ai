@@ -80,6 +80,26 @@ class V17AutopilotControllerTests(unittest.TestCase):
         self.assertFalse(result["daily_rebalance"])
         self.assertFalse(result["cross_workspace_top_up"])
 
+    def test_v17_single_option_controller_disables_legacy_chain_owner(self):
+        project_root = Path(__file__).resolve().parents[1]
+        workspace_js = (project_root / "workstation" / "quant_terminal_v2_static" / "v16_workspace.js").read_text(encoding="utf-8")
+        terminal_http = (project_root / "workstation" / "v17_terminal_http.py").read_text(encoding="utf-8")
+
+        self.assertIn("window.JARVIS_V17_SINGLE_OPTION_CONTROLLER=true", terminal_http)
+        self.assertIn(
+            "const SINGLE_OPTION_CONTROLLER = window.JARVIS_V17_SINGLE_OPTION_CONTROLLER === true;",
+            workspace_js,
+        )
+        self.assertIn("if (SINGLE_OPTION_CONTROLLER) return;", workspace_js)
+        self.assertIn(
+            'if (SINGLE_OPTION_CONTROLLER || currentMode() !== "OPTIONS") return;',
+            workspace_js,
+        )
+        self.assertIn(
+            'if (mode === "OPTIONS" && !SINGLE_OPTION_CONTROLLER)',
+            workspace_js,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
