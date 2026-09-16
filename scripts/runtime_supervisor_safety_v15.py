@@ -15,6 +15,11 @@ class SupervisorLeaseV15:
 
     The lock file may remain after exit, but the OS lock is released with the
     process. Unknown processes are never terminated to obtain this lease.
+
+    Windows note: another JARVIS process can hold a byte-range lock on byte 0.
+    Reading that byte *before* attempting ``msvcrt.locking`` can itself raise
+    ``PermissionError``.  Lease contention must therefore be detected by the
+    lock attempt, not by reading the sentinel byte first.
     """
 
     def __init__(self, root: Path | str) -> None:
@@ -24,24 +29,39 @@ class SupervisorLeaseV15:
         self.acquired = False
 
     def acquire(self) -> bool:
+        if self.acquired and self.handle is not None:
+            return True
+
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        handle = self.path.open("a+b")
-        handle.seek(0)
-        if handle.read(1) == b"":
-            handle.seek(0)
-            handle.write(b"1")
-            handle.flush()
-        handle.seek(0)
         try:
+            handle = self.path.open("a+b")
+        except OSError:
+            return False
+
+        try:
+            # A one-byte file is required because Windows locks a byte range.
+            # Use fstat instead of read(1): fstat remains safe when another
+            # process already owns the byte-range lock.
+            if os.fstat(handle.fileno()).st_size == 0:
+                handle.write(b"1")
+                handle.flush()
+
+            handle.seek(0)
             if os.name == "nt":
                 import msvcrt
+
                 msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
             else:
                 import fcntl
+
                 fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except (OSError, ImportError):
-            handle.close()
+            try:
+                handle.close()
+            except OSError:
+                pass
             return False
+
         self.handle = handle
         self.acquired = True
         return True
@@ -56,9 +76,11 @@ class SupervisorLeaseV15:
             handle.seek(0)
             if os.name == "nt":
                 import msvcrt
+
                 msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
             else:
                 import fcntl
+
                 fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
         except Exception:
             pass
