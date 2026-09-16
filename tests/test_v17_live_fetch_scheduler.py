@@ -17,34 +17,36 @@ class V17LiveFetchSchedulerTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
     def test_scheduler_only_governs_live_get_requests(self):
-        self.assertIn('const LIVE_PREFIX = "/api/live";', self.scheduler_js)
+        self.assertIn(
+            "if (!window.JARVIS_V17_RUNTIME || window.JARVIS_V17_LIVE_FETCH_SCHEDULER) return;",
+            self.scheduler_js,
+        )
         self.assertIn('method !== "GET"', self.scheduler_js)
-        self.assertIn('parsed.pathname !== LIVE_PREFIX', self.scheduler_js)
-        self.assertIn('return nativeFetch(input, init);', self.scheduler_js)
+        self.assertIn('url.pathname !== "/api/live"', self.scheduler_js)
+        self.assertIn("if (!key) return nativeFetch(input, init);", self.scheduler_js)
 
     def test_scheduler_bounds_concurrency_and_coalesces_duplicates(self):
-        self.assertIn("const CACHE_MS = 2200;", self.scheduler_js)
-        self.assertIn("const MAX_CONCURRENT = 2;", self.scheduler_js)
+        self.assertIn("const MAX_CONCURRENT_LIVE_READS = 2;", self.scheduler_js)
+        self.assertIn("const LIVE_CACHE_MS = 2200;", self.scheduler_js)
         self.assertIn(
-            "while (active < MAX_CONCURRENT && queue.length)", self.scheduler_js
+            "while (active < MAX_CONCURRENT_LIVE_READS && queue.length)",
+            self.scheduler_js,
         )
-        self.assertIn("if (pending.has(key))", self.scheduler_js)
+        self.assertIn("const existing = pending.get(key);", self.scheduler_js)
+        self.assertIn("if (existing) return existing.then", self.scheduler_js)
         self.assertIn("cache.set(task.key", self.scheduler_js)
         self.assertIn(
-            "window.fetch = function jarvisV17Fetch", self.scheduler_js
+            "window.fetch = function v17BoundedFetch", self.scheduler_js
         )
 
     def test_v17_http_injects_scheduler_before_runtime(self):
         self.assertIn(
-            'V17_LIVE_FETCH_SCHEDULER = "v17_live_fetch_scheduler.js"',
+            '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V17_SINGLE_OPTION_CONTROLLER=true;</script>',
             self.terminal_http,
         )
-        scheduler_injection = self.terminal_http.index("live_scheduler_url")
-        runtime_injection = self.terminal_http.index("runtime_url")
+        scheduler_injection = self.terminal_http.index("/v17_live_fetch_scheduler.js")
+        runtime_injection = self.terminal_http.index("/v17_runtime.js")
         self.assertLess(scheduler_injection, runtime_injection)
-        self.assertIn(
-            "window.JARVIS_V17_OPTION_AUTOPILOT=true", self.terminal_http
-        )
         self.assertIn(
             "window.JARVIS_V17_SINGLE_OPTION_CONTROLLER=true", self.terminal_http
         )
