@@ -2,7 +2,7 @@
 
 This wraps the canonical V16 terminal handler without creating another trading
 engine. It adds one route-aware V17 status surface and exposes read-only FYERS
-stream health without starting a second market-data engine.
+bridge health without starting a second market-data engine.
 """
 from __future__ import annotations
 
@@ -55,11 +55,41 @@ def _route_metadata(workspace: str) -> dict:
 
 
 def _fyers_stream_status() -> dict:
-    """Return a secret-free observation of the singleton FYERS data stream."""
+    """Observe the actual isolated FYERS bridge without exposing credentials."""
+    startup: dict = {}
+    payload: dict | None = None
     try:
-        from agents.fyers_live_stream import fyers_live_stream
+        from workstation import quant_terminal_v2
 
-        payload = dict(fyers_live_stream.status())
+        startup = dict(getattr(quant_terminal_v2, "LIVE_BRIDGE_STARTUP", {}) or {})
+        bridge_payload = quant_terminal_v2._bridge_request(
+            "/api/status",
+            timeout=0.35,
+        )
+        if isinstance(bridge_payload, dict):
+            payload = dict(bridge_payload)
+            payload["bridge_reachable"] = True
+        else:
+            startup_state = str(startup.get("state") or "NOT_STARTED").upper()
+            if startup_state in {"STARTING", "STARTING_OR_RECONNECTING"}:
+                state = "RECONNECTING"
+                running = True
+            elif startup_state == "AVAILABLE":
+                state = "CONNECTING"
+                running = True
+            else:
+                state = "DISCONNECTED"
+                running = False
+            payload = {
+                "provider": "FYERS",
+                "transport": "DATA_WEBSOCKET",
+                "state": state,
+                "running": running,
+                "connected": False,
+                "fresh": False,
+                "error": startup.get("error"),
+                "bridge_reachable": False,
+            }
     except Exception as exc:
         payload = {
             "provider": "FYERS",
@@ -69,14 +99,23 @@ def _fyers_stream_status() -> dict:
             "connected": False,
             "fresh": False,
             "error": f"{type(exc).__name__}: {exc}",
-            "data_only": True,
-            "read_only": True,
-            "order_socket_enabled": False,
-            "live_order_execution": False,
+            "bridge_reachable": False,
         }
 
-    # Enforce the HTTP contract even if an older singleton implementation is
-    # imported during a rolling local update.
+    # Rolling-update compatibility: an older bridge may not yet expose the
+    # explicit reconnect/freshness state added by V17. Derive a truthful state
+    # from its existing flags until the isolated process restarts on this code.
+    if not payload.get("state"):
+        if payload.get("connected"):
+            payload["state"] = "CONNECTED"
+        elif payload.get("running"):
+            payload["state"] = "RECONNECTING"
+        else:
+            payload["state"] = "DISCONNECTED"
+    if "fresh" not in payload:
+        payload["fresh"] = payload.get("state") == "CONNECTED"
+
+    payload["startup"] = startup
     payload["data_only"] = True
     payload["read_only"] = True
     payload["order_socket_enabled"] = False
