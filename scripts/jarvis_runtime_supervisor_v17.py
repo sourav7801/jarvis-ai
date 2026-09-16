@@ -1,0 +1,162 @@
+from __future__ import annotations
+
+"""Supervise JARVIS V17 as one local product.
+
+Services preserve the proven V15/V16 ownership machinery while replacing the
+Master and Quant launchers with V17 identities:
+- 8797: protected Master + V17 workstation bridge
+- 8787: V17 autonomous-options professional PAPER terminal
+"""
+
+import os
+import sys
+import webbrowser
+from pathlib import Path
+from typing import Any
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.jarvis_runtime_supervisor import ManagedService  # noqa: E402
+from scripts import jarvis_runtime_supervisor_v16 as v16  # noqa: E402
+from scripts.runtime_supervisor_safety_v15 import (  # noqa: E402
+    JarvisRuntimeSupervisorV15,
+    SupervisorLeaseV15,
+)
+
+MASTER_HOST = v16.MASTER_HOST
+MASTER_PORT = v16.MASTER_PORT
+MASTER_BASE = v16.MASTER_BASE
+QUANT_HOST = v16.QUANT_HOST
+QUANT_PORT = v16.QUANT_PORT
+QUANT_BASE = v16.QUANT_BASE
+_json_http = v16._json_http
+
+
+def master_v17_surface_status() -> dict[str, Any]:
+    status, payload = _json_http(MASTER_BASE + "/api/v17/status", timeout=5.0)
+    trading = payload.get("trading") if isinstance(payload.get("trading"), dict) else {}
+    current = bool(
+        status == 200
+        and payload.get("success") is True
+        and payload.get("version") == "17.0"
+        and payload.get("service") == "JARVIS_MASTER_V17_AUTONOMOUS_OPTIONS"
+        and payload.get("paper_only") is True
+        and payload.get("live_execution") is False
+        and payload.get("automatic_broker_order") is False
+        and trading.get("same_origin_gateway") is True
+        and trading.get("live_orders_locked") is True
+        and trading.get("manual_option_selection_required") is False
+    )
+    return {"current": current, "status": status, "service": payload.get("service")}
+
+
+def v17_services(root: Path = ROOT) -> tuple[ManagedService, ...]:
+    python = str(Path(sys.executable).resolve())
+    services: list[ManagedService] = []
+    for service in v16.v16_services(root):
+        if service.name == "master":
+            env = dict(service.environment)
+            env.update(
+                {
+                    "JARVIS_NO_BROWSER": "1",
+                    "JARVIS_AUTO_PAPER_START": "0",
+                    "JARVIS_V12_AUTO_PAPER_START": "0",
+                    "JARVIS_V17_AUTONOMOUS_OPTIONS": "1",
+                    "JARVIS_LIVE_EXECUTION": "0",
+                }
+            )
+            services.append(
+                ManagedService(
+                    name="master",
+                    argv=(python, str(root / "start_jarvis_master_v17.py")),
+                    health_url=MASTER_BASE + "/api/v17/status",
+                    expected_service="JARVIS_MASTER_V17_AUTONOMOUS_OPTIONS",
+                    port=MASTER_PORT,
+                    health_markers=(),
+                    environment=tuple(env.items()),
+                )
+            )
+            continue
+        if service.name == "quant":
+            env = dict(service.environment)
+            env.update(
+                {
+                    "JARVIS_NO_BROWSER": "1",
+                    "JARVIS_AUTO_PAPER_START": "0",
+                    "JARVIS_V12_AUTO_PAPER_START": "0",
+                    "JARVIS_V17_AUTONOMOUS_OPTIONS": "1",
+                    "JARVIS_LIVE_EXECUTION": "0",
+                }
+            )
+            services.append(
+                ManagedService(
+                    name="quant",
+                    argv=(python, str(root / "start_jarvis_professional_terminal_v17.py")),
+                    health_url=QUANT_BASE + "/api/terminal/health",
+                    expected_service="JARVIS_PROFESSIONAL_PAPER_TERMINAL",
+                    port=QUANT_PORT,
+                    health_markers=(),
+                    environment=tuple(env.items()),
+                )
+            )
+            continue
+        services.append(service)
+    return tuple(services)
+
+
+def status() -> dict[str, Any]:
+    return {
+        "success": True,
+        "version": "17.0",
+        "service": "JARVIS_RUNTIME_SUPERVISOR_V17",
+        "master": "JARVIS_MASTER_V17_AUTONOMOUS_OPTIONS",
+        "trading": "JARVIS_V17_AUTONOMOUS_OPTIONS_PAPER_RUNTIME",
+        "single_supervisor_os_lease": True,
+        "atomic_runtime_snapshot": True,
+        "unknown_process_termination": False,
+        "paper_only": True,
+        "live_execution": False,
+        "automatic_broker_order": False,
+        "manual_option_selection_required": False,
+        "forced_trade_quota": False,
+    }
+
+
+def main() -> int:
+    lease = SupervisorLeaseV15(ROOT)
+    if not lease.acquire():
+        existing = master_v17_surface_status()
+        if existing.get("current"):
+            print("JARVIS V17 supervisor is already owned. Opening the existing workstation.")
+        else:
+            print("Another JARVIS supervisor owns the runtime lease.")
+            print("Stop the existing JARVIS supervisor before switching runtime generations.")
+        if str(os.getenv("JARVIS_NO_BROWSER", "0")).strip().lower() not in {"1", "true", "yes", "on"}:
+            try:
+                webbrowser.open(MASTER_BASE)
+            except Exception:
+                pass
+        return 0 if existing.get("current") else 1
+
+    try:
+        print("JARVIS V17 unified workstation preflight...")
+        print("Master target: V17 unified workstation on 8797")
+        print("Trading target: autonomous-options PAPER service on 8787")
+        print("Verified V12-V16 intelligence and canonical Paper Desk are preserved.")
+        print("Start INTRADAY/SWING once; option contract selection is automatic thereafter.")
+        print("Broad scanning is allowed; no forced daily trade quota exists.")
+        print("Live broker execution remains LOCKED.")
+        browser = str(os.getenv("JARVIS_NO_BROWSER", "0")).strip().lower() not in {"1", "true", "yes", "on"}
+        return JarvisRuntimeSupervisorV15(
+            root=ROOT,
+            services=v17_services(ROOT),
+            browser=browser,
+        ).run_forever()
+    finally:
+        lease.release()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
