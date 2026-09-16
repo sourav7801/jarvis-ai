@@ -23,7 +23,7 @@ function Resolve-Python {
     } catch {}
 
     try {
-        & python -c "import sys; assert (3,11) <= sys.version_info[:2] -and sys.version_info[:2] -lt (3,14)" *> $null
+        & python -c "import sys; assert (3,11) <= sys.version_info[:2] < (3,14)" *> $null
         if ($LASTEXITCODE -eq 0) { return @("python") }
     } catch {}
 
