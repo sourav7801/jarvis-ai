@@ -5,9 +5,6 @@
   window.__JARVIS_V17_RUNTIME__ = true;
 
   const $ = id => document.getElementById(id);
-  const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, c => ({
-    "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
-  }[c]));
 
   function ensureStyle() {
     if ($("v17RuntimeStyle")) return;
@@ -23,10 +20,15 @@
     document.head.appendChild(style);
   }
 
+  function setText(node, value) {
+    if (node && node.textContent !== value) node.textContent = value;
+  }
+
   function brandStaticSurface() {
-    document.title = "JARVIS Quant V17 · Autonomous Options";
-    const brandSub = document.querySelector(".brand span");
-    if (brandSub) brandSub.textContent = "V17 AUTONOMOUS OPTIONS RUNTIME · PAPER / RESEARCH";
+    if (document.title !== "JARVIS Quant V17 · Autonomous Options") {
+      document.title = "JARVIS Quant V17 · Autonomous Options";
+    }
+    setText(document.querySelector(".brand span"), "V17 AUTONOMOUS OPTIONS RUNTIME · PAPER / RESEARCH");
 
     const status = document.querySelector(".top-status");
     if (status && !$("v17RuntimePill")) {
@@ -62,23 +64,28 @@
     const eyebrow = card?.querySelector(".eyebrow");
     if (eyebrow) {
       const raw = String(eyebrow.textContent || "");
-      const symbol = raw.includes("·") ? raw.split("·").pop().trim() : "";
-      eyebrow.textContent = `V17 AUTONOMOUS OPTIONS · V15 REASONING CORE${symbol ? ` · ${symbol}` : ""}`;
+      let symbol = "";
+      if (raw.startsWith("V15 AUTONOMOUS MARKET REASONING ·")) {
+        symbol = raw.split("·").pop().trim();
+      } else if (raw.startsWith("V17 AUTONOMOUS OPTIONS · V15 REASONING CORE ·")) {
+        symbol = raw.split("·").pop().trim();
+      }
+      const desired = `V17 AUTONOMOUS OPTIONS · V15 REASONING CORE${symbol ? ` · ${symbol}` : ""}`;
+      setText(eyebrow, desired);
     }
 
     const reason = $("signalReason");
     if (reason && /^V15\s/i.test(String(reason.textContent || ""))) {
-      reason.textContent = String(reason.textContent).replace(/^V15\s/i, "V17 · V15 reasoning core · ");
+      setText(reason, String(reason.textContent).replace(/^V15\s/i, "V17 · V15 reasoning core · "));
     }
 
     const autoPrimary = $("v16AutonomyPrimary");
     if (autoPrimary) {
       const eyebrowNode = autoPrimary.querySelector(".eyebrow");
       if (eyebrowNode && !String(eyebrowNode.textContent || "").includes("V17")) {
-        eyebrowNode.textContent = "PRIMARY WORKFLOW · JARVIS V17";
+        setText(eyebrowNode, "PRIMARY WORKFLOW · JARVIS V17");
       }
-      const heading = autoPrimary.querySelector(".v16-auto-head b");
-      if (heading) heading.textContent = "AUTONOMOUS OPTIONS PAPER TRADING";
+      setText(autoPrimary.querySelector(".v16-auto-head b"), "AUTONOMOUS OPTIONS PAPER TRADING");
     }
   }
 
@@ -87,7 +94,8 @@
   }
 
   async function readStatus() {
-    const workspace = activeWorkspace() === "OPTIONS" ? "INTRADAY" : activeWorkspace();
+    const mode = activeWorkspace();
+    const workspace = mode === "OPTIONS" ? "INTRADAY" : mode;
     const response = await fetch(`/api/v17/trading/status?workspace=${encodeURIComponent(workspace)}`, {cache: "no-store"});
     let payload = {};
     try { payload = await response.json(); } catch {}
@@ -99,7 +107,7 @@
     const pill = $("v17RuntimePill");
     if (pill) {
       pill.dataset.state = "ok";
-      pill.textContent = "V17 · ACTIVE";
+      setText(pill, "V17 · ACTIVE");
       pill.title = `${status.service || "JARVIS V17"} · ${status.decision_source || "VERIFIED DATA"}`;
     }
 
@@ -108,12 +116,10 @@
       const underlyings = Array.isArray(status.verified_auto_option_underlyings)
         ? status.verified_auto_option_underlyings.join(" / ")
         : "NIFTY / BANKNIFTY / SENSEX";
-      summary.textContent = `Live-data scanner → strategy → automatic contract selection → risk sizing → Paper Desk. Verified auto options: ${underlyings}.`;
+      setText(summary, `Live-data scanner → strategy → automatic contract selection → risk sizing → Paper Desk. Verified auto options: ${underlyings}.`);
     }
 
-    const mode = $("v17RuntimeMode");
-    if (mode) mode.textContent = status.live_execution ? "LIVE" : "PAPER ONLY";
-
+    setText($("v17RuntimeMode"), status.live_execution ? "LIVE" : "PAPER ONLY");
     window.JARVIS_V17_STATUS = status;
     relabelInheritedLineage();
   }
@@ -122,11 +128,10 @@
     const pill = $("v17RuntimePill");
     if (pill) {
       pill.dataset.state = "error";
-      pill.textContent = "V17 · STATUS ERROR";
+      setText(pill, "V17 · STATUS ERROR");
       pill.title = String(error?.message || error || "V17 status unavailable");
     }
-    const summary = $("v17RuntimeSummary");
-    if (summary) summary.textContent = "V17 shell loaded, but the runtime-status endpoint is unavailable. Trading gates remain fail-closed.";
+    setText($("v17RuntimeSummary"), "V17 shell loaded, but the runtime-status endpoint is unavailable. Trading gates remain fail-closed.");
   }
 
   async function refresh() {
