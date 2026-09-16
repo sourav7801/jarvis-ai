@@ -3,7 +3,7 @@ setlocal
 cd /d "%~dp0"
 
 echo ============================================================
-echo  JARVIS V17 - AUTONOMOUS OPTIONS PAPER RUNTIME
+echo  JARVIS V17 - UNIFIED AUTONOMOUS OPTIONS WORKSTATION
 echo ============================================================
 
 if not exist ".venv\Scripts\python.exe" (
@@ -15,7 +15,7 @@ if not exist ".venv\Scripts\python.exe" (
 
 set JARVIS_LIVE_EXECUTION=0
 set JARVIS_V17_AUTONOMOUS_OPTIONS=1
-".venv\Scripts\python.exe" "start_jarvis_professional_terminal_v17.py"
+".venv\Scripts\python.exe" -m scripts.jarvis_runtime_supervisor_v17
 set EXIT_CODE=%ERRORLEVEL%
 
 if not "%EXIT_CODE%"=="0" (
