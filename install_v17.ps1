@@ -67,11 +67,13 @@ Write-Host "Running V17 import/compile checks..."
     start_jarvis_master_v17.py `
     start_jarvis_professional_terminal_v17.py `
     workstation\jarvis_os_v17_bridge.py `
+    workstation\v17_terminal_http.py `
     workstation\v17_autonomous_options.py `
     scripts\jarvis_runtime_supervisor_v17.py `
     scripts\runtime_supervisor_safety_v15.py
 
 & $VenvPython -c "from workstation.v17_autonomous_options import option_execution_capability; assert option_execution_capability('NIFTY')['auto_paper'] is True; assert option_execution_capability('CRYPTO_OPTIONS')['auto_paper'] is False; print('V17 autonomy capability check: PASS')"
+& $VenvPython -c "from workstation.v17_terminal_http import V17_STATUS_PATH; assert V17_STATUS_PATH == '/api/v17/trading/status'; print('V17 terminal identity check: PASS')"
 & $VenvPython -c "from scripts.jarvis_runtime_supervisor_v17 import status; s=status(); assert s['version']=='17.0' and s['live_execution'] is False; print('V17 supervisor safety check: PASS')"
 
 Write-Host ""
