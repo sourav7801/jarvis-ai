@@ -1,0 +1,49 @@
+name: V17 Gate
+
+on:
+  push:
+    branches:
+      - "jarvis-dev/20260916-JARVIS-V17-autonomous-options-runtime"
+  pull_request:
+    branches:
+      - "**"
+
+jobs:
+  v17-regression:
+    name: V17 regression (Python ${{ matrix.python-version }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Static parse check
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Filter *.py |
+            Where-Object { $_.FullName -notmatch '\\.venv\\|\.git\\|\.tmp\\|\.next\\|node_modules' } |
+            ForEach-Object { python -m py_compile $_.FullName }
+
+      - name: Check runtime dependency declaration
+        run: python scripts/check_runtime_dependencies.py
+
+      - name: Runtime doctor
+        run: python scripts/doctor.py --profile workstation
+
+      - name: V17 regression suite
+        run: python -m unittest discover -s tests -p "test_v17_*.py" -v
