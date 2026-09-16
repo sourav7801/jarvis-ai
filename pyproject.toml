@@ -1,6 +1,6 @@
 [project]
 name = "omni-jarvis"
-version = "0.1.0"
+version = "0.17.0"
 description = "Local-first orchestrated assistant and paper-trading research platform"
 requires-python = ">=3.11,<3.14"
 dependencies = []
@@ -36,6 +36,7 @@ full = [
 omni-jarvis = "main:main"
 omni-workstation = "workstation.app:main"
 omni-doctor = "scripts.doctor:main"
+jarvis-v17 = "scripts.jarvis_runtime_supervisor_v17:main"
 
 [build-system]
 requires = ["setuptools>=68"]
