@@ -47,7 +47,12 @@ if (-not (Test-Path $VenvPython)) {
 
 Write-Host "Using: $VenvPython"
 & $VenvPython -c "import sys; assert (3,11) <= sys.version_info[:2] < (3,14); print('Python', sys.version)"
-& $VenvPython -m pip install --upgrade pip setuptools wheel
+
+# FYERS 3.1.16 pins setuptools==68.0.0 and the installed Torch build requires
+# setuptools<82. Keep the environment on the provider-compatible build instead
+# of upgrading setuptools and immediately downgrading it again.
+& $VenvPython -m pip install --upgrade pip wheel
+& $VenvPython -m pip install "setuptools==68.0.0"
 
 if ($SkipFullDependencies) {
     Write-Host "Installing JARVIS V17 package only..."
@@ -63,7 +68,8 @@ Write-Host "Running V17 import/compile checks..."
     start_jarvis_professional_terminal_v17.py `
     workstation\jarvis_os_v17_bridge.py `
     workstation\v17_autonomous_options.py `
-    scripts\jarvis_runtime_supervisor_v17.py
+    scripts\jarvis_runtime_supervisor_v17.py `
+    scripts\runtime_supervisor_safety_v15.py
 
 & $VenvPython -c "from workstation.v17_autonomous_options import option_execution_capability; assert option_execution_capability('NIFTY')['auto_paper'] is True; assert option_execution_capability('CRYPTO_OPTIONS')['auto_paper'] is False; print('V17 autonomy capability check: PASS')"
 & $VenvPython -c "from scripts.jarvis_runtime_supervisor_v17 import status; s=status(); assert s['version']=='17.0' and s['live_execution'] is False; print('V17 supervisor safety check: PASS')"
