@@ -1,41 +1,27 @@
 """V17 HTTP layer for the professional autonomous-options PAPER terminal.
 
 This wraps the canonical V16 terminal handler without creating another trading
-engine. It adds one route-aware V17 status surface and exposes read-only FYERS
-bridge health without starting a second market-data engine.
+engine. It adds the V17 status/preferences/autopilot boundary while preserving
+V16 as the execution and ledger authority.
 """
 from __future__ import annotations
 
+import math
 import urllib.parse
+from typing import Any
 
 from workstation.v16_terminal_http import build_handler as build_v16_handler
+from workstation.v17_autopilot_preferences import load_preferences, save_preferences
 
 V17_STATUS_PATH = "/api/v17/trading/status"
+V17_PREFERENCES_PATH = "/api/v17/autopilot/preferences"
+V17_CONTROL_PATH = "/api/v17/autopilot/control"
 
 _ROUTE_META = {
-    "INTRADAY": {
-        "label": "Intraday",
-        "execution_workspace": "INTRADAY",
-        "horizon": "SESSION",
-    },
-    "SWING": {
-        "label": "Swing",
-        "execution_workspace": "SWING",
-        "horizon": "MULTI_SESSION",
-    },
-    "INVESTMENT": {
-        "label": "Investment",
-        "execution_workspace": "INVESTMENT",
-        "horizon": "POSITIONAL",
-    },
-    # OPTIONS is a dedicated workstation route, but the current verified
-    # autonomous option bridge executes through the canonical INTRADAY paper
-    # workspace. Preserve both identities instead of silently rewriting it.
-    "OPTIONS": {
-        "label": "Options",
-        "execution_workspace": "INTRADAY",
-        "horizon": "INTRADAY_DERIVATIVES",
-    },
+    "INTRADAY": {"label": "Intraday", "execution_workspace": "INTRADAY", "horizon": "SESSION"},
+    "SWING": {"label": "Swing", "execution_workspace": "SWING", "horizon": "MULTI_SESSION"},
+    "INVESTMENT": {"label": "Investment", "execution_workspace": "INVESTMENT", "horizon": "POSITIONAL"},
+    "OPTIONS": {"label": "Options", "execution_workspace": "INTRADAY", "horizon": "INTRADAY_DERIVATIVES"},
 }
 
 
@@ -54,32 +40,121 @@ def _route_metadata(workspace: str) -> dict:
     }
 
 
+def _normalize_capital_fraction(value: Any) -> float:
+    """Accept 0.5, 50 or '50%' and reject unsafe/ambiguous ranges."""
+    if isinstance(value, str):
+        token = value.strip()
+        percent = token.endswith("%")
+        if percent:
+            token = token[:-1].strip()
+        number = float(token)
+        if percent:
+            number /= 100.0
+    else:
+        number = float(value)
+    if not math.isfinite(number):
+        raise ValueError("Options capital percentage must be finite")
+    if 1.0 < number <= 100.0:
+        number /= 100.0
+    if not 0.05 <= number <= 1.0:
+        raise ValueError("Options capital must be between 5% and 100%")
+    return number
+
+
+def _preference_updates(body: dict[str, Any]) -> dict[str, Any]:
+    updates: dict[str, Any] = {}
+    if "options_capital_percent" in body:
+        updates["options_capital_fraction"] = _normalize_capital_fraction(body["options_capital_percent"])
+    elif "options_capital_fraction" in body:
+        updates["options_capital_fraction"] = _normalize_capital_fraction(body["options_capital_fraction"])
+    for key in ("one_touch_autopilot", "chart_first_options", "learning_enabled", "start_workspaces"):
+        if key in body:
+            updates[key] = body[key]
+    return updates
+
+
+def _safety(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    result = dict(payload or {})
+    result.update(
+        {
+            "mode": "PAPER_RESEARCH_ONLY",
+            "paper_only": True,
+            "live_execution": False,
+            "automatic_broker_order": False,
+            "live_orders_locked": True,
+            "daily_rebalance": False,
+            "cross_workspace_top_up": False,
+            "production_code_rewrite": False,
+        }
+    )
+    return result
+
+
+def _autopilot_control(runtime: Any, body: dict[str, Any]) -> dict[str, Any]:
+    action = str(body.get("action") or "").strip().lower()
+    if action in {"resume", "run"}:
+        action = "start"
+    if action in {"stop", "pause", "pause_new_entries", "stop_scanner"}:
+        action = "stop"
+    if action not in {"start", "stop"}:
+        raise ValueError("Choose V17 autopilot action start or stop")
+
+    updates = _preference_updates(body)
+    preferences = save_preferences(updates) if updates else load_preferences()
+    targets = list(preferences["start_workspaces"])
+    workspaces = targets if action == "start" else ["INTRADAY", "SWING", "INVESTMENT"]
+    runtime_action = "start" if action == "start" else "pause"
+    results: dict[str, dict[str, Any]] = {}
+    for workspace in workspaces:
+        try:
+            results[workspace] = dict(runtime.control(workspace, runtime_action))
+        except Exception as exc:
+            results[workspace] = {
+                "success": False,
+                "state": "PROBLEM",
+                "reason": type(exc).__name__,
+                "message": str(exc)[:300],
+            }
+
+    success = all(item.get("success") is True for item in results.values())
+    states = {name: item.get("state") for name, item in results.items()}
+    return _safety(
+        {
+            "success": success,
+            "service": "JARVIS_V17_ONE_TOUCH_AUTOPILOT",
+            "action": action.upper(),
+            "results": results,
+            "states": states,
+            "preferences": preferences,
+            "options_capital_fraction": preferences["options_capital_fraction"],
+            "message": (
+                "V17 PAPER autopilot start requested through canonical sessions."
+                if action == "start"
+                else "V17 new-entry sessions paused; existing Paper Desk positions remain managed."
+            ),
+        }
+    )
+
+
 def _fyers_stream_status() -> dict:
-    """Observe the actual isolated FYERS bridge without exposing credentials."""
     startup: dict = {}
     payload: dict | None = None
     try:
         from workstation import quant_terminal_v2
 
         startup = dict(getattr(quant_terminal_v2, "LIVE_BRIDGE_STARTUP", {}) or {})
-        bridge_payload = quant_terminal_v2._bridge_request(
-            "/api/status",
-            timeout=0.35,
-        )
+        bridge_payload = quant_terminal_v2._bridge_request("/api/status", timeout=0.35)
         if isinstance(bridge_payload, dict):
             payload = dict(bridge_payload)
             payload["bridge_reachable"] = True
         else:
             startup_state = str(startup.get("state") or "NOT_STARTED").upper()
             if startup_state in {"STARTING", "STARTING_OR_RECONNECTING"}:
-                state = "RECONNECTING"
-                running = True
+                state, running = "RECONNECTING", True
             elif startup_state == "AVAILABLE":
-                state = "CONNECTING"
-                running = True
+                state, running = "CONNECTING", True
             else:
-                state = "DISCONNECTED"
-                running = False
+                state, running = "DISCONNECTED", False
             payload = {
                 "provider": "FYERS",
                 "transport": "DATA_WEBSOCKET",
@@ -102,9 +177,6 @@ def _fyers_stream_status() -> dict:
             "bridge_reachable": False,
         }
 
-    # Rolling-update compatibility: an older bridge may not yet expose the
-    # explicit reconnect/freshness state added by V17. Derive a truthful state
-    # from its existing flags until the isolated process restarts on this code.
     if not payload.get("state"):
         if payload.get("connected"):
             payload["state"] = "CONNECTED"
@@ -125,18 +197,13 @@ def _fyers_stream_status() -> dict:
 
 def _v17_status(runtime, workspace: str) -> dict:
     route = _route_metadata(workspace)
-    safety = {
-        "mode": "PAPER_RESEARCH_ONLY",
-        "paper_only": True,
-        "live_execution": False,
-        "automatic_broker_order": False,
-        "live_orders_locked": True,
-    }
+    safety = _safety()
     market_data = {
         "primary_provider": "FYERS",
         "read_only": True,
         "stream": _fyers_stream_status(),
     }
+    preferences = load_preferences()
 
     service = getattr(runtime, "v17_autonomy_service", None)
     if service is None:
@@ -150,7 +217,7 @@ def _v17_status(runtime, workspace: str) -> dict:
             "execution_workspace": route["execution_workspace"],
             "route": route,
             "market_data": market_data,
-            "safety": safety,
+            "autopilot_preferences": preferences,
             **safety,
         }
 
@@ -159,14 +226,14 @@ def _v17_status(runtime, workspace: str) -> dict:
         {
             "success": True,
             "service": "JARVIS_V17_AUTONOMOUS_OPTIONS_PAPER_RUNTIME",
-            "version": "17.0",
+            "version": "17.1",
             "runtime_identity": "V17_AUTONOMOUS_OPTIONS",
             "verified_parent": "V16_TRADING_CONVERGENCE",
             "workspace": route["requested_workspace"],
             "execution_workspace": route["execution_workspace"],
             "route": route,
             "market_data": market_data,
-            "safety": safety,
+            "autopilot_preferences": preferences,
             **safety,
         }
     )
@@ -177,34 +244,24 @@ def build_handler(base, runtime):
     V16Handler = build_v16_handler(base, runtime)
 
     class V17TerminalHandler(V16Handler):
-        server_version = "JarvisQuantV17/1.1"
+        server_version = "JarvisQuantV17/1.2"
 
         def _serve_v17_root(self):
             from workstation.quant_terminal_v2 import STATIC
 
             html = (STATIC / "index.html").read_text(encoding="utf-8")
             html = html.replace('<script src="/paper_desk_runtime.js"></script>', "")
-            html = html.replace(
-                "V15 AUTONOMOUS MARKET REASONING · PAPER / RESEARCH",
-                "V17 AUTONOMOUS OPTIONS RUNTIME · PAPER / RESEARCH",
-            )
-            html = html.replace(
-                "JARVIS Quant V15 ·",
-                "JARVIS Quant V17 · autonomous options ·",
-            )
-            html = html.replace(
-                "JARVIS V15 reasons across verified market state",
-                "JARVIS V17 uses the verified V15 reasoning core across market state",
-            )
+            html = html.replace("V15 AUTONOMOUS MARKET REASONING · PAPER / RESEARCH", "V17 AUTONOMOUS OPTIONS RUNTIME · PAPER / RESEARCH")
+            html = html.replace("JARVIS Quant V15 ·", "JARVIS Quant V17 · autonomous options ·")
+            html = html.replace("JARVIS V15 reasons across verified market state", "JARVIS V17 uses the verified V15 reasoning core across market state")
             injection = (
-                '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;</script>'
+                '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V17_SINGLE_OPTION_CONTROLLER=true;</script>'
                 '<link rel="stylesheet" href="/v16_autonomy_runtime.css">'
                 '<script defer src="/v16_autonomy_runtime.js"></script>'
                 '<script defer src="/v16_option_decision_runtime.js"></script>'
                 '<script defer src="/v16_workspace_router.js"></script>'
-                '<script defer src="/v16_option_experience_runtime.js"></script>'
                 '<script defer src="/v16_option_readiness_runtime.js"></script>'
-                '<script defer src="/v17_runtime.js"></script>'
+                '<script defer src="/v17_runtime.js?v=170100"></script>'
             )
             content = html.replace("</head>", injection + "</head>").encode("utf-8")
             self.send_response(200)
@@ -225,35 +282,57 @@ def build_handler(base, runtime):
 
             if parsed.path == "/v17_runtime.js" and self._local():
                 from workstation.quant_terminal_v2 import STATIC
+                return self.send_file(STATIC / "v17_runtime.js", "application/javascript; charset=utf-8")
 
-                return self.send_file(
-                    STATIC / "v17_runtime.js",
-                    "application/javascript; charset=utf-8",
-                )
+            if parsed.path == V17_PREFERENCES_PATH:
+                if not self._local():
+                    return self.send_json(_safety({"success": False, "reason": "LOCAL_TERMINAL_ONLY"}), 403)
+                return self.send_json(_safety({"success": True, "preferences": load_preferences()}))
 
             if parsed.path == V17_STATUS_PATH:
                 if not self._local():
-                    return self.send_json(
-                        {
-                            "success": False,
-                            "reason": "LOCAL_TERMINAL_ONLY",
-                            "paper_only": True,
-                            "live_execution": False,
-                        },
-                        403,
-                    )
+                    return self.send_json(_safety({"success": False, "reason": "LOCAL_TERMINAL_ONLY"}), 403)
                 params = urllib.parse.parse_qs(parsed.query)
                 workspace = str(params.get("workspace", ["INTRADAY"])[0]).upper()
                 return self.send_json(_v17_status(runtime, workspace))
 
             return super().do_GET()
 
+        def do_POST(self):
+            parsed = urllib.parse.urlparse(self.path)
+            if parsed.path not in {V17_PREFERENCES_PATH, V17_CONTROL_PATH}:
+                return super().do_POST()
+            if not self._authorized_v16_write():
+                return self.send_json(
+                    _safety(
+                        {
+                            "success": False,
+                            "reason": "LOCAL_SESSION_TOKEN_REQUIRED",
+                            "message": "Refresh this local terminal before changing V17 PAPER state.",
+                        }
+                    ),
+                    403,
+                )
+            try:
+                body = self._v16_body()
+                if parsed.path == V17_PREFERENCES_PATH:
+                    preferences = save_preferences(_preference_updates(body))
+                    return self.send_json(_safety({"success": True, "preferences": preferences}))
+                return self.send_json(_autopilot_control(runtime, body))
+            except (ValueError, KeyError, TypeError) as exc:
+                return self.send_json(_safety({"success": False, "message": str(exc)}), 400)
+
     return V17TerminalHandler
 
 
 __all__ = [
     "V17_STATUS_PATH",
+    "V17_PREFERENCES_PATH",
+    "V17_CONTROL_PATH",
+    "_autopilot_control",
     "_fyers_stream_status",
+    "_normalize_capital_fraction",
+    "_preference_updates",
     "_route_metadata",
     "_v17_status",
     "build_handler",
