@@ -15,7 +15,9 @@
       .v17-runtime-pill[data-state="degraded"]{border-color:#7a662b;color:#ffd166;background:rgba(77,58,14,.6)}
       .v17-runtime-pill[data-state="error"]{border-color:#7a3141;color:#ff8da0;background:rgba(89,27,42,.55)}
       .v17-runtime-banner{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;border:1px solid #2d7b59;background:linear-gradient(90deg,#071b1d,#081725);padding:7px 9px;border-radius:7px;margin:0 0 6px}
-      .v17-runtime-banner strong{font-size:10px;color:#8af2b6;letter-spacing:.08em}.v17-runtime-banner span{display:block;margin-top:2px;font-size:8px;color:#8fb7c5}.v17-runtime-banner b{font-size:9px;color:#dffaff;border:1px solid #24576d;border-radius:999px;padding:5px 7px;white-space:nowrap}
+      .v17-runtime-banner strong{font-size:10px;color:#8af2b6;letter-spacing:.08em}.v17-runtime-banner span{display:block;margin-top:2px;font-size:8px;color:#8fb7c5}
+      .v17-runtime-badges{display:flex;gap:5px;align-items:center;justify-content:flex-end;flex-wrap:wrap}.v17-runtime-badges b{font-size:9px;color:#dffaff;border:1px solid #24576d;border-radius:999px;padding:5px 7px;white-space:nowrap}
+      .v17-runtime-badges b[data-state="connected"]{border-color:#2c8b63;color:#84f3b3}.v17-runtime-badges b[data-state="stale"],.v17-runtime-badges b[data-state="reconnecting"]{border-color:#7a662b;color:#ffd166}.v17-runtime-badges b[data-state="failed"],.v17-runtime-badges b[data-state="unavailable"]{border-color:#7a3141;color:#ff8da0}
     `;
     document.head.appendChild(style);
   }
@@ -46,8 +48,12 @@
       banner.id = "v17RuntimeBanner";
       banner.className = "v17-runtime-banner";
       banner.innerHTML = `
-        <div><strong>JARVIS V17 · AUTONOMOUS OPTIONS CONVERGENCE</strong><span id="v17RuntimeSummary">Verifying scanner → strategy → automatic option selection → Paper Desk.</span></div>
-        <b id="v17RuntimeMode">PAPER ONLY</b>`;
+        <div><strong>JARVIS V17 · AUTONOMOUS OPTIONS CONVERGENCE</strong><span id="v17RuntimeSummary">Verifying route, provider freshness, strategy and canonical Paper Desk.</span></div>
+        <div class="v17-runtime-badges">
+          <b id="v17RuntimeMode">PAPER ONLY</b>
+          <b id="v17RouteState">INTRADAY</b>
+          <b id="v17FeedState" data-state="disconnected">FYERS · DISCONNECTED</b>
+        </div>`;
       const modes = document.querySelector(".workspace-modes");
       if (modes) modes.insertAdjacentElement("afterend", banner);
       else workspace.prepend(banner);
@@ -55,7 +61,7 @@
 
     const footer = document.querySelector("footer span");
     if (footer && !String(footer.textContent || "").includes("V17")) {
-      footer.textContent = "JARVIS Quant V17 · autonomous options · V15 reasoning core · V14.1 verified risk geometry · canonical Paper Desk · live execution locked";
+      footer.textContent = "JARVIS Quant V17 · route-aware provider health · V15 reasoning core · V14.1 verified risk geometry · canonical Paper Desk · live execution locked";
     }
   }
 
@@ -94,13 +100,19 @@
   }
 
   async function readStatus() {
-    const mode = activeWorkspace();
-    const workspace = mode === "OPTIONS" ? "INTRADAY" : mode;
+    const workspace = activeWorkspace();
     const response = await fetch(`/api/v17/trading/status?workspace=${encodeURIComponent(workspace)}`, {cache: "no-store"});
     let payload = {};
     try { payload = await response.json(); } catch {}
     if (!response.ok || payload.success !== true) throw new Error(payload.reason || `HTTP ${response.status}`);
     return payload;
+  }
+
+  function normalizeFeedState(status) {
+    const stream = status?.market_data?.stream || {};
+    if (stream.state) return String(stream.state).toUpperCase();
+    if (stream.connected === true) return stream.fresh === false ? "STALE" : "CONNECTED";
+    return stream.running ? "RECONNECTING" : "DISCONNECTED";
   }
 
   function renderStatus(status) {
@@ -111,12 +123,35 @@
       pill.title = `${status.service || "JARVIS V17"} · ${status.decision_source || "VERIFIED DATA"}`;
     }
 
+    const route = status.route || {};
+    const requested = String(route.requested_workspace || status.workspace || activeWorkspace()).toUpperCase();
+    const execution = String(route.execution_workspace || status.execution_workspace || requested).toUpperCase();
+    const feedState = normalizeFeedState(status);
+    const feed = status?.market_data?.stream || {};
+
+    setText($("v17RouteState"), requested);
+    const feedNode = $("v17FeedState");
+    if (feedNode) {
+      feedNode.dataset.state = feedState.toLowerCase();
+      setText(feedNode, `FYERS · ${feedState}`);
+      const retry = Number(feed.retry_in_seconds);
+      feedNode.title = Number.isFinite(retry) && retry > 0
+        ? `Read-only market data · reconnect in ~${retry.toFixed(1)}s`
+        : "Read-only FYERS market-data WebSocket · broker orders disabled";
+    }
+
     const summary = $("v17RuntimeSummary");
     if (summary) {
       const underlyings = Array.isArray(status.verified_auto_option_underlyings)
         ? status.verified_auto_option_underlyings.join(" / ")
         : "NIFTY / BANKNIFTY / SENSEX";
-      setText(summary, `Live-data scanner → strategy → automatic contract selection → risk sizing → Paper Desk. Verified auto options: ${underlyings}.`);
+      const routeText = requested === execution ? requested : `${requested} → ${execution} execution`;
+      const feedText = feedState === "CONNECTED"
+        ? "FYERS stream fresh"
+        : feedState === "STALE"
+          ? "FYERS stream stale — new autonomous entries stay fail-closed"
+          : `FYERS stream ${feedState.toLowerCase()} — REST/history paths may still be available`;
+      setText(summary, `${routeText} · ${feedText}. Automatic verified PAPER options: ${underlyings}.`);
     }
 
     setText($("v17RuntimeMode"), status.live_execution ? "LIVE" : "PAPER ONLY");
@@ -130,6 +165,11 @@
       pill.dataset.state = "error";
       setText(pill, "V17 · STATUS ERROR");
       pill.title = String(error?.message || error || "V17 status unavailable");
+    }
+    const feedNode = $("v17FeedState");
+    if (feedNode) {
+      feedNode.dataset.state = "unavailable";
+      setText(feedNode, "FYERS · UNKNOWN");
     }
     setText($("v17RuntimeSummary"), "V17 shell loaded, but the runtime-status endpoint is unavailable. Trading gates remain fail-closed.");
   }

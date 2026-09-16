@@ -1,8 +1,8 @@
 """V17 HTTP layer for the professional autonomous-options PAPER terminal.
 
 This wraps the canonical V16 terminal handler without creating another trading
-engine.  It adds a V17 runtime-status endpoint and serves a V17-branded shell
-only when the V17 launcher is used.
+engine. It adds one route-aware V17 status surface and exposes read-only FYERS
+stream health without starting a second market-data engine.
 """
 from __future__ import annotations
 
@@ -12,8 +12,93 @@ from workstation.v16_terminal_http import build_handler as build_v16_handler
 
 V17_STATUS_PATH = "/api/v17/trading/status"
 
+_ROUTE_META = {
+    "INTRADAY": {
+        "label": "Intraday",
+        "execution_workspace": "INTRADAY",
+        "horizon": "SESSION",
+    },
+    "SWING": {
+        "label": "Swing",
+        "execution_workspace": "SWING",
+        "horizon": "MULTI_SESSION",
+    },
+    "INVESTMENT": {
+        "label": "Investment",
+        "execution_workspace": "INVESTMENT",
+        "horizon": "POSITIONAL",
+    },
+    # OPTIONS is a dedicated workstation route, but the current verified
+    # autonomous option bridge executes through the canonical INTRADAY paper
+    # workspace. Preserve both identities instead of silently rewriting it.
+    "OPTIONS": {
+        "label": "Options",
+        "execution_workspace": "INTRADAY",
+        "horizon": "INTRADAY_DERIVATIVES",
+    },
+}
+
+
+def _route_metadata(workspace: str) -> dict:
+    raw = str(workspace or "INTRADAY").strip().upper()
+    requested = raw if raw in _ROUTE_META else "INTRADAY"
+    meta = dict(_ROUTE_META[requested])
+    return {
+        "id": requested,
+        "requested_workspace": requested,
+        "execution_workspace": meta["execution_workspace"],
+        "label": meta["label"],
+        "horizon": meta["horizon"],
+        "fallback_applied": raw not in _ROUTE_META,
+        "requested_raw": raw,
+    }
+
+
+def _fyers_stream_status() -> dict:
+    """Return a secret-free observation of the singleton FYERS data stream."""
+    try:
+        from agents.fyers_live_stream import fyers_live_stream
+
+        payload = dict(fyers_live_stream.status())
+    except Exception as exc:
+        payload = {
+            "provider": "FYERS",
+            "transport": "DATA_WEBSOCKET",
+            "state": "UNAVAILABLE",
+            "running": False,
+            "connected": False,
+            "fresh": False,
+            "error": f"{type(exc).__name__}: {exc}",
+            "data_only": True,
+            "read_only": True,
+            "order_socket_enabled": False,
+            "live_order_execution": False,
+        }
+
+    # Enforce the HTTP contract even if an older singleton implementation is
+    # imported during a rolling local update.
+    payload["data_only"] = True
+    payload["read_only"] = True
+    payload["order_socket_enabled"] = False
+    payload["live_order_execution"] = False
+    return payload
+
 
 def _v17_status(runtime, workspace: str) -> dict:
+    route = _route_metadata(workspace)
+    safety = {
+        "mode": "PAPER_RESEARCH_ONLY",
+        "paper_only": True,
+        "live_execution": False,
+        "automatic_broker_order": False,
+        "live_orders_locked": True,
+    }
+    market_data = {
+        "primary_provider": "FYERS",
+        "read_only": True,
+        "stream": _fyers_stream_status(),
+    }
+
     service = getattr(runtime, "v17_autonomy_service", None)
     if service is None:
         return {
@@ -22,12 +107,15 @@ def _v17_status(runtime, workspace: str) -> dict:
             "version": "17.0",
             "installed": False,
             "reason": "V17_AUTONOMY_SERVICE_NOT_INSTALLED",
-            "paper_only": True,
-            "live_execution": False,
-            "automatic_broker_order": False,
-            "live_orders_locked": True,
+            "workspace": route["requested_workspace"],
+            "execution_workspace": route["execution_workspace"],
+            "route": route,
+            "market_data": market_data,
+            "safety": safety,
+            **safety,
         }
-    payload = dict(service.status(workspace))
+
+    payload = dict(service.status(route["execution_workspace"]))
     payload.update(
         {
             "success": True,
@@ -35,10 +123,12 @@ def _v17_status(runtime, workspace: str) -> dict:
             "version": "17.0",
             "runtime_identity": "V17_AUTONOMOUS_OPTIONS",
             "verified_parent": "V16_TRADING_CONVERGENCE",
-            "paper_only": True,
-            "live_execution": False,
-            "automatic_broker_order": False,
-            "live_orders_locked": True,
+            "workspace": route["requested_workspace"],
+            "execution_workspace": route["execution_workspace"],
+            "route": route,
+            "market_data": market_data,
+            "safety": safety,
+            **safety,
         }
     )
     return payload
@@ -48,7 +138,7 @@ def build_handler(base, runtime):
     V16Handler = build_v16_handler(base, runtime)
 
     class V17TerminalHandler(V16Handler):
-        server_version = "JarvisQuantV17/1.0"
+        server_version = "JarvisQuantV17/1.1"
 
         def _serve_v17_root(self):
             from workstation.quant_terminal_v2 import STATIC
@@ -122,4 +212,10 @@ def build_handler(base, runtime):
     return V17TerminalHandler
 
 
-__all__ = ["V17_STATUS_PATH", "build_handler"]
+__all__ = [
+    "V17_STATUS_PATH",
+    "_fyers_stream_status",
+    "_route_metadata",
+    "_v17_status",
+    "build_handler",
+]
