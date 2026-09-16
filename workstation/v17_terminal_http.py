@@ -244,7 +244,7 @@ def build_handler(base, runtime):
     V16Handler = build_v16_handler(base, runtime)
 
     class V17TerminalHandler(V16Handler):
-        server_version = "JarvisQuantV17/1.2"
+        server_version = "JarvisQuantV17/1.3"
 
         def _serve_v17_root(self):
             from workstation.quant_terminal_v2 import STATIC
@@ -256,6 +256,7 @@ def build_handler(base, runtime):
             html = html.replace("JARVIS V15 reasons across verified market state", "JARVIS V17 uses the verified V15 reasoning core across market state")
             injection = (
                 '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V17_SINGLE_OPTION_CONTROLLER=true;</script>'
+                '<script src="/v17_live_fetch_scheduler.js?v=170102"></script>'
                 '<link rel="stylesheet" href="/v16_autonomy_runtime.css">'
                 '<script defer src="/v16_autonomy_runtime.js"></script>'
                 '<script defer src="/v16_option_decision_runtime.js"></script>'
@@ -280,9 +281,9 @@ def build_handler(base, runtime):
             if parsed.path == "/" and self._local():
                 return self._serve_v17_root()
 
-            if parsed.path == "/v17_runtime.js" and self._local():
+            if parsed.path in {"/v17_runtime.js", "/v17_live_fetch_scheduler.js"} and self._local():
                 from workstation.quant_terminal_v2 import STATIC
-                return self.send_file(STATIC / "v17_runtime.js", "application/javascript; charset=utf-8")
+                return self.send_file(STATIC / parsed.path.lstrip("/"), "application/javascript; charset=utf-8")
 
             if parsed.path == V17_PREFERENCES_PATH:
                 if not self._local():
