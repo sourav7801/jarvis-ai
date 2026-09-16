@@ -33,4 +33,17 @@ jobs:
         run: python -m scripts.doctor --ci --json
 
       - name: Unit and integration tests
-        run: python -m unittest discover -s tests -v
+        shell: pwsh
+        run: |
+          & python -m unittest discover -s tests -v *>&1 | Tee-Object -FilePath "unittest-${{ matrix.python-version }}.log"
+          $exitCode = $LASTEXITCODE
+          exit $exitCode
+
+      - name: Upload unittest transcript
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unittest-${{ matrix.python-version }}
+          path: unittest-${{ matrix.python-version }}.log
+          if-no-files-found: error
+          retention-days: 3
