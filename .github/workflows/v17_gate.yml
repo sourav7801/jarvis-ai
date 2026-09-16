@@ -12,6 +12,7 @@ jobs:
   v17-regression:
     name: V17 regression (Python ${{ matrix.python-version }})
     runs-on: windows-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -21,29 +22,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
 
-      - name: Install dependencies
+      - name: Validate package installation
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install --no-deps -e .
 
-      - name: Static parse check
-        shell: pwsh
-        run: |
-          Get-ChildItem -Recurse -Filter *.py |
-            Where-Object { $_.FullName -notmatch '\\.venv\\|\.git\\|\.tmp\\|\.next\\|node_modules' } |
-            ForEach-Object { python -m py_compile $_.FullName }
-
-      - name: Check runtime dependency declaration
-        run: python scripts/check_runtime_dependencies.py
+      - name: Static parse
+        run: python scripts/static_check.py
 
       - name: Runtime doctor
-        run: python scripts/doctor.py --profile workstation
+        run: python -m scripts.doctor --ci --json
 
       - name: V17 regression suite
         run: python -m unittest discover -s tests -p "test_v17_*.py" -v
