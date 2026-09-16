@@ -3,6 +3,7 @@
 
   if (!window.JARVIS_V16_CANONICAL) return;
 
+  const SINGLE_OPTION_CONTROLLER = window.JARVIS_V17_SINGLE_OPTION_CONTROLLER === true;
   const CAPITAL_WORKSPACES = ["INTRADAY", "SWING", "INVESTMENT"];
   const OPTION_UNDERLYINGS = ["NIFTY", "BANKNIFTY", "SENSEX"];
   const POLL_MS = 2500;
@@ -155,6 +156,11 @@
       <div id="v16SelectedOption" class="v16-selected-option">No contract selected.</div>
       <small class="v16-option-safety">PAPER / RESEARCH ONLY · LIVE BROKER EXECUTION LOCKED · NAKED OPTION SELLING BLOCKED</small>`;
     grid.parentElement.insertBefore(panel, grid);
+
+    // V17 keeps this canonical DOM surface so the V16 Paper Desk/order gate can
+    // mount normally, but the old NIFTY-only chain owner must not bind. The
+    // route-aware v16_workspace_router.js is the single option-chain controller.
+    if (SINGLE_OPTION_CONTROLLER) return;
 
     el("v16OptionUnderlying")?.addEventListener("change", event => {
       optionUnderlying = event.target.value;
@@ -490,7 +496,7 @@
   }
 
   async function loadOptionChain(resetExpiry = false) {
-    if (currentMode() !== "OPTIONS") return;
+    if (SINGLE_OPTION_CONTROLLER || currentMode() !== "OPTIONS") return;
     if (resetExpiry) optionExpiry = "";
     const serial = ++optionRequestSerial;
     if (el("v16OptionMessage")) el("v16OptionMessage").textContent = "Loading verified listed contracts…";
@@ -518,7 +524,7 @@
     });
     const options = el("v16Options");
     if (options) options.hidden = mode !== "OPTIONS";
-    if (mode === "OPTIONS") {
+    if (mode === "OPTIONS" && !SINGLE_OPTION_CONTROLLER) {
       el("v16OptionCapital").value = capitalWorkspace;
       loadOptionChain(false);
     }
