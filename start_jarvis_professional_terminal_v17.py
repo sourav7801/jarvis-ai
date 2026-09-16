@@ -3,7 +3,7 @@ from __future__ import annotations
 """JARVIS V17 professional autonomous-options PAPER terminal launcher.
 
 V17 converges the verified V16 runtime rather than creating another trading
-stack.  One scanner, one canonical Paper Desk, one workspace ledger and one
+stack. One scanner, one canonical Paper Desk, one workspace ledger and one
 option-admission authority remain in force.
 """
 
@@ -20,7 +20,7 @@ os.environ["JARVIS_LIVE_EXECUTION"] = "0"
 from workstation import quant_terminal_v2 as trading_app
 from workstation import terminal_data
 from workstation.professional_terminal import TerminalHTTPServer, TerminalRuntime
-from workstation.v16_terminal_http import build_handler
+from workstation.v17_terminal_http import build_handler
 
 from start_jarvis_professional_terminal_v16 import install_verified_reasoning_lineage
 
@@ -65,6 +65,7 @@ def main() -> int:
         print("JARVIS V17 - AUTONOMOUS OPTIONS PAPER RUNTIME")
         print("=" * 76)
         print(f"Terminal: {url}")
+        print(f"V17 status: {url}/api/v17/trading/status?workspace=INTRADAY")
         print(f"Canonical state: {url}/api/v16/trading/workspace-state?workspace=INTRADAY")
         print("Workspaces: INTRADAY / SWING / INVESTMENT")
         print("Flow: live provider data -> completed bars -> scanner -> strategy -> option selector -> risk -> Paper Desk -> journal")
@@ -73,6 +74,7 @@ def main() -> int:
         print("Broader futures/commodity/crypto markets: scan/research enabled where provider data exists; option entry fails closed until an exact contract provider is verified")
         print("Frequency: broad continuous opportunity scanning; NO forced trade quota")
         print("Shared market-data cache: ENABLED")
+        print("Visible terminal identity: V17 AUTONOMOUS OPTIONS")
         print("Live broker execution: LOCKED")
         print("Mode: PAPER ONLY")
 
