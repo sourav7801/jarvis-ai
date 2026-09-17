@@ -55,6 +55,12 @@ OLD_HISTORY_SAVE = '''        _save_history_cache(provider_symbol, resolution, b
 
 NEW_HISTORY_SAVE = '''        _save_history_cache(provider_symbol, resolution, snapshot_bars, snapshot)\n        frame = snapshot.tail(int(bars))\n        return {\n'''
 
+V1706_HISTORY_MARKERS = (
+    "def _history_snapshot_bars(requested_bars: int) -> int:",
+    "def _history_request_lock(provider_symbol: str, resolution: str, timeout_seconds: float = 45.0):",
+    '"cache_identity": "provider_symbol+resolution"',
+)
+
 QUOTE_HELPERS = '''\n\ndef _quote_cache_path(provider_symbol: str) -> Path:\n    raw = str(provider_symbol or "").strip().upper().encode("utf-8")\n    digest = hashlib.sha256(raw).hexdigest()[:24]\n    return _QUOTE_CACHE_DIR / f"{digest}.json"\n\n\ndef _load_quote_cache(provider_symbol: str) -> dict[str, Any] | None:\n    try:\n        payload = json.loads(_quote_cache_path(provider_symbol).read_text(encoding="utf-8"))\n        age = time.time() - float(payload.get("saved_at_epoch") or 0.0)\n        quote = payload.get("quote")\n        if age < 0 or age > _QUOTE_CACHE_TTL_SECONDS or not isinstance(quote, dict):\n            return None\n        if not quote.get("success"):\n            return None\n        try:\n            if float(quote.get("ltp") or 0.0) <= 0:\n                return None\n        except (TypeError, ValueError):\n            return None\n        result = dict(quote)\n        result["provider_cache_hit"] = True\n        result["provider_cache_age_seconds"] = round(age, 3)\n        return result\n    except (OSError, TypeError, ValueError, json.JSONDecodeError):\n        return None\n\n\ndef _save_quote_cache(provider_symbol: str, quote: dict[str, Any]) -> None:\n    if not isinstance(quote, dict) or not quote.get("success"):\n        return\n    _write_json_atomic(\n        _quote_cache_path(provider_symbol),\n        {\n            "saved_at_epoch": time.time(),\n            "provider_symbol": provider_symbol,\n            "quote": quote,\n        },\n    )\n'''
 
 QUOTE_HELPER_ANCHOR = '''\n\ndef get_quote(symbol: str, *, client: Any = None) -> dict[str, Any]:\n'''
@@ -112,15 +118,38 @@ def _insert_before_once(path: Path, anchor: str, block: str, label: str) -> bool
     return True
 
 
+def _has_v1706_history_snapshot(path: Path) -> bool:
+    text = path.read_text(encoding="utf-8")
+    return all(marker in text for marker in V1706_HISTORY_MARKERS)
+
+
+def _apply_legacy_history_patches(path: Path) -> bool:
+    """Apply the pre-V17.0.6 history upgrade only when it is still needed.
+
+    V17.0.6 replaces these intermediate blocks with a canonical
+    symbol/timeframe cache plus single-flight lock.  Re-running this older
+    patcher after that upgrade must recognize the newer implementation instead
+    of treating its intentionally changed anchors as corruption.
+    """
+    if _has_v1706_history_snapshot(path):
+        print(
+            "V17 canonical FYERS history snapshot already present; "
+            "legacy shared-history patches are superseded."
+        )
+        return False
+    _replace_once(path, OLD_PATH, NEW_PATH, "FYERS shared-history cache path")
+    _replace_once(path, OLD_LOAD, NEW_LOAD, "FYERS shared-history cache load")
+    _replace_once(path, OLD_HISTORY_WINDOW, NEW_HISTORY_WINDOW, "FYERS canonical history window")
+    _replace_once(path, OLD_HISTORY_FRAME, NEW_HISTORY_FRAME, "FYERS canonical history snapshot")
+    _replace_once(path, OLD_HISTORY_SAVE, NEW_HISTORY_SAVE, "FYERS canonical history save")
+    return True
+
+
 def main() -> int:
     _replace_once(FYERS_TARGET, OLD_GOVERNOR_CONSTANTS, NEW_GOVERNOR_CONSTANTS, "FYERS governor constants")
     _replace_once(FYERS_TARGET, OLD_ENSURE_DIRS, NEW_ENSURE_DIRS, "FYERS cache directories")
     _replace_once(FYERS_TARGET, OLD_COOLDOWN, NEW_COOLDOWN, "FYERS escalating 429 cooldown")
-    _replace_once(FYERS_TARGET, OLD_PATH, NEW_PATH, "FYERS shared-history cache path")
-    _replace_once(FYERS_TARGET, OLD_LOAD, NEW_LOAD, "FYERS shared-history cache load")
-    _replace_once(FYERS_TARGET, OLD_HISTORY_WINDOW, NEW_HISTORY_WINDOW, "FYERS canonical history window")
-    _replace_once(FYERS_TARGET, OLD_HISTORY_FRAME, NEW_HISTORY_FRAME, "FYERS canonical history snapshot")
-    _replace_once(FYERS_TARGET, OLD_HISTORY_SAVE, NEW_HISTORY_SAVE, "FYERS canonical history save")
+    _apply_legacy_history_patches(FYERS_TARGET)
     _insert_before_once(FYERS_TARGET, QUOTE_HELPER_ANCHOR, QUOTE_HELPERS, "FYERS cross-process quote cache helpers")
     _replace_once(FYERS_TARGET, OLD_QUOTE_START, NEW_QUOTE_START, "FYERS quote cache read")
     _replace_once(FYERS_TARGET, OLD_QUOTE_SUCCESS, NEW_QUOTE_SUCCESS, "FYERS quote cache write")
