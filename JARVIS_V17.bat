@@ -33,6 +33,14 @@ if errorlevel 1 (
     exit /b 22
 )
 
+".venv\Scripts\python.exe" scripts\apply_v17_market_session_patches.py
+if errorlevel 1 (
+    echo.
+    echo V17 venue-aware market-session patch failed. JARVIS will not start with a partially patched market-data path.
+    pause
+    exit /b 23
+)
+
 ".venv\Scripts\python.exe" -m scripts.jarvis_runtime_supervisor_v17
 set EXIT_CODE=%ERRORLEVEL%
 
