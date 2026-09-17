@@ -39,6 +39,7 @@ jobs:
         run: |
           python scripts/apply_v17_release_patches.py
           python scripts/apply_v17_stability_patches.py
+          python scripts/apply_v17_history_snapshot_patches.py
           python scripts/apply_v17_market_session_patches.py
 
       - name: Verify browser transport syntax
@@ -56,6 +57,23 @@ jobs:
           if ($app -notmatch 'liveTickBusy') { throw 'Non-overlapping live polling guard missing' }
           if ($scheduler -notmatch '/api/v16/trading/workspace-state') { throw 'Canonical state dedupe missing' }
           if ($scheduler -notmatch 'writesIntercepted: false') { throw 'Read-only transport boundary missing' }
+
+      - name: Verify canonical FYERS history invariants
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          from agents import fyers_data_adapter as adapter
+
+          assert adapter._history_cache_path("NSE:NIFTY50-INDEX", "5", 220) == adapter._history_cache_path("NSE:NIFTY50-INDEX", "5", 500)
+          assert adapter._history_cache_path("NSE:NIFTY50-INDEX", "5", 500) != adapter._history_cache_path("NSE:NIFTY50-INDEX", "15", 500)
+          assert adapter._history_snapshot_bars(220) >= 500
+          quant = Path("workstation/quant_terminal_v2.py").read_text(encoding="utf-8")
+          assert '"provider_cache_stale": bool(payload.get("provider_cache_stale"))' in quant
+          assert 'if provider_stale:' in quant
+          assert '"available": False' in quant
+          print("V17 canonical FYERS history identity and stale-evidence hard block verified.")
+          '@ | python -
 
       - name: Verify venue-aware market-session routing
         shell: pwsh
