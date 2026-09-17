@@ -16,28 +16,38 @@ class V17LiveFetchSchedulerTests(unittest.TestCase):
             cls.project_root / "workstation" / "v17_terminal_http.py"
         ).read_text(encoding="utf-8")
 
-    def test_scheduler_only_governs_live_get_requests(self):
+    def test_scheduler_only_governs_read_only_local_requests(self):
         self.assertIn(
             "if (!window.JARVIS_V17_RUNTIME || window.JARVIS_V17_LIVE_FETCH_SCHEDULER) return;",
             self.scheduler_js,
         )
         self.assertIn('method !== "GET"', self.scheduler_js)
-        self.assertIn('url.pathname !== "/api/live"', self.scheduler_js)
-        self.assertIn("if (!key) return nativeFetch(input, init);", self.scheduler_js)
+        self.assertIn('if (url.origin !== window.location.origin) return null;', self.scheduler_js)
+        self.assertIn('if (info.path !== "/api/live")', self.scheduler_js)
+        self.assertIn("return nativeFetch(input, init);", self.scheduler_js)
+        self.assertIn("writesIntercepted: false", self.scheduler_js)
 
-    def test_scheduler_bounds_concurrency_and_coalesces_duplicates(self):
+    def test_scheduler_bounds_live_reads_and_coalesces_duplicates(self):
         self.assertIn("const MAX_CONCURRENT_LIVE_READS = 2;", self.scheduler_js)
-        self.assertIn("const LIVE_CACHE_MS = 2200;", self.scheduler_js)
+        self.assertIn("const LIVE_CACHE_MS = 4000;", self.scheduler_js)
         self.assertIn(
-            "while (active < MAX_CONCURRENT_LIVE_READS && queue.length)",
+            "while (activeLive < MAX_CONCURRENT_LIVE_READS && liveQueue.length)",
             self.scheduler_js,
         )
-        self.assertIn("const existing = pending.get(key);", self.scheduler_js)
+        self.assertIn("const existing = livePending.get(info.key);", self.scheduler_js)
         self.assertIn("if (existing) return existing.then", self.scheduler_js)
-        self.assertIn("cache.set(task.key", self.scheduler_js)
+        self.assertIn("liveCache.set(task.key", self.scheduler_js)
         self.assertIn(
             "window.fetch = function v17BoundedFetch", self.scheduler_js
         )
+
+    def test_canonical_state_reads_bypass_live_queue_and_are_deduplicated(self):
+        self.assertIn("const CANONICAL_CACHE_MS = 1200;", self.scheduler_js)
+        self.assertIn('"/api/v16/trading/workspace-state"', self.scheduler_js)
+        self.assertIn('"/api/v17/trading/status"', self.scheduler_js)
+        self.assertIn("const existing = canonicalPending.get(key);", self.scheduler_js)
+        self.assertIn("return canonicalFetch(input, init, info.key);", self.scheduler_js)
+        self.assertIn("canonicalPending.set(key, task);", self.scheduler_js)
 
     def test_v17_http_injects_scheduler_before_runtime(self):
         self.assertIn(
