@@ -23,6 +23,7 @@ NEW_START_MESSAGE = '"V17 PAPER autopilot started canonical sessions plus BTC/ET
 
 OLD_STATUS_PREF = '''            "autopilot_preferences": preferences,\n'''
 NEW_STATUS_PREF = '''            "autopilot_preferences": preferences,\n            "crypto_underlying_paper": crypto_paper_lane.status(),\n'''
+STATUS_MARKER = '''            "crypto_underlying_paper": crypto_paper_lane.status(),\n'''
 
 OLD_CAPABILITY = '''    if (["BTC", "ETH"].includes(value)) {\n      return {tier: "PUBLIC RESEARCH", kind: "research", source: "DERIBIT PUBLIC OPTIONS", detail: "Verified Deribit public option-chain research is available. V16 does not use the older separate crypto paper-intent ledger."};\n    }\n'''
 NEW_CAPABILITY = '''    if (["BTC", "ETH"].includes(value)) {\n      return {tier: "OPTIONS RESEARCH + UNDERLYING AUTO PAPER", kind: "auto", source: "DERIBIT RESEARCH + CANONICAL PAPER DESK", detail: "Deribit option contracts remain research-only. BTC/ETH underlying paper entries are autonomous through the canonical Paper Desk after fresh strategy, risk and capital gates pass."};\n    }\n'''
@@ -45,23 +46,24 @@ def replace_once(path: Path, old: str, new: str, label: str) -> None:
     print(f"Applied V17 {label} patch.")
 
 
-def replace_all_once(path: Path, old: str, new: str, expected_minimum: int, label: str) -> None:
+def expose_status(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
-    if new in text and old not in text:
-        print(f"V17 {label} patch already present.")
+    marker_count = text.count(STATUS_MARKER)
+    if marker_count >= 2:
+        print("V17 crypto lane status exposure patch already present.")
         return
-    count = text.count(old)
-    if count < expected_minimum:
-        raise SystemExit(f"Expected {label} blocks were not found; refusing a partial crypto-paper patch.")
-    path.write_text(text.replace(old, new), encoding="utf-8")
-    print(f"Applied V17 {label} patch to {count} block(s).")
+    count = text.count(OLD_STATUS_PREF)
+    if count < 2:
+        raise SystemExit("Expected crypto lane status exposure blocks were not found; refusing a partial crypto-paper patch.")
+    path.write_text(text.replace(OLD_STATUS_PREF, NEW_STATUS_PREF), encoding="utf-8")
+    print(f"Applied V17 crypto lane status exposure patch to {count} block(s).")
 
 
 def main() -> int:
     replace_once(HTTP_TARGET, OLD_IMPORT, NEW_IMPORT, "crypto lane import")
     replace_once(HTTP_TARGET, OLD_CONTROL_TAIL, NEW_CONTROL_TAIL, "one-touch crypto lane control")
     replace_once(HTTP_TARGET, OLD_START_MESSAGE, NEW_START_MESSAGE, "one-touch crypto start message")
-    replace_all_once(HTTP_TARGET, OLD_STATUS_PREF, NEW_STATUS_PREF, 2, "crypto lane status exposure")
+    expose_status(HTTP_TARGET)
     replace_once(ROUTER_TARGET, OLD_CAPABILITY, NEW_CAPABILITY, "crypto capability routing")
     replace_once(ROUTER_TARGET, OLD_CAPABILITY_CARD, NEW_CAPABILITY_CARD, "crypto capability card")
     replace_once(ROUTER_TARGET, OLD_POSITION_HEAD, NEW_POSITION_HEAD, "crypto underlying open-position card")
