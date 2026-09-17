@@ -12,6 +12,7 @@ from typing import Any
 
 from workstation.v16_terminal_http import build_handler as build_v16_handler
 from workstation.v17_autopilot_preferences import load_preferences, save_preferences
+from workstation.v17_crypto_paper_lane import crypto_paper_lane
 
 V17_STATUS_PATH = "/api/v17/trading/status"
 V17_PREFERENCES_PATH = "/api/v17/autopilot/preferences"
@@ -90,6 +91,25 @@ def _safety(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     return result
 
 
+def _crypto_lane_status() -> dict[str, Any]:
+    try:
+        return dict(crypto_paper_lane.status())
+    except Exception as exc:
+        return _safety(
+            {
+                "success": False,
+                "service": "JARVIS_V17_CANONICAL_CRYPTO_UNDERLYING_PAPER",
+                "running": False,
+                "state": "PROBLEM",
+                "reason": "CRYPTO_PAPER_STATUS_UNAVAILABLE",
+                "message": f"{type(exc).__name__}: {exc}"[:400],
+                "positions": [],
+                "open_positions": 0,
+                "last_rows_summary": [],
+            }
+        )
+
+
 def _autopilot_control(runtime: Any, body: dict[str, Any]) -> dict[str, Any]:
     action = str(body.get("action") or "").strip().lower()
     if action in {"resume", "run"}:
@@ -116,8 +136,26 @@ def _autopilot_control(runtime: Any, body: dict[str, Any]) -> dict[str, Any]:
                 "message": str(exc)[:300],
             }
 
+    try:
+        if action == "start":
+            results["CRYPTO_UNDERLYING"] = dict(crypto_paper_lane.start())
+        else:
+            results["CRYPTO_UNDERLYING"] = dict(crypto_paper_lane.stop_new_entries())
+    except Exception as exc:
+        results["CRYPTO_UNDERLYING"] = {
+            "success": False,
+            "state": "PROBLEM",
+            "reason": type(exc).__name__,
+            "message": str(exc)[:300],
+            "paper_only": True,
+            "live_execution": False,
+        }
+
     success = all(item.get("success") is True for item in results.values())
-    states = {name: item.get("state") for name, item in results.items()}
+    states = {
+        name: item.get("state") or ("RUNNING" if item.get("running") else "PAUSED")
+        for name, item in results.items()
+    }
     return _safety(
         {
             "success": success,
@@ -128,9 +166,9 @@ def _autopilot_control(runtime: Any, body: dict[str, Any]) -> dict[str, Any]:
             "preferences": preferences,
             "options_capital_fraction": preferences["options_capital_fraction"],
             "message": (
-                "V17 PAPER autopilot start requested through canonical sessions."
+                "V17 PAPER autopilot started canonical sessions plus BTC/ETH/SOL adaptive underlying scanning."
                 if action == "start"
-                else "V17 new-entry sessions paused; existing Paper Desk positions remain managed."
+                else "V17 new-entry sessions paused, including crypto underlying scanning; existing Paper Desk positions remain managed."
             ),
         }
     )
@@ -204,13 +242,14 @@ def _v17_status(runtime, workspace: str) -> dict:
         "stream": _fyers_stream_status(),
     }
     preferences = load_preferences()
+    crypto_status = _crypto_lane_status()
 
     service = getattr(runtime, "v17_autonomy_service", None)
     if service is None:
         return {
             "success": False,
             "service": "JARVIS_V17_AUTONOMOUS_OPTIONS_PAPER_RUNTIME",
-            "version": "17.0",
+            "version": "17.2",
             "installed": False,
             "reason": "V17_AUTONOMY_SERVICE_NOT_INSTALLED",
             "workspace": route["requested_workspace"],
@@ -218,6 +257,7 @@ def _v17_status(runtime, workspace: str) -> dict:
             "route": route,
             "market_data": market_data,
             "autopilot_preferences": preferences,
+            "crypto_underlying_paper": crypto_status,
             **safety,
         }
 
@@ -226,7 +266,7 @@ def _v17_status(runtime, workspace: str) -> dict:
         {
             "success": True,
             "service": "JARVIS_V17_AUTONOMOUS_OPTIONS_PAPER_RUNTIME",
-            "version": "17.1",
+            "version": "17.2",
             "runtime_identity": "V17_AUTONOMOUS_OPTIONS",
             "verified_parent": "V16_TRADING_CONVERGENCE",
             "workspace": route["requested_workspace"],
@@ -234,6 +274,7 @@ def _v17_status(runtime, workspace: str) -> dict:
             "route": route,
             "market_data": market_data,
             "autopilot_preferences": preferences,
+            "crypto_underlying_paper": crypto_status,
             **safety,
         }
     )
@@ -244,7 +285,7 @@ def build_handler(base, runtime):
     V16Handler = build_v16_handler(base, runtime)
 
     class V17TerminalHandler(V16Handler):
-        server_version = "JarvisQuantV17/1.3"
+        server_version = "JarvisQuantV17/1.4"
 
         def _serve_v17_root(self):
             from workstation.quant_terminal_v2 import STATIC
@@ -263,6 +304,7 @@ def build_handler(base, runtime):
                 '<script defer src="/v16_workspace_router.js"></script>'
                 '<script defer src="/v16_option_readiness_runtime.js"></script>'
                 '<script defer src="/v17_runtime.js?v=170100"></script>'
+                '<script defer src="/v17_crypto_paper_runtime.js?v=170200"></script>'
             )
             content = html.replace("</head>", injection + "</head>").encode("utf-8")
             self.send_response(200)
@@ -281,7 +323,7 @@ def build_handler(base, runtime):
             if parsed.path == "/" and self._local():
                 return self._serve_v17_root()
 
-            if parsed.path in {"/v17_runtime.js", "/v17_live_fetch_scheduler.js"} and self._local():
+            if parsed.path in {"/v17_runtime.js", "/v17_live_fetch_scheduler.js", "/v17_crypto_paper_runtime.js"} and self._local():
                 from workstation.quant_terminal_v2 import STATIC
                 return self.send_file(STATIC / parsed.path.lstrip("/"), "application/javascript; charset=utf-8")
 
@@ -331,6 +373,7 @@ __all__ = [
     "V17_PREFERENCES_PATH",
     "V17_CONTROL_PATH",
     "_autopilot_control",
+    "_crypto_lane_status",
     "_fyers_stream_status",
     "_normalize_capital_fraction",
     "_preference_updates",
