@@ -25,6 +25,14 @@ if errorlevel 1 (
     exit /b 21
 )
 
+".venv\Scripts\python.exe" scripts\apply_v17_stability_patches.py
+if errorlevel 1 (
+    echo.
+    echo V17 browser/runtime stability patch failed. JARVIS will not start with a partially patched UI data path.
+    pause
+    exit /b 22
+)
+
 ".venv\Scripts\python.exe" -m scripts.jarvis_runtime_supervisor_v17
 set EXIT_CODE=%ERRORLEVEL%
 
