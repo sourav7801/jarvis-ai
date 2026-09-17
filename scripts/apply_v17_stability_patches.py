@@ -16,6 +16,7 @@ Goals:
 """
 
 from pathlib import Path
+from typing import Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
 APP_TARGET = ROOT / "workstation" / "quant_terminal_v2_static" / "app.js"
@@ -29,6 +30,17 @@ NEW_CANDLE_GATE = '''    if(candleActive>=2)await new Promise(resolve=>candleQue
 OLD_REFRESH_ALL = '''async function refreshAllWatch(){\n  await Promise.allSettled(MARKETS.map(async item=>{\n    try{const payload=await fetchJson(`/api/live?${new URLSearchParams({symbol:item.symbol})}`,{},10000);if(payload.success&&payload.snapshot)updateWatchTile(item.symbol,payload.snapshot,{degraded:Boolean(payload.stream_degraded||payload.stale)});else updateWatchTile(item.symbol,null,{message:payload.message||"data unavailable"})}catch(error){updateWatchTile(item.symbol,null,{message:error.message})}\n  }));\n}\n'''
 NEW_REFRESH_ALL = '''async function refreshAllWatch(){\n  // Hydrate in tiny batches so watchlist reads never consume the browser's\n  // entire localhost connection pool and starve canonical trading state.\n  for(let offset=0;offset<MARKETS.length;offset+=2){\n    const batch=MARKETS.slice(offset,offset+2);\n    await Promise.allSettled(batch.map(async item=>{\n      try{const payload=await fetchJson(`/api/live?${new URLSearchParams({symbol:item.symbol})}`,{},12000);if(payload.success&&payload.snapshot)updateWatchTile(item.symbol,payload.snapshot,{degraded:Boolean(payload.stream_degraded||payload.stale)});else updateWatchTile(item.symbol,null,{message:payload.message||"data unavailable"})}catch(error){updateWatchTile(item.symbol,null,{message:error.message})}\n    }));\n  }\n}\n'''
 
+# Later V17 patches intentionally enrich the body of refreshAllWatch() with
+# venue/status rendering.  These structural markers let the stability patcher
+# recognise that the batching/concurrency change is already installed even
+# when another idempotent patch has modified the inner updateWatchTile call.
+STAGED_WATCHLIST_MARKERS = (
+    "for(let offset=0;offset<MARKETS.length;offset+=2){",
+    "const batch=MARKETS.slice(offset,offset+2);",
+    "await Promise.allSettled(batch.map(async item=>{",
+    "fetchJson(`/api/live?${new URLSearchParams({symbol:item.symbol})}`,{},12000)",
+)
+
 OLD_START_TIMERS = '''function startTimers(){\n  if(liveTimer)clearInterval(liveTimer);liveTimer=setInterval(()=>{chartSlots.forEach(slot=>{if(String(marketMeta(slot.symbol).kind).startsWith("INDIA"))pollSlotLive(slot)});refreshOneWatch()},1200);\n  if(providerTimer)clearInterval(providerTimer);providerTimer=setInterval(refreshProvider,5000);\n  if(signalTimer)clearInterval(signalTimer);signalTimer=setInterval(()=>loadDecision(selectedSymbol),30000);\n}\n'''
 NEW_START_TIMERS = '''function startTimers(){\n  if(liveTimer)clearInterval(liveTimer);\n  liveTimer=setInterval(async()=>{\n    if(liveTickBusy)return;\n    liveTickBusy=true;\n    try{\n      const india=chartSlots.filter(slot=>String(marketMeta(slot.symbol).kind).startsWith("INDIA"));\n      const tasks=[];\n      if(india.length){const slot=india[chartLiveCursor%india.length];chartLiveCursor++;tasks.push(pollSlotLive(slot))}\n      tasks.push(refreshOneWatch());\n      await Promise.allSettled(tasks);\n    }finally{liveTickBusy=false}\n  },2500);\n  if(providerTimer)clearInterval(providerTimer);providerTimer=setInterval(refreshProvider,7000);\n  if(signalTimer)clearInterval(signalTimer);signalTimer=setInterval(()=>loadDecision(selectedSymbol),30000);\n}\n'''
 
@@ -36,9 +48,17 @@ OLD_BOOTSTRAP_TAIL = '''  buildWatch();bindControls();syncControls();const watch
 NEW_BOOTSTRAP_TAIL = '''  // Do not burst watchlist + charts + canonical observers at boot.  Charts get\n  // first use of the bounded history lanes, then watch tiles hydrate in pairs.\n  buildWatch();bindControls();syncControls();await mountCharts();refreshProvider();await refreshAllWatch();startTimers();if(params.get("analyze")==="1")await scanSelected();\n}\n'''
 
 
-def _replace_once(path: Path, old: str, new: str, label: str) -> bool:
+def _replace_once(
+    path: Path,
+    old: str,
+    new: str,
+    label: str,
+    *,
+    semantic_markers: Iterable[str] = (),
+) -> bool:
     text = path.read_text(encoding="utf-8")
-    if new in text:
+    markers = tuple(semantic_markers)
+    if new in text or (markers and all(marker in text for marker in markers)):
         print(f"V17 {label} patch already present.")
         return False
     if old not in text:
@@ -51,7 +71,13 @@ def _replace_once(path: Path, old: str, new: str, label: str) -> bool:
 def main() -> int:
     _replace_once(APP_TARGET, OLD_RUNTIME_COUNTERS, NEW_RUNTIME_COUNTERS, "browser polling counters")
     _replace_once(APP_TARGET, OLD_CANDLE_GATE, NEW_CANDLE_GATE, "bounded chart-history concurrency")
-    _replace_once(APP_TARGET, OLD_REFRESH_ALL, NEW_REFRESH_ALL, "staged watchlist hydration")
+    _replace_once(
+        APP_TARGET,
+        OLD_REFRESH_ALL,
+        NEW_REFRESH_ALL,
+        "staged watchlist hydration",
+        semantic_markers=STAGED_WATCHLIST_MARKERS,
+    )
     _replace_once(APP_TARGET, OLD_START_TIMERS, NEW_START_TIMERS, "rotating non-overlapping live polling")
     _replace_once(APP_TARGET, OLD_BOOTSTRAP_TAIL, NEW_BOOTSTRAP_TAIL, "staged terminal bootstrap")
     print("V17 browser/runtime stability patches complete.")
