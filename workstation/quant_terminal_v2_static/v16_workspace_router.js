@@ -285,10 +285,15 @@
     document.documentElement.classList.toggle("v16-options-workspace", enabled);
     [...intel.children].forEach(node => {
       if (node === optionsCard) { node.hidden = !enabled; return; }
+      if (node.id === "v17CryptoPaperCard") { node.hidden = false; return; }
       if (enabled) { if (!hiddenBeforeOptions.has(node)) hiddenBeforeOptions.set(node, Boolean(node.hidden)); node.hidden = true; }
       else if (hiddenBeforeOptions.has(node)) { node.hidden = hiddenBeforeOptions.get(node); hiddenBeforeOptions.delete(node); }
     });
-    if (enabled && intel.firstElementChild !== optionsCard) intel.prepend(optionsCard);
+    if (enabled) {
+      if (intel.firstElementChild !== optionsCard) intel.prepend(optionsCard);
+      const unified = $("v17CryptoPaperCard");
+      if (unified?.parentElement === intel) intel.prepend(unified);
+    }
   }
 
   function setCenterOptionsVisibility(enabled) {
