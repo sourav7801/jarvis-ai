@@ -39,6 +39,7 @@ jobs:
         run: |
           python scripts/apply_v17_release_patches.py
           python scripts/apply_v17_stability_patches.py
+          python scripts/apply_v17_market_session_patches.py
 
       - name: Verify browser transport syntax
         run: |
@@ -55,6 +56,28 @@ jobs:
           if ($app -notmatch 'liveTickBusy') { throw 'Non-overlapping live polling guard missing' }
           if ($scheduler -notmatch '/api/v16/trading/workspace-state') { throw 'Canonical state dedupe missing' }
           if ($scheduler -notmatch 'writesIntercepted: false') { throw 'Read-only transport boundary missing' }
+
+      - name: Verify venue-aware market-session routing
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          from workstation.market_data_contract import VENUE_SESSIONS
+          from workstation.paper_market_data import PAPER_MARKET_DATA
+
+          assert VENUE_SESSIONS.venue_for(PAPER_MARKET_DATA.metadata("BTC")) == "CRYPTO_24_7"
+          assert VENUE_SESSIONS.venue_for(PAPER_MARKET_DATA.metadata("CRUDEOIL")) == "MCX"
+          assert VENUE_SESSIONS.venue_for(PAPER_MARKET_DATA.metadata("GOLD")) == "MCX"
+          assert VENUE_SESSIONS.venue_for(PAPER_MARKET_DATA.metadata("NIFTY")) == "NSE"
+          assert VENUE_SESSIONS.venue_for(PAPER_MARKET_DATA.metadata("SENSEX")) == "BSE"
+
+          quant = Path("workstation/quant_terminal_v2.py").read_text(encoding="utf-8")
+          app = Path("workstation/quant_terminal_v2_static/app.js").read_text(encoding="utf-8")
+          assert 'PAPER_MARKET_DATA.session_open(canonical)' in quant
+          assert 'snapshot_kind"] = "MARKET_CLOSED_STREAM_CACHE"' in quant
+          assert 'payload.market_closed?"CLOSED"' in app
+          print("V17 venue-aware routing verified: crypto 24/7, MCX independent, NSE/BSE independent.")
+          '@ | python -
 
       - name: Static parse
         run: python scripts/static_check.py
