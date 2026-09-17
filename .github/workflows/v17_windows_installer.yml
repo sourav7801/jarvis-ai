@@ -1,0 +1,133 @@
+name: JARVIS V17 Windows Installer
+
+on:
+  push:
+    branches:
+      - jarvis-dev/20260916-JARVIS-V17-autonomous-options-runtime
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  v17-release-installer:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact V17 branch commit
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Prepare release test environment
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install --no-deps -e .
+          python -m pip install pandas numpy requests psutil
+
+      - name: Apply deterministic V17 release patches
+        run: python scripts/apply_v17_release_patches.py
+
+      - name: Verify FYERS shared-history cache patch
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          text = Path("agents/fyers_data_adapter.py").read_text(encoding="utf-8")
+          assert 'raw = f"{provider_symbol}|{resolution}".encode("utf-8")' in text
+          assert 'raw = f"{provider_symbol}|{resolution}|{int(bars)}".encode("utf-8")' not in text
+          assert 'if frame.empty or len(frame) < int(bars):' in text
+          print("FYERS shared-history cache release patch verified.")
+          '@ | python -
+
+      - name: Static parse
+        run: python scripts/static_check.py
+
+      - name: Runtime doctor
+        run: python -m scripts.doctor --ci --json
+
+      - name: V17 autonomous-options regression gate
+        run: python -m unittest discover -s tests -p "test_v17_autopilot_controller.py" -v
+
+      - name: V17 release invariants
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          terminal = Path("workstation/v17_terminal_http.py").read_text(encoding="utf-8")
+          scheduler = Path("workstation/quant_terminal_v2_static/v17_live_fetch_scheduler.js").read_text(encoding="utf-8")
+          supervisor = Path("scripts/jarvis_runtime_supervisor_v17.py").read_text(encoding="utf-8")
+          launcher = Path("installer/Launch-JARVIS-V17.cmd").read_text(encoding="utf-8")
+
+          assert "JARVIS_V17_SINGLE_OPTION_CONTROLLER=true" in terminal
+          assert "/v17_live_fetch_scheduler.js" in terminal
+          assert "MAX_CONCURRENT_LIVE_READS = 2" in scheduler
+          assert 'url.pathname !== "/api/live"' in scheduler
+          assert '"paper_only": True' in supervisor
+          assert '"live_execution": False' in supervisor
+          assert '"automatic_broker_order": False' in supervisor
+          assert "JARVIS_LIVE_EXECUTION=0" in launcher
+          print("V17 PAPER-only release invariants verified.")
+          '@ | python -
+
+      - name: Stage clean installer payload
+        shell: pwsh
+        run: |
+          $dest = Join-Path $PWD "build\v17_payload"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          $exclude = @(".git", ".github", ".venv", ".venv-fyers", "build", "dist", "tests", "__pycache__")
+          Get-ChildItem -Force | Where-Object { $exclude -notcontains $_.Name } | ForEach-Object {
+            Copy-Item $_.FullName -Destination $dest -Recurse -Force
+          }
+          if (-not (Test-Path (Join-Path $dest "scripts\jarvis_runtime_supervisor_v17.py"))) { throw "V17 supervisor missing from payload" }
+          if (-not (Test-Path (Join-Path $dest "workstation\quant_terminal_v2_static\v17_live_fetch_scheduler.js"))) { throw "V17 scheduler missing from payload" }
+
+      - name: Install Inno Setup compiler
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+
+      - name: Build JARVIS V17 Setup EXE
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            $iscc = "${env:ProgramFiles}\Inno Setup 6\ISCC.exe"
+          }
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe was not found after installation" }
+          & $iscc "installer\jarvis_v17.iss"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path "dist\JARVIS-V17-Setup.exe")) { throw "Installer output missing" }
+
+      - name: Generate installer checksum and manifest
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash "dist\JARVIS-V17-Setup.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  JARVIS-V17-Setup.exe" | Set-Content "dist\JARVIS-V17-Setup.sha256" -Encoding ascii
+          $manifest = [ordered]@{
+            product = "JARVIS V17"
+            version = "17.0.0"
+            commit = "${{ github.sha }}"
+            paper_only = $true
+            live_execution = $false
+            automatic_broker_order = $false
+            fyers_shared_history_cache_patch = $true
+            sha256 = $hash
+          } | ConvertTo-Json
+          $manifest | Set-Content "dist\JARVIS-V17-build.json" -Encoding utf8
+          Get-Item "dist\JARVIS-V17-Setup.exe" | Format-List Name,Length,LastWriteTime
+          Get-Content "dist\JARVIS-V17-Setup.sha256"
+
+      - name: Upload verified Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: JARVIS-V17-Windows-Installer
+          path: |
+            dist/JARVIS-V17-Setup.exe
+            dist/JARVIS-V17-Setup.sha256
+            dist/JARVIS-V17-build.json
+          if-no-files-found: error
+          retention-days: 14
