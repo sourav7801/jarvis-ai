@@ -46,8 +46,10 @@ jobs:
           print("V17.0.2 installer dependency contract verified.")
           '@ | python -
 
-      - name: Apply deterministic V17 release patches
-        run: python scripts/apply_v17_release_patches.py
+      - name: Apply deterministic V17 runtime patches
+        run: |
+          python scripts/apply_v17_release_patches.py
+          python scripts/apply_v17_stability_patches.py
 
       - name: Verify FYERS shared-history cache patch
         shell: pwsh
@@ -61,21 +63,32 @@ jobs:
           print("FYERS shared-history cache release patch verified.")
           '@ | python -
 
-      - name: Verify V17 data-health and chart-routing patches
+      - name: Verify V17 data-health chart and load-governor patches
         shell: pwsh
         run: |
           @'
           from pathlib import Path
           app = Path("workstation/quant_terminal_v2_static/app.js").read_text(encoding="utf-8")
           autonomy = Path("workstation/quant_terminal_v2_static/v16_autonomy_runtime.js").read_text(encoding="utf-8")
+          scheduler = Path("workstation/quant_terminal_v2_static/v17_live_fetch_scheduler.js").read_text(encoding="utf-8")
           assert 'const usedSymbols=new Set(chartSlots.map(slot=>String(slot?.symbol||"").toUpperCase()));' in app
           assert 'symbol=SLOT_DEFAULTS.find(item=>!usedSymbols.has(item))||symbol;' in app
           assert 'function providerState(state, symbol = "")' in autonomy
           assert 'const candidateSymbol = String(candidate?.symbol || "").toUpperCase();' in autonomy
           assert 'const market = providerState(state, candidateSymbol || underlying);' in autonomy
           assert 'const market = providerState(state, actionable?.symbol || candidates[0]?.symbol || "");' in autonomy
-          print("V17 candidate-scoped data health and unique chart routing verified.")
+          assert 'candleActive>=2' in app
+          assert 'MARKETS.slice(offset,offset+2)' in app
+          assert 'liveTickBusy' in app
+          assert '/api/v16/trading/workspace-state' in scheduler
+          assert 'writesIntercepted: false' in scheduler
+          print("V17 candidate health, chart routing and browser load governor verified.")
           '@ | python -
+
+      - name: Verify browser JavaScript syntax
+        run: |
+          node --check workstation/quant_terminal_v2_static/v17_live_fetch_scheduler.js
+          node --check workstation/quant_terminal_v2_static/app.js
 
       - name: Static parse
         run: python scripts/static_check.py
@@ -99,7 +112,9 @@ jobs:
           assert "JARVIS_V17_SINGLE_OPTION_CONTROLLER=true" in terminal
           assert "/v17_live_fetch_scheduler.js" in terminal
           assert "MAX_CONCURRENT_LIVE_READS = 2" in scheduler
-          assert 'url.pathname !== "/api/live"' in scheduler
+          assert '"/api/v16/trading/workspace-state"' in scheduler
+          assert "CANONICAL_CACHE_MS = 1200" in scheduler
+          assert "writesIntercepted: false" in scheduler
           assert '"paper_only": True' in supervisor
           assert '"live_execution": False' in supervisor
           assert '"automatic_broker_order": False' in supervisor
@@ -150,6 +165,8 @@ jobs:
             fyers_shared_history_cache_patch = $true
             candidate_scoped_data_health_patch = $true
             unique_chart_routing_patch = $true
+            browser_load_governor_patch = $true
+            canonical_state_dedupe_patch = $true
             setuptools_pin = "68.0.0"
             fyers_apiv3_pin = "3.1.18"
             no_build_isolation = $true
