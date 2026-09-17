@@ -93,10 +93,10 @@
     card.id = "v16AutonomousDecision";
     card.className = "v16-auto-decision";
     card.innerHTML = `
-      <div class="v16-auto-decision-head"><strong>AUTONOMOUS DECISION</strong><span id="v16AutoDecisionStatus" data-state="WAIT">WAIT</span></div>
+      <div class="v16-auto-decision-head"><strong>OPTION WORKSPACE DETAIL · VIEWED CHAIN</strong><span id="v16AutoDecisionStatus" data-state="WAIT">WAIT</span></div>
       <div id="v16AutoDecisionGrid" class="v16-auto-grid"></div>
-      <div id="v16AutoCandidate" class="v16-auto-contract"><small>AUTONOMOUS CANDIDATE</small><b>—</b></div>
-      <div id="v16ViewingContext" class="v16-view-context"><div><small>VIEWING CONTEXT · NOT EXECUTION AUTHORITY</small><b id="v16ViewingUnderlying">NIFTY</b></div><b id="v16ViewingChainState" data-kind="wait">WAITING</b><span>A manually viewed chain or row does not mean JARVIS selected that contract.</span></div>
+      <div id="v16AutoCandidate" class="v16-auto-contract"><small>ENGINE OPTION CANDIDATE</small><b>—</b></div>
+      <div id="v16ViewingContext" class="v16-view-context"><div><small>VIEWED CHAIN · RESEARCH ONLY</small><b id="v16ViewingUnderlying">NIFTY</b></div><b id="v16ViewingChainState" data-kind="wait">WAITING</b><span>This panel explains the viewed option chain. Cross-market V17 execution authority is the unified canonical card above.</span></div>
       <div id="v16AutoGates" class="v16-auto-gates"></div>
       <div id="v16AutoReasons" class="v16-auto-reasons"><strong>WAIT</strong><br>JARVIS has not produced a qualified autonomous option decision yet.</div>`;
     const pipeline = sidebar.querySelector(".v16-options-pipeline");
@@ -226,7 +226,7 @@
       if (["ACTIONABLE", "POSITION_OPEN", "MANAGING"].includes(status)) {
         reasonsNode.innerHTML = `<strong>${esc(status)}</strong><br>${status === "ACTIONABLE" ? "JARVIS has a qualified engine-selected contract. Final fresh-quote and Paper Desk gates remain authoritative." : "Canonical Paper Desk owns execution and position management."}`;
       } else if (!decision) {
-        reasonsNode.innerHTML = `<strong>WAIT · NO ENGINE ROW</strong><br>No ${esc(selectedUnderlying())} autonomous decision row exists in the latest canonical scanner snapshot yet. No contract or trade is inferred from the manually viewed chain.`;
+        reasonsNode.innerHTML = `<strong>WAIT · NO INDEX OPTION ROW</strong><br>No ${esc(selectedUnderlying())} exact index-option decision row exists in the latest canonical scanner snapshot. Cross-market V17 execution continues independently; no trade is inferred from this viewed chain.`;
       } else {
         const detail = primary ? `${esc(primary)}${extras.length ? ` · also: ${extras.map(esc).join(" · ")}` : ""}` : "no qualified engine decision yet";
         reasonsNode.innerHTML = `<strong>${esc(status)}${primary ? ` · ${esc(primary)}` : ""}</strong><br>JARVIS chose not to trade · ${detail}.`;
