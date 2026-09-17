@@ -25,9 +25,26 @@ jobs:
       - name: Prepare release test environment
         shell: pwsh
         run: |
-          python -m pip install --upgrade pip setuptools wheel
-          python -m pip install --no-deps -e .
+          python -m pip install --upgrade pip wheel
+          python -m pip install "setuptools==68.0.0"
+          python -m pip install --no-build-isolation --no-deps -e .
           python -m pip install pandas numpy requests psutil
+
+      - name: Verify installer dependency compatibility contract
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          bootstrap = Path("installer/bootstrap_v17.ps1").read_text(encoding="utf-8")
+          iss = Path("installer/jarvis_v17.iss").read_text(encoding="utf-8")
+          assert '"setuptools==68.0.0"' in bootstrap
+          assert '"fyers-apiv3==3.1.18"' in bootstrap
+          assert '--no-build-isolation --no-deps -e $Root' in bootstrap
+          assert '--upgrade pip setuptools wheel' not in bootstrap
+          assert 'version = "17.0.2"' in bootstrap
+          assert '#define MyAppVersion "17.0.2"' in iss
+          print("V17.0.2 installer dependency contract verified.")
+          '@ | python -
 
       - name: Apply deterministic V17 release patches
         run: python scripts/apply_v17_release_patches.py
@@ -125,7 +142,7 @@ jobs:
           "$hash  JARVIS-V17-Setup.exe" | Set-Content "dist\JARVIS-V17-Setup.sha256" -Encoding ascii
           $manifest = [ordered]@{
             product = "JARVIS V17"
-            version = "17.0.1"
+            version = "17.0.2"
             commit = "${{ github.sha }}"
             paper_only = $true
             live_execution = $false
@@ -133,6 +150,9 @@ jobs:
             fyers_shared_history_cache_patch = $true
             candidate_scoped_data_health_patch = $true
             unique_chart_routing_patch = $true
+            setuptools_pin = "68.0.0"
+            fyers_apiv3_pin = "3.1.18"
+            no_build_isolation = $true
             sha256 = $hash
           } | ConvertTo-Json
           $manifest | Set-Content "dist\JARVIS-V17-build.json" -Encoding utf8
