@@ -6,6 +6,11 @@ Services preserve the proven V15/V16 ownership machinery while replacing the
 Master and Quant launchers with V17 identities:
 - 8797: protected Master + V17 workstation bridge
 - 8787: V17 autonomous-options professional PAPER terminal
+
+V17 additionally refuses to adopt an already-running Quant process unless that
+process proves the current adaptive-crypto status contract.  This prevents an
+older terminal from surviving a Git pull merely because its generic health
+endpoint still answers with a compatible service name.
 """
 
 import os
@@ -33,6 +38,10 @@ QUANT_PORT = v16.QUANT_PORT
 QUANT_BASE = v16.QUANT_BASE
 _json_http = v16._json_http
 
+V17_QUANT_SERVICE = "JARVIS_V17_AUTONOMOUS_OPTIONS_PAPER_RUNTIME"
+V17_CRYPTO_SERVICE = "JARVIS_V17_CANONICAL_CRYPTO_UNDERLYING_PAPER"
+V17_ADAPTIVE_AUTHORITY = "ADAPTIVE_EXPECTED_VALUE_NOT_STATIC_SCORE"
+
 
 def master_v17_surface_status() -> dict[str, Any]:
     status, payload = _json_http(MASTER_BASE + "/api/v17/status", timeout=5.0)
@@ -50,6 +59,43 @@ def master_v17_surface_status() -> dict[str, Any]:
         and trading.get("manual_option_selection_required") is False
     )
     return {"current": current, "status": status, "service": payload.get("service")}
+
+
+def _current_quant_contract(payload: dict[str, Any] | None) -> bool:
+    """Return True only for the current V17 adaptive-crypto Quant contract."""
+    if not isinstance(payload, dict):
+        return False
+    if payload.get("success") is not True or payload.get("service") != V17_QUANT_SERVICE:
+        return False
+    crypto = payload.get("crypto_underlying_paper")
+    if not isinstance(crypto, dict):
+        return False
+    if crypto.get("service") != V17_CRYPTO_SERVICE:
+        return False
+    if str(crypto.get("qualification_authority") or "") != V17_ADAPTIVE_AUTHORITY:
+        return False
+    if str(crypto.get("decision_authority") or "") != V17_ADAPTIVE_AUTHORITY:
+        return False
+    if not str(crypto.get("adaptive_policy_version") or "").strip():
+        return False
+    if crypto.get("legacy_numeric_gates_are_execution_authority") is not False:
+        return False
+    if crypto.get("paper_only") is not True or crypto.get("live_execution") is not False:
+        return False
+    if not isinstance(crypto.get("last_rows_summary"), list):
+        return False
+    return True
+
+
+class JarvisRuntimeSupervisorV17(JarvisRuntimeSupervisorV15):
+    """V17 supervisor that refuses stale-but-responsive Quant runtimes."""
+
+    @staticmethod
+    def _health_payload(url: str, timeout: float = 1.5) -> dict[str, Any] | None:
+        payload = JarvisRuntimeSupervisorV15._health_payload(url, timeout)
+        if "/api/v17/trading/status" in str(url):
+            return payload if _current_quant_contract(payload) else None
+        return payload
 
 
 def v17_services(root: Path = ROOT) -> tuple[ManagedService, ...]:
@@ -94,8 +140,8 @@ def v17_services(root: Path = ROOT) -> tuple[ManagedService, ...]:
                 ManagedService(
                     name="quant",
                     argv=(python, str(root / "start_jarvis_professional_terminal_v17.py")),
-                    health_url=QUANT_BASE + "/api/terminal/health",
-                    expected_service="JARVIS_PROFESSIONAL_PAPER_TERMINAL",
+                    health_url=QUANT_BASE + "/api/v17/trading/status?workspace=OPTIONS",
+                    expected_service=V17_QUANT_SERVICE,
                     port=QUANT_PORT,
                     health_markers=(),
                     environment=tuple(env.items()),
@@ -112,10 +158,12 @@ def status() -> dict[str, Any]:
         "version": "17.0",
         "service": "JARVIS_RUNTIME_SUPERVISOR_V17",
         "master": "JARVIS_MASTER_V17_AUTONOMOUS_OPTIONS",
-        "trading": "JARVIS_V17_AUTONOMOUS_OPTIONS_PAPER_RUNTIME",
+        "trading": V17_QUANT_SERVICE,
         "single_supervisor_os_lease": True,
         "atomic_runtime_snapshot": True,
         "unknown_process_termination": False,
+        "strict_quant_contract_adoption": True,
+        "crypto_adaptive_authority_required": V17_ADAPTIVE_AUTHORITY,
         "paper_only": True,
         "live_execution": False,
         "automatic_broker_order": False,
@@ -144,12 +192,13 @@ def main() -> int:
         print("JARVIS V17 unified workstation preflight...")
         print("Master target: V17 unified workstation on 8797")
         print("Trading target: autonomous-options PAPER service on 8787")
+        print("Quant adoption contract: current adaptive crypto PAPER status is REQUIRED")
         print("Verified V12-V16 intelligence and canonical Paper Desk are preserved.")
         print("Start INTRADAY/SWING once; option contract selection is automatic thereafter.")
-        print("Broad scanning is allowed; no forced daily trade quota exists.")
+        print("Broad scanning is allowed; no forced trade quota exists.")
         print("Live broker execution remains LOCKED.")
         browser = str(os.getenv("JARVIS_NO_BROWSER", "0")).strip().lower() not in {"1", "true", "yes", "on"}
-        return JarvisRuntimeSupervisorV15(
+        return JarvisRuntimeSupervisorV17(
             root=ROOT,
             services=v17_services(ROOT),
             browser=browser,
