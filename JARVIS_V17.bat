@@ -49,6 +49,14 @@ if errorlevel 1 (
     exit /b 23
 )
 
+".venv\Scripts\python.exe" scripts\apply_v17_crypto_paper_patches.py
+if errorlevel 1 (
+    echo.
+    echo V17 canonical crypto PAPER patch failed. JARVIS will not start with a partially patched execution path.
+    pause
+    exit /b 25
+)
+
 ".venv\Scripts\python.exe" -m scripts.jarvis_runtime_supervisor_v17
 set EXIT_CODE=%ERRORLEVEL%
 
