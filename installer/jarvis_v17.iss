@@ -1,5 +1,5 @@
 #define MyAppName "JARVIS V17"
-#define MyAppVersion "17.0.1"
+#define MyAppVersion "17.0.2"
 #define MyAppPublisher "JARVIS"
 #define MyAppExeName "Launch-JARVIS-V17.cmd"
 
