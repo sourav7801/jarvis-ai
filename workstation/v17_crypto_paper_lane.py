@@ -8,6 +8,9 @@ broker-order methods.  Deribit option-chain data remains research-only;
 execution here is underlying BTC/ETH/SOL PAPER exposure only after the existing
 fresh-data, session, adaptive expected-value, risk geometry, capital,
 reconciliation and duplicate-exposure gates pass.
+
+The one-touch V17 control surface also carries the session-aware MCX PAPER lane
+as a nested status/result so no second HTTP control plane or ledger is created.
 """
 
 from typing import Any
@@ -16,6 +19,7 @@ from omni.trading_intelligence.adaptive_opportunity_policy import POLICY_VERSION
 from workstation.adaptive_paper_autonomy_engine import AdaptivePaperAutonomyEngine
 from workstation.paper_scan_ledger import paper_scan_ledger
 from workstation.paper_trading_desk import paper_desk
+from workstation.v17_mcx_paper_lane import mcx_paper_lane
 
 CRYPTO_PAPER_UNIVERSE = ("BTC", "ETH", "SOL")
 CRYPTO_PORTFOLIO_BUCKET = "INTRADAY"
@@ -45,14 +49,20 @@ class V17CryptoPaperLane:
 
     def start(self) -> dict[str, Any]:
         status = dict(self.engine.start(profile="intraday", scan_now=True))
-        return self._decorate(status, action="START")
+        decorated = self._decorate(status, action="START")
+        decorated["mcx_underlying_paper"] = mcx_paper_lane.start()
+        return decorated
 
     def stop_new_entries(self) -> dict[str, Any]:
         status = dict(self.engine.stop())
-        return self._decorate(status, action="PAUSE_NEW_ENTRIES")
+        decorated = self._decorate(status, action="PAUSE_NEW_ENTRIES")
+        decorated["mcx_underlying_paper"] = mcx_paper_lane.stop_new_entries()
+        return decorated
 
     def status(self) -> dict[str, Any]:
-        return self._decorate(dict(self.engine.status()), action="STATUS")
+        decorated = self._decorate(dict(self.engine.status()), action="STATUS")
+        decorated["mcx_underlying_paper"] = mcx_paper_lane.status()
+        return decorated
 
     def _positions(self) -> list[dict[str, Any]]:
         try:
@@ -94,6 +104,7 @@ class V17CryptoPaperLane:
             "deribit_options_research_only": True,
             "canonical_paper_desk": True,
             "separate_crypto_ledger": False,
+            "mcx_lane_attached": True,
             "paper_only": True,
             "live_execution": False,
             "automatic_broker_order": False,
