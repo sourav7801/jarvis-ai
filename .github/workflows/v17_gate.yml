@@ -49,6 +49,7 @@ jobs:
           node --check workstation/quant_terminal_v2_static/v17_crypto_paper_runtime.js
           node --check workstation/quant_terminal_v2_static/app.js
           node --check workstation/quant_terminal_v2_static/v16_workspace_router.js
+          node --check workstation/quant_terminal_v2_static/v16_option_decision_runtime.js
 
       - name: Verify V17 load-governor invariants
         shell: pwsh
