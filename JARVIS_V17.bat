@@ -33,6 +33,14 @@ if errorlevel 1 (
     exit /b 22
 )
 
+".venv\Scripts\python.exe" scripts\apply_v17_history_snapshot_patches.py
+if errorlevel 1 (
+    echo.
+    echo V17 canonical FYERS history patch failed. JARVIS will not start with a partially patched chart-data path.
+    pause
+    exit /b 24
+)
+
 ".venv\Scripts\python.exe" scripts\apply_v17_market_session_patches.py
 if errorlevel 1 (
     echo.
