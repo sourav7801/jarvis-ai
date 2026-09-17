@@ -46,6 +46,7 @@ jobs:
       - name: Verify browser transport syntax
         run: |
           node --check workstation/quant_terminal_v2_static/v17_live_fetch_scheduler.js
+          node --check workstation/quant_terminal_v2_static/v17_crypto_paper_runtime.js
           node --check workstation/quant_terminal_v2_static/app.js
           node --check workstation/quant_terminal_v2_static/v16_workspace_router.js
 
@@ -104,7 +105,7 @@ jobs:
         run: |
           @'
           from pathlib import Path
-          from workstation.v17_crypto_paper_lane import CRYPTO_PAPER_UNIVERSE, crypto_paper_lane
+          from workstation.v17_crypto_paper_lane import ADAPTIVE_AUTHORITY, CRYPTO_PAPER_UNIVERSE, crypto_paper_lane
 
           assert CRYPTO_PAPER_UNIVERSE == ("BTC", "ETH", "SOL")
           status = crypto_paper_lane.status()
@@ -114,12 +115,18 @@ jobs:
           assert status["deribit_options_research_only"] is True
           assert status["paper_only"] is True
           assert status["live_execution"] is False
+          assert status["qualification_authority"] == ADAPTIVE_AUTHORITY
+          assert status["decision_authority"] == ADAPTIVE_AUTHORITY
+          assert status["adaptive_policy_version"]
           http = Path("workstation/v17_terminal_http.py").read_text(encoding="utf-8")
           router = Path("workstation/quant_terminal_v2_static/v16_workspace_router.js").read_text(encoding="utf-8")
+          crypto_ui = Path("workstation/quant_terminal_v2_static/v17_crypto_paper_runtime.js").read_text(encoding="utf-8")
           assert 'results["CRYPTO_UNDERLYING"]' in http
+          assert '"crypto_underlying_paper": crypto_status' in http
           assert 'BTC / ETH / SOL · UNDERLYING AUTO PAPER' in router
           assert 'UNDERLYING PAPER POSITION OPEN' in router
-          print("V17 canonical BTC/ETH/SOL underlying PAPER lane verified; Deribit execution remains disabled.")
+          assert 'OPEN CRYPTO PAPER POSITIONS' in crypto_ui
+          print("V17 canonical BTC/ETH/SOL adaptive underlying PAPER lane and monitor verified; Deribit execution remains disabled.")
           '@ | python -
 
       - name: Static parse
