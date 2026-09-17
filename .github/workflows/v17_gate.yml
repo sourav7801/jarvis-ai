@@ -41,11 +41,13 @@ jobs:
           python scripts/apply_v17_stability_patches.py
           python scripts/apply_v17_history_snapshot_patches.py
           python scripts/apply_v17_market_session_patches.py
+          python scripts/apply_v17_crypto_paper_patches.py
 
       - name: Verify browser transport syntax
         run: |
           node --check workstation/quant_terminal_v2_static/v17_live_fetch_scheduler.js
           node --check workstation/quant_terminal_v2_static/app.js
+          node --check workstation/quant_terminal_v2_static/v16_workspace_router.js
 
       - name: Verify V17 load-governor invariants
         shell: pwsh
@@ -95,6 +97,29 @@ jobs:
           assert 'snapshot_kind"] = "MARKET_CLOSED_STREAM_CACHE"' in quant
           assert 'payload.market_closed?"CLOSED"' in app
           print("V17 venue-aware routing verified: crypto 24/7, MCX independent, NSE/BSE independent.")
+          '@ | python -
+
+      - name: Verify canonical crypto PAPER invariants
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          from workstation.v17_crypto_paper_lane import CRYPTO_PAPER_UNIVERSE, crypto_paper_lane
+
+          assert CRYPTO_PAPER_UNIVERSE == ("BTC", "ETH", "SOL")
+          status = crypto_paper_lane.status()
+          assert status["canonical_paper_desk"] is True
+          assert status["separate_crypto_ledger"] is False
+          assert status["deribit_options_execution"] is False
+          assert status["deribit_options_research_only"] is True
+          assert status["paper_only"] is True
+          assert status["live_execution"] is False
+          http = Path("workstation/v17_terminal_http.py").read_text(encoding="utf-8")
+          router = Path("workstation/quant_terminal_v2_static/v16_workspace_router.js").read_text(encoding="utf-8")
+          assert 'results["CRYPTO_UNDERLYING"]' in http
+          assert 'BTC / ETH / SOL · UNDERLYING AUTO PAPER' in router
+          assert 'UNDERLYING PAPER POSITION OPEN' in router
+          print("V17 canonical BTC/ETH/SOL underlying PAPER lane verified; Deribit execution remains disabled.")
           '@ | python -
 
       - name: Static parse
