@@ -35,6 +35,27 @@ jobs:
       - name: Install runtime dependencies
         run: python -m pip install -r requirements.txt
 
+      - name: Apply direct-pull V17 runtime guards
+        run: |
+          python scripts/apply_v17_release_patches.py
+          python scripts/apply_v17_stability_patches.py
+
+      - name: Verify browser transport syntax
+        run: |
+          node --check workstation/quant_terminal_v2_static/v17_live_fetch_scheduler.js
+          node --check workstation/quant_terminal_v2_static/app.js
+
+      - name: Verify V17 load-governor invariants
+        shell: pwsh
+        run: |
+          $app = Get-Content workstation/quant_terminal_v2_static/app.js -Raw
+          $scheduler = Get-Content workstation/quant_terminal_v2_static/v17_live_fetch_scheduler.js -Raw
+          if ($app -notmatch 'candleActive>=2') { throw 'Chart-history concurrency guard missing' }
+          if ($app -notmatch 'MARKETS\.slice\(offset,offset\+2\)') { throw 'Staged watchlist hydration missing' }
+          if ($app -notmatch 'liveTickBusy') { throw 'Non-overlapping live polling guard missing' }
+          if ($scheduler -notmatch '/api/v16/trading/workspace-state') { throw 'Canonical state dedupe missing' }
+          if ($scheduler -notmatch 'writesIntercepted: false') { throw 'Read-only transport boundary missing' }
+
       - name: Static parse
         run: python scripts/static_check.py
 
