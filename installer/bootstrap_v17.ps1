@@ -47,27 +47,44 @@ if (-not (Test-Path (Join-Path $Venv "Scripts\python.exe"))) {
 }
 
 $VenvPython = Join-Path $Venv "Scripts\python.exe"
-& $VenvPython -m pip install --disable-pip-version-check --upgrade pip setuptools wheel
+
+# FYERS API v3 3.1.18 requires setuptools==68.0.0. Keep the installer
+# deterministic and do not let a generic tooling upgrade replace that pin.
+& $VenvPython -m pip install --disable-pip-version-check --upgrade pip wheel
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+& $VenvPython -m pip install --disable-pip-version-check "setuptools==68.0.0"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-# Install the local product first, then the bounded dependency set required by
-# the V17 market-data, quant-terminal and supervisor path. The large creator/
-# ML extras are intentionally not pulled into this trading installer.
-& $VenvPython -m pip install --disable-pip-version-check --no-deps -e $Root
+# Install the local product without PEP-517 build isolation. The isolated build
+# environment would otherwise download a second setuptools version and can sit
+# at "Installing build dependencies..." even though the runtime tooling is
+# already present in this dedicated V17 virtual environment.
+& $VenvPython -m pip install --disable-pip-version-check --no-build-isolation --no-deps -e $Root
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+# Bounded dependency set required by the V17 market-data, quant-terminal and
+# supervisor path. Large creator/ML extras are intentionally excluded.
 $RuntimeDependencies = @(
     "numpy",
     "pandas",
     "requests==2.31.0",
     "psutil",
-    "fyers-apiv3",
+    "fyers-apiv3==3.1.18",
     "ta",
     "openpyxl",
     "cryptography"
 )
 & $VenvPython -m pip install --disable-pip-version-check $RuntimeDependencies
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+# Assert the exact FYERS/setuptools compatibility contract after dependency
+# resolution so a future package change fails installation loudly instead of
+# leaving a subtly broken market-data runtime.
+& $VenvPython -c "import importlib.metadata as m; s=m.version('setuptools'); f=m.version('fyers-apiv3'); print('setuptools='+s+'; fyers-apiv3='+f); raise SystemExit(0 if s=='68.0.0' and f=='3.1.18' else 42)"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Dependency compatibility verification failed." -ForegroundColor Red
+    exit $LASTEXITCODE
+}
 
 Write-Host ""
 Write-Host "Running V17 installation preflight..." -ForegroundColor Cyan
@@ -79,11 +96,13 @@ if ($LASTEXITCODE -ne 0) {
 
 $Marker = @{
     installed_at = (Get-Date).ToUniversalTime().ToString("o")
-    version = "17.0"
+    version = "17.0.2"
     runtime = "JARVIS_RUNTIME_SUPERVISOR_V17"
     paper_only = $true
     live_execution = $false
     automatic_broker_order = $false
+    setuptools = "68.0.0"
+    fyers_apiv3 = "3.1.18"
 } | ConvertTo-Json
 $Marker | Set-Content -Path (Join-Path $Root "V17_INSTALLATION.json") -Encoding UTF8
 
