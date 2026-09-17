@@ -12,6 +12,7 @@ reconciliation and duplicate-exposure gates pass.
 
 from typing import Any
 
+from omni.trading_intelligence.adaptive_opportunity_policy import POLICY_VERSION
 from workstation.adaptive_paper_autonomy_engine import AdaptivePaperAutonomyEngine
 from workstation.paper_scan_ledger import paper_scan_ledger
 from workstation.paper_trading_desk import paper_desk
@@ -19,6 +20,7 @@ from workstation.paper_trading_desk import paper_desk
 CRYPTO_PAPER_UNIVERSE = ("BTC", "ETH", "SOL")
 CRYPTO_PORTFOLIO_BUCKET = "INTRADAY"
 CRYPTO_ALLOCATION_FRACTION = 0.20
+ADAPTIVE_AUTHORITY = "ADAPTIVE_EXPECTED_VALUE_NOT_STATIC_SCORE"
 
 
 class V17CryptoPaperLane:
@@ -69,21 +71,25 @@ class V17CryptoPaperLane:
     def _decorate(self, payload: dict[str, Any], *, action: str) -> dict[str, Any]:
         positions = self._positions()
         adaptive = payload.get("adaptive_intelligence") if isinstance(payload.get("adaptive_intelligence"), dict) else {}
+        running = bool(payload.get("running"))
         return {
             **payload,
             "success": payload.get("success") is not False,
             "service": "JARVIS_V17_CANONICAL_CRYPTO_UNDERLYING_PAPER",
             "action": action,
+            "state": "RUNNING" if running else "PAUSED",
             "universe": list(CRYPTO_PAPER_UNIVERSE),
             "portfolio_bucket": CRYPTO_PORTFOLIO_BUCKET,
             "allocation_fraction": CRYPTO_ALLOCATION_FRACTION,
             "positions": positions,
             "open_positions": len(positions),
             "execution_instrument": "CRYPTO_UNDERLYING",
-            "qualification_authority": "ADAPTIVE_EXPECTED_VALUE_NOT_STATIC_SCORE",
-            "adaptive_policy_version": adaptive.get("policy_version"),
+            "qualification_authority": ADAPTIVE_AUTHORITY,
+            "decision_authority": str(payload.get("decision_authority") or ADAPTIVE_AUTHORITY),
+            "adaptive_policy_version": str(adaptive.get("policy_version") or POLICY_VERSION),
             "legacy_numeric_gates_are_execution_authority": False,
             "hard_safety_gates_preserved": True,
+            "last_rows_summary": list(payload.get("last_rows_summary") or []),
             "deribit_options_execution": False,
             "deribit_options_research_only": True,
             "canonical_paper_desk": True,
@@ -102,6 +108,7 @@ __all__ = [
     "CRYPTO_PAPER_UNIVERSE",
     "CRYPTO_PORTFOLIO_BUCKET",
     "CRYPTO_ALLOCATION_FRACTION",
+    "ADAPTIVE_AUTHORITY",
     "V17CryptoPaperLane",
     "crypto_paper_lane",
 ]
