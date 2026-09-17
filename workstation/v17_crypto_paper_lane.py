@@ -2,16 +2,17 @@ from __future__ import annotations
 
 """Canonical V17 crypto-underlying PAPER lane.
 
-This lane reuses the existing PaperAutonomyEngine and PaperTradingDesk.  It
-never creates a crypto-specific ledger and never exposes broker-order methods.
-Deribit option-chain data remains research-only; execution here is underlying
-BTC/ETH/SOL PAPER exposure only after the existing completed-bar, fresh-mark,
-risk, capital, reconciliation and duplicate-exposure gates pass.
+This lane reuses the existing AdaptivePaperAutonomyEngine and canonical
+PaperTradingDesk.  It never creates a crypto-specific ledger and never exposes
+broker-order methods.  Deribit option-chain data remains research-only;
+execution here is underlying BTC/ETH/SOL PAPER exposure only after the existing
+fresh-data, session, adaptive expected-value, risk geometry, capital,
+reconciliation and duplicate-exposure gates pass.
 """
 
 from typing import Any
 
-from workstation.paper_autonomy_engine import PaperAutonomyEngine
+from workstation.adaptive_paper_autonomy_engine import AdaptivePaperAutonomyEngine
 from workstation.paper_scan_ledger import paper_scan_ledger
 from workstation.paper_trading_desk import paper_desk
 
@@ -22,7 +23,7 @@ CRYPTO_ALLOCATION_FRACTION = 0.20
 
 class V17CryptoPaperLane:
     def __init__(self) -> None:
-        self.engine = PaperAutonomyEngine(
+        self.engine = AdaptivePaperAutonomyEngine(
             universe=CRYPTO_PAPER_UNIVERSE,
             profile="intraday",
             scan_interval_seconds=15.0,
@@ -67,6 +68,7 @@ class V17CryptoPaperLane:
 
     def _decorate(self, payload: dict[str, Any], *, action: str) -> dict[str, Any]:
         positions = self._positions()
+        adaptive = payload.get("adaptive_intelligence") if isinstance(payload.get("adaptive_intelligence"), dict) else {}
         return {
             **payload,
             "success": payload.get("success") is not False,
@@ -78,6 +80,10 @@ class V17CryptoPaperLane:
             "positions": positions,
             "open_positions": len(positions),
             "execution_instrument": "CRYPTO_UNDERLYING",
+            "qualification_authority": "ADAPTIVE_EXPECTED_VALUE_NOT_STATIC_SCORE",
+            "adaptive_policy_version": adaptive.get("policy_version"),
+            "legacy_numeric_gates_are_execution_authority": False,
+            "hard_safety_gates_preserved": True,
             "deribit_options_execution": False,
             "deribit_options_research_only": True,
             "canonical_paper_desk": True,
