@@ -26,7 +26,7 @@ class V17TerminalIdentityTests(unittest.TestCase):
         payload = _v17_status(_Runtime(), "INTRADAY")
         self.assertEqual(V17_STATUS_PATH, "/api/v17/trading/status")
         self.assertTrue(payload["success"])
-        self.assertEqual(payload["version"], "17.0")
+        self.assertEqual(payload["version"], "17.1")
         self.assertEqual(payload["runtime_identity"], "V17_AUTONOMOUS_OPTIONS")
         self.assertEqual(payload["workspace"], "INTRADAY")
         self.assertTrue(payload["paper_only"])
@@ -42,7 +42,8 @@ class V17TerminalIdentityTests(unittest.TestCase):
     def test_v17_browser_overlay_is_present(self):
         text = (ROOT / "workstation" / "quant_terminal_v2_static" / "v17_runtime.js").read_text(encoding="utf-8")
         self.assertIn("V17 · ACTIVE", text)
-        self.assertIn("AUTONOMOUS OPTIONS CONVERGENCE", text)
+        self.assertIn("ONE-TOUCH AUTONOMOUS PAPER TRADING", text)
+        self.assertIn("CHART-FIRST", text)
         self.assertIn("/api/v17/trading/status", text)
 
 
