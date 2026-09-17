@@ -44,6 +44,22 @@ jobs:
           print("FYERS shared-history cache release patch verified.")
           '@ | python -
 
+      - name: Verify V17 data-health and chart-routing patches
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          app = Path("workstation/quant_terminal_v2_static/app.js").read_text(encoding="utf-8")
+          autonomy = Path("workstation/quant_terminal_v2_static/v16_autonomy_runtime.js").read_text(encoding="utf-8")
+          assert 'const usedSymbols=new Set(chartSlots.map(slot=>String(slot?.symbol||"").toUpperCase()));' in app
+          assert 'symbol=SLOT_DEFAULTS.find(item=>!usedSymbols.has(item))||symbol;' in app
+          assert 'function providerState(state, symbol = "")' in autonomy
+          assert 'const candidateSymbol = String(candidate?.symbol || "").toUpperCase();' in autonomy
+          assert 'const market = providerState(state, candidateSymbol || underlying);' in autonomy
+          assert 'const market = providerState(state, actionable?.symbol || candidates[0]?.symbol || "");' in autonomy
+          print("V17 candidate-scoped data health and unique chart routing verified.")
+          '@ | python -
+
       - name: Static parse
         run: python scripts/static_check.py
 
@@ -109,12 +125,14 @@ jobs:
           "$hash  JARVIS-V17-Setup.exe" | Set-Content "dist\JARVIS-V17-Setup.sha256" -Encoding ascii
           $manifest = [ordered]@{
             product = "JARVIS V17"
-            version = "17.0.0"
+            version = "17.0.1"
             commit = "${{ github.sha }}"
             paper_only = $true
             live_execution = $false
             automatic_broker_order = $false
             fyers_shared_history_cache_patch = $true
+            candidate_scoped_data_health_patch = $true
+            unique_chart_routing_patch = $true
             sha256 = $hash
           } | ConvertTo-Json
           $manifest | Set-Content "dist\JARVIS-V17-build.json" -Encoding utf8
