@@ -75,6 +75,7 @@ class FyersLiveStream:
         self._next_retry_at: Optional[float] = None
         self._consecutive_failures = 0
         self._generation = 0
+        self._transport_fault_generation: Optional[int] = None
 
         self._stale_after_seconds = max(1.0, float(stale_after_seconds))
         self._max_reconnect_attempts = max(1, int(max_reconnect_attempts))
@@ -134,6 +135,16 @@ class FyersLiveStream:
             if generation is not None and generation != self._generation:
                 return
             self._last_error = str(error)
+            # FYERS can emit on_error("Connection to remote host was lost")
+            # without a matching on_close callback. Treat any websocket error
+            # as a transport fault so the owner loop cannot remain falsely
+            # CONNECTED forever on a dead socket.
+            current_generation = self._generation if generation is None else generation
+            self._transport_fault_generation = current_generation
+            self._connected = False
+            self._last_disconnected_at = time.time()
+            if self._running and not self._stop_event.is_set():
+                self._state = "RECONNECTING"
 
     def _on_close(
         self,
@@ -281,6 +292,7 @@ class FyersLiveStream:
                     self._generation += 1
                     generation = self._generation
                     self._connected = False
+                    self._transport_fault_generation = None
                     self._state = "RECONNECTING" if generation > 1 else "CONNECTING"
                     self._next_retry_at = None
 
@@ -296,6 +308,10 @@ class FyersLiveStream:
 
                     deadline = time.monotonic() + self._connect_grace_seconds
                     while not self._stop_event.wait(0.25):
+                        with self._lock:
+                            transport_fault = self._transport_fault_generation == generation
+                        if transport_fault:
+                            break
                         connected_probe = getattr(socket, "is_connected", None)
                         if callable(connected_probe):
                             try:
@@ -462,6 +478,7 @@ class FyersLiveStream:
                 "reconnect_attempt": self._consecutive_failures,
                 "max_reconnect_attempts": self._max_reconnect_attempts,
                 "next_retry_at": _iso_timestamp(self._next_retry_at),
+                "transport_fault_generation": self._transport_fault_generation,
                 "retry_in_seconds": round(retry_in_seconds, 3)
                 if retry_in_seconds is not None
                 else None,
