@@ -31,6 +31,24 @@ class V17UnifiedExecutionUiTests(unittest.TestCase):
         self.assertIn("Cross-market V17 execution continues independently", text)
         self.assertNotIn("WAIT · NO ENGINE ROW", text)
 
+    def test_v17_root_does_not_repin_legacy_primary(self):
+        text = (STATIC / "index.html").read_text(encoding="utf-8")
+        self.assertIn('if (window.JARVIS_V17_RUNTIME)', text)
+        self.assertIn('if (primary) primary.hidden = true', text)
+        self.assertIn('if (intel && unified && intel.firstElementChild !== unified) intel.prepend(unified)', text)
+
+    def test_options_workspace_reasserts_underlying_chart_context(self):
+        text = (STATIC / "v16_workspace_router.js").read_text(encoding="utf-8")
+        poll = text.split("pollTimer=setInterval", 1)[1]
+        self.assertIn("syncUnderlyingChartContext()", poll)
+
+    def test_v17_http_cache_busts_unified_browser_runtimes(self):
+        text = (ROOT / "workstation" / "v17_terminal_http.py").read_text(encoding="utf-8")
+        self.assertIn('/v16_option_decision_runtime.js?v=170222', text)
+        self.assertIn('/v16_workspace_router.js?v=170222', text)
+        self.assertIn('/v17_runtime.js?v=170222', text)
+        self.assertIn('/v17_crypto_paper_runtime.js?v=170222', text)
+
 
 if __name__ == "__main__":
     unittest.main()
