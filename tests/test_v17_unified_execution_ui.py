@@ -47,7 +47,7 @@ class V17UnifiedExecutionUiTests(unittest.TestCase):
         self.assertIn('/v16_option_decision_runtime.js?v=170222', text)
         self.assertIn('/v16_workspace_router.js?v=170222', text)
         self.assertIn('/v17_runtime.js?v=170222', text)
-        self.assertIn('/v17_crypto_paper_runtime.js?v=170222', text)
+        self.assertIn('/v17_crypto_paper_runtime.js?v=170224', text)
 
     def test_india_monitor_uses_canonical_autonomous_option_map(self):
         text = (STATIC / "v17_crypto_paper_runtime.js").read_text(encoding="utf-8")
