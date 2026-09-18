@@ -198,12 +198,23 @@
     return ({POSITION_OPEN:100,MANAGING:95,ACTIONABLE:90,PRIMARY:88,PROBE:82,QUALIFYING:70,BLOCKED:25,WAIT:10})[String(action||"").toUpperCase()] ?? 5;
   }
 
+  function indiaDecisionRows(state) {
+    const map = state?.scan_decisions?.autonomous_options;
+    if (!map || typeof map !== "object" || Array.isArray(map)) return [];
+    return INDIA.map(symbol => {
+      const decision = map[symbol];
+      return decision && typeof decision === "object"
+        ? {symbol, option_decision: decision}
+        : null;
+    }).filter(Boolean);
+  }
+
   function bestCandidate(v17, india) {
     const crypto=v17?.crypto_underlying_paper||{}; const mcx=crypto?.mcx_underlying_paper||{};
     const positions=[...indiaPositions(india).map(item=>positionCandidate(item,"INDIA OPTION")),...(Array.isArray(mcx?.positions)?mcx.positions:[]).map(item=>positionCandidate(item,"MCX FUTURE")),...(Array.isArray(crypto?.positions)?crypto.positions:[]).map(item=>positionCandidate(item,"CRYPTO"))];
     if(positions.length)return positions[0];
     const rows=[];
-    for(const row of (Array.isArray(india?.scan_decisions?.candidates)?india.scan_decisions.candidates:[])){const raw=String(first(row?.option_decision?.underlying,row?.symbol,"")).toUpperCase();if(INDIA.some(symbol=>raw.includes(symbol)))rows.push(normalizedRow(row,"INDIA OPTION","INDIA"));}
+    for(const row of indiaDecisionRows(india)) rows.push(normalizedRow(row,"INDIA OPTION","INDIA"));
     for(const row of (Array.isArray(mcx?.last_rows_summary)?mcx.last_rows_summary:[]))rows.push(normalizedRow(row,"MCX FUTURE","MCX"));
     for(const row of (Array.isArray(crypto?.last_rows_summary)?crypto.last_rows_summary:[]))rows.push(normalizedRow(row,"CRYPTO","CRYPTO"));
     rows.sort((a,b)=>actionRank(b.action)-actionRank(a.action)||Number(b.ev??-999)-Number(a.ev??-999));
@@ -296,8 +307,7 @@
 
   function renderIndia(state) {
     const session = state?.session || {};
-    const scan = state?.scan_decisions || {};
-    const rows = scan?.candidates || [];
+    const rows = indiaDecisionRows(state);
     const stateText = String(session?.entry_session || session?.state || "PAUSED").toUpperCase();
     const node = $("v17IndiaState");
     if (node) node.textContent = stateText;
