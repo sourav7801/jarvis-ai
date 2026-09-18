@@ -521,7 +521,7 @@
     route();
     document.querySelector(".workspace-modes")?.addEventListener("click",event=>{if(!event.target.closest("button[data-workspace]"))return;setTimeout(route,0);});
     const intel=document.querySelector(".intel-panel"); if(intel)new MutationObserver(()=>{if(activeMode()==="OPTIONS")setOptionsVisibility(true);else movePrimaryToTop();}).observe(intel,{childList:true});
-    pollTimer=setInterval(()=>{ensureOptionsCenter();ensureOptionChartActions();ensureExtraOptionUnderlyings();bindCenterControls();if(activeMode()==="OPTIONS"){setCenterOptionsVisibility(true);renderCapability();refreshState(false);if($("v16OptionsStateAge")&&latestStateAt)$("v16OptionsStateAge").textContent=`${Math.max(0,Math.round((Date.now()-latestStateAt)/1000))}s`;}else movePrimaryToTop();},2500);
+    pollTimer=setInterval(()=>{ensureOptionsCenter();ensureOptionChartActions();ensureExtraOptionUnderlyings();bindCenterControls();if(activeMode()==="OPTIONS"){setCenterOptionsVisibility(true);syncUnderlyingChartContext();renderCapability();refreshState(false);if($("v16OptionsStateAge")&&latestStateAt)$("v16OptionsStateAge").textContent=`${Math.max(0,Math.round((Date.now()-latestStateAt)/1000))}s`;}else movePrimaryToTop();},2500);
   }
 
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>setTimeout(boot,0),{once:true});else setTimeout(boot,0);
