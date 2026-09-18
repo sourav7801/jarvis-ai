@@ -305,7 +305,7 @@ def build_handler(base, runtime):
                 '<script defer src="/v16_workspace_router.js?v=170222"></script>'
                 '<script defer src="/v16_option_readiness_runtime.js"></script>'
                 '<script defer src="/v17_runtime.js?v=170222"></script>'
-                '<script defer src="/v17_crypto_paper_runtime.js?v=170222"></script>'
+                '<script defer src="/v17_crypto_paper_runtime.js?v=170224"></script>'
             )
             content = html.replace("</head>", injection + "</head>").encode("utf-8")
             self.send_response(200)
