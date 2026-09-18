@@ -300,11 +300,11 @@ def build_handler(base, runtime):
                 '<script src="/v17_live_fetch_scheduler.js?v=170102"></script>'
                 '<link rel="stylesheet" href="/v16_autonomy_runtime.css">'
                 '<script defer src="/v16_autonomy_runtime.js"></script>'
-                '<script defer src="/v16_option_decision_runtime.js"></script>'
-                '<script defer src="/v16_workspace_router.js"></script>'
+                '<script defer src="/v16_option_decision_runtime.js?v=170222"></script>'
+                '<script defer src="/v16_workspace_router.js?v=170222"></script>'
                 '<script defer src="/v16_option_readiness_runtime.js"></script>'
-                '<script defer src="/v17_runtime.js?v=170100"></script>'
-                '<script defer src="/v17_crypto_paper_runtime.js?v=170200"></script>'
+                '<script defer src="/v17_runtime.js?v=170222"></script>'
+                '<script defer src="/v17_crypto_paper_runtime.js?v=170222"></script>'
             )
             content = html.replace("</head>", injection + "</head>").encode("utf-8")
             self.send_response(200)
