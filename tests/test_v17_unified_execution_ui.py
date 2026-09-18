@@ -49,6 +49,19 @@ class V17UnifiedExecutionUiTests(unittest.TestCase):
         self.assertIn('/v17_runtime.js?v=170222', text)
         self.assertIn('/v17_crypto_paper_runtime.js?v=170222', text)
 
+    def test_india_monitor_uses_canonical_autonomous_option_map(self):
+        text = (STATIC / "v17_crypto_paper_runtime.js").read_text(encoding="utf-8")
+        self.assertIn("function indiaDecisionRows(state)", text)
+        self.assertIn("state?.scan_decisions?.autonomous_options", text)
+        self.assertIn('for(const row of indiaDecisionRows(india))', text)
+        render = text.split("function renderIndia(state)", 1)[1].split("function renderMcx", 1)[0]
+        self.assertIn("const rows = indiaDecisionRows(state)", render)
+        self.assertNotIn("scan?.candidates", render)
+
+    def test_india_monitor_asset_is_cache_busted(self):
+        text = (ROOT / "workstation" / "v17_terminal_http.py").read_text(encoding="utf-8")
+        self.assertIn('/v17_crypto_paper_runtime.js?v=170224', text)
+
 
 if __name__ == "__main__":
     unittest.main()
