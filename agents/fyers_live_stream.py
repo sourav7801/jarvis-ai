@@ -271,6 +271,7 @@ class FyersLiveStream:
             self._last_disconnected_at = None
             self._next_retry_at = None
             self._consecutive_failures = 0
+            self._transport_fault_generation = None
             self._socket_factory = factory
             self._lite_mode = bool(lite_mode)
             self._stop_event.clear()
@@ -411,6 +412,7 @@ class FyersLiveStream:
             self._socket = None
             self._thread = None
             self._next_retry_at = None
+            self._transport_fault_generation = None
             self._last_disconnected_at = time.time()
 
     def subscribe(self, symbols: Iterable[str]) -> dict[str, Any]:
