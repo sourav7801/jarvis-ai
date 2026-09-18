@@ -146,8 +146,8 @@ function updateWatchTile(symbol,snapshot,meta={}){
   }
   price.textContent=fmt(snapshot.ltp);tile.dataset.lastVerified="1";
   const pct=Number(snapshot.change_percent);const diff=Number(snapshot.change);const sign=diff>0?"+":"";
-  const feedTag=meta.stale?" · STALE":meta.snapshotKind==="REST_QUOTE_FALLBACK"?" · REST":meta.degraded?" · DEGRADED":"";
-  change.textContent=(Number.isFinite(diff)?`${sign}${diff.toFixed(2)}`:"")+(Number.isFinite(pct)?` (${pct>0?"+":""}${pct.toFixed(2)}%)`:"")+feedTag;
+  const feedState=String(meta.statusLabel||(meta.stale?"STALE":meta.snapshotKind==="REST_QUOTE_FALLBACK"?"REST":meta.degraded?"DEGRADED":"")).toUpperCase();
+  change.textContent=(Number.isFinite(diff)?`${sign}${diff.toFixed(2)}`:"")+(Number.isFinite(pct)?` (${pct>0?"+":""}${pct.toFixed(2)}%)`:"")+(feedState?` · ${feedState}`:"");
   change.style.color=meta.stale?"#d4a84c":diff>0?"#78f2aa":diff<0?"#ff6f83":"#7e9aa7";
 }
 
@@ -324,12 +324,12 @@ async function refreshProvider(){
 
 async function refreshOneWatch(){
   const item=MARKETS[watchCursor%MARKETS.length];watchCursor++;
-  try{const payload=await fetchJson(`/api/live?${new URLSearchParams({symbol:item.symbol})}`,{},6000);if(payload.success&&payload.snapshot)updateWatchTile(item.symbol,payload.snapshot,{degraded:Boolean(payload.stream_degraded||payload.stale),stale:Boolean(payload.stale),snapshotKind:payload.snapshot_kind,message:payload.message});else updateWatchTile(item.symbol,null,{message:payload.message||"data unavailable"})}catch(error){updateWatchTile(item.symbol,null,{message:error.message,degraded:true})}
+  try{const payload=await fetchJson(`/api/live?${new URLSearchParams({symbol:item.symbol})}`,{},6000);if(payload.success&&payload.snapshot)updateWatchTile(item.symbol,payload.snapshot,{degraded:Boolean(payload.stream_degraded||payload.stale),stale:Boolean(payload.stale),snapshotKind:payload.snapshot_kind,statusLabel:payload.market_closed?"CLOSED":payload.stale?"STALE":payload.snapshot_kind==="REST_QUOTE_FALLBACK"?"REST":payload.stream_degraded?"DEGRADED":"",message:payload.message});else updateWatchTile(item.symbol,null,{message:payload.message||"data unavailable"})}catch(error){updateWatchTile(item.symbol,null,{message:error.message,degraded:true})}
 }
 
 async function refreshAllWatch(){
   await Promise.allSettled(MARKETS.map(async item=>{
-    try{const payload=await fetchJson(`/api/live?${new URLSearchParams({symbol:item.symbol})}`,{},10000);if(payload.success&&payload.snapshot)updateWatchTile(item.symbol,payload.snapshot,{degraded:Boolean(payload.stream_degraded||payload.stale),stale:Boolean(payload.stale),snapshotKind:payload.snapshot_kind,message:payload.message});else updateWatchTile(item.symbol,null,{message:payload.message||"data unavailable"})}catch(error){updateWatchTile(item.symbol,null,{message:error.message,degraded:true})}
+    try{const payload=await fetchJson(`/api/live?${new URLSearchParams({symbol:item.symbol})}`,{},10000);if(payload.success&&payload.snapshot)updateWatchTile(item.symbol,payload.snapshot,{degraded:Boolean(payload.stream_degraded||payload.stale),stale:Boolean(payload.stale),snapshotKind:payload.snapshot_kind,statusLabel:payload.market_closed?"CLOSED":payload.stale?"STALE":payload.snapshot_kind==="REST_QUOTE_FALLBACK"?"REST":payload.stream_degraded?"DEGRADED":"",message:payload.message});else updateWatchTile(item.symbol,null,{message:payload.message||"data unavailable"})}catch(error){updateWatchTile(item.symbol,null,{message:error.message,degraded:true})}
   }));
 }
 
