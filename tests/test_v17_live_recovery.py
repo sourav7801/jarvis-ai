@@ -38,8 +38,9 @@ class V17LiveRecoveryTests(unittest.TestCase):
         text = (ROOT / "workstation" / "quant_terminal_v2_static" / "app.js").read_text(encoding="utf-8")
         self.assertIn('tile.dataset.lastVerified==="1"', text)
         self.assertIn('" · LAST VERIFIED"', text)
-        self.assertIn('meta.stale?" · STALE"', text)
-        self.assertIn('meta.snapshotKind==="REST_QUOTE_FALLBACK"?" · REST"', text)
+        self.assertIn('const feedState=String(meta.statusLabel', text)
+        self.assertIn('meta.stale?"STALE"', text)
+        self.assertIn('meta.snapshotKind==="REST_QUOTE_FALLBACK"?"REST"', text)
 
     def test_v17_root_cache_busts_watchlist_runtime(self):
         text = (ROOT / "workstation" / "v17_terminal_http.py").read_text(encoding="utf-8")
