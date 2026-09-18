@@ -16,6 +16,7 @@ Trading writes, Paper Desk authority and the live-execution lock are untouched.
 """
 
 from pathlib import Path
+from typing import Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
 QUANT_TARGET = ROOT / "workstation" / "quant_terminal_v2.py"
@@ -35,9 +36,17 @@ OLD_REFRESH_BATCH = '''      try{const payload=await fetchJson(`/api/live?${new 
 NEW_REFRESH_BATCH = '''      try{const payload=await fetchJson(`/api/live?${new URLSearchParams({symbol:item.symbol})}`,{},12000);if(payload.success&&payload.snapshot)updateWatchTile(item.symbol,payload.snapshot,{degraded:Boolean(payload.stream_degraded||payload.stale),statusLabel:payload.market_closed?"CLOSED":payload.stale?"STALE":payload.stream_degraded?"REST":""});else updateWatchTile(item.symbol,null,{message:payload.message||"data unavailable"})}catch(error){updateWatchTile(item.symbol,null,{message:error.message})}\n'''
 
 
-def _replace_once(path: Path, old: str, new: str, label: str) -> bool:
+def _replace_once(
+    path: Path,
+    old: str,
+    new: str,
+    label: str,
+    *,
+    semantic_markers: Iterable[str] = (),
+) -> bool:
     text = path.read_text(encoding="utf-8")
-    if new in text:
+    markers = tuple(semantic_markers)
+    if new in text or (markers and all(marker in text for marker in markers)):
         print(f"V17 {label} patch already present.")
         return False
     if old not in text:
@@ -54,9 +63,35 @@ def main() -> int:
         NEW_LIVE_FALLBACK_ANCHOR,
         "closed-market FYERS snapshot short-circuit",
     )
-    _replace_once(APP_TARGET, OLD_WATCH_TEXT, NEW_WATCH_TEXT, "watchlist feed-state label")
-    _replace_once(APP_TARGET, OLD_REFRESH_ONE, NEW_REFRESH_ONE, "single watch refresh status")
-    _replace_once(APP_TARGET, OLD_REFRESH_BATCH, NEW_REFRESH_BATCH, "batched watch refresh status")
+    _replace_once(
+        APP_TARGET,
+        OLD_WATCH_TEXT,
+        NEW_WATCH_TEXT,
+        "watchlist feed-state label",
+        semantic_markers=("const feedState=String(meta.statusLabel",),
+    )
+    _replace_once(
+        APP_TARGET,
+        OLD_REFRESH_ONE,
+        NEW_REFRESH_ONE,
+        "single watch refresh status",
+        semantic_markers=(
+            "const item=MARKETS[watchCursor%MARKETS.length]",
+            "statusLabel:payload.market_closed?\"CLOSED\"",
+            "},6000)",
+        ),
+    )
+    _replace_once(
+        APP_TARGET,
+        OLD_REFRESH_BATCH,
+        NEW_REFRESH_BATCH,
+        "batched watch refresh status",
+        semantic_markers=(
+            "const batch=MARKETS.slice(offset,offset+2)",
+            "statusLabel:payload.market_closed?\"CLOSED\"",
+            "},12000)",
+        ),
+    )
     print("V17 closed-market market-data patches complete.")
     return 0
 
