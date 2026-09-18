@@ -248,12 +248,18 @@ if (!window.JARVIS_V16_CANONICAL) {
     if (!window.JARVIS_V16_CANONICAL) return;
     const intel = document.querySelector(".intel-panel");
     const primary = $("v16AutonomyPrimary");
+    const unified = $("v17CryptoPaperCard");
     const evidence = $("v16EvidenceDeck");
     const legacyDesk = $("paperDeskV4");
     const reply = $("commandReply");
     if (legacyDesk) legacyDesk.hidden = true;
     if (reply && /^Paper desk refresh:/i.test(String(reply.textContent || "").trim())) {
       reply.textContent = "Canonical V16 Paper Desk active. Legacy paper-desk polling is retired in this workstation.";
+    }
+    if (window.JARVIS_V17_RUNTIME) {
+      if (primary) primary.hidden = true;
+      if (intel && unified && intel.firstElementChild !== unified) intel.prepend(unified);
+      return;
     }
     if (intel && primary) {
       if (intel.firstElementChild !== primary) intel.prepend(primary);
