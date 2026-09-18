@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections import OrderedDict
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from copy import deepcopy
 from datetime import datetime, timezone
 from functools import wraps
@@ -102,30 +102,100 @@ class BoundedPool:
 
 ANALYSIS_POOL = BoundedPool()
 
+SCAN_ROW_MAX_IN_FLIGHT = 2
+SCAN_ROW_TIMEOUT_SECONDS = 75.0
 
-def scan_rows(fn, symbols, cancelled):
-    # At most two outstanding jobs per lane, four executing across all lanes.
-    pending = []
-    for symbol in symbols:
-        if cancelled.is_set():
-            break
-        try:
-            pending.append((symbol, ANALYSIS_POOL.submit(fn, symbol)))
-        except RuntimeError as exc:
-            yield {"success": False, "symbol": symbol, "message": str(exc)}
-        if len(pending) >= 2:
-            name, future = pending.pop(0)
+
+def scan_rows(
+    fn,
+    symbols,
+    cancelled,
+    *,
+    timeout_seconds: float = SCAN_ROW_TIMEOUT_SECONDS,
+    max_in_flight: int = SCAN_ROW_MAX_IN_FLIGHT,
+):
+    """Yield bounded symbol analyses as they complete without head-of-line blocking.
+
+    A slow provider read in one slot must not hide a completed peer. Timed-out
+    running work stays counted against the lane until it actually exits, so a
+    timeout cannot amplify provider load. Timed-out rows remain fail-closed.
+    """
+
+    limit = max(1, int(max_in_flight))
+    timeout = max(1.0, float(timeout_seconds))
+    iterator = iter(symbols)
+    pending = {}
+    exhausted = False
+
+    def submit_available():
+        nonlocal exhausted
+        emitted = []
+        while not exhausted and not cancelled.is_set() and len(pending) < limit:
             try:
-                yield future.result(timeout=45)
-            except Exception as exc:
+                symbol = next(iterator)
+            except StopIteration:
+                exhausted = True
+                break
+            try:
+                future = ANALYSIS_POOL.submit(fn, symbol)
+            except RuntimeError as exc:
+                emitted.append({"success": False, "symbol": symbol, "message": str(exc)})
+                continue
+            pending[future] = {
+                "symbol": symbol,
+                "started_at": time.monotonic(),
+                "timed_out": False,
+            }
+        return emitted
+
+    for row in submit_available():
+        yield row
+
+    while pending:
+        if cancelled.is_set():
+            for future in pending:
                 future.cancel()
-                yield {"success": False, "symbol": name, "message": type(exc).__name__}
-    for name, future in pending:
-        try:
-            yield future.result(timeout=45)
-        except Exception as exc:
+            break
+
+        now = time.monotonic()
+        for future, meta in list(pending.items()):
+            if meta["timed_out"] or future.done():
+                continue
+            if now - float(meta["started_at"]) < timeout:
+                continue
+            meta["timed_out"] = True
+            yield {
+                "success": False,
+                "symbol": meta["symbol"],
+                "message": "ANALYSIS_TIMEOUT",
+            }
             future.cancel()
-            yield {"success": False, "symbol": name, "message": type(exc).__name__}
+
+        live_waiters = [future for future in pending if not future.done()]
+        if live_waiters:
+            done, _ = wait(live_waiters, timeout=0.25, return_when=FIRST_COMPLETED)
+        else:
+            done = {future for future in pending if future.done()}
+
+        completed = set(done)
+        completed.update(future for future in pending if future.done())
+
+        for future in completed:
+            meta = pending.pop(future, None)
+            if meta is None:
+                continue
+            if not meta["timed_out"]:
+                try:
+                    yield future.result()
+                except Exception as exc:
+                    yield {
+                        "success": False,
+                        "symbol": meta["symbol"],
+                        "message": type(exc).__name__,
+                    }
+
+        for row in submit_available():
+            yield row
 
 
 def quote_certificate(symbol, payload, *, now=None, max_age=30.):
