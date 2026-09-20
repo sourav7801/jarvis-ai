@@ -16,6 +16,30 @@ if not exist ".venv\Scripts\python.exe" (
 set JARVIS_LIVE_EXECUTION=0
 set JARVIS_V17_AUTONOMOUS_OPTIONS=1
 
+rem Ensure the isolated NautilusTrader runtime exists before the supervisor
+rem starts. This runs only when the dedicated interpreter is missing.
+if not exist ".venv-nautilus-new\Scripts\python.exe" (
+    echo Preparing isolated NautilusTrader runtime...
+    ".venv\Scripts\python.exe" -m venv ".venv-nautilus-new"
+    if errorlevel 1 (
+        echo Failed to create .venv-nautilus-new
+        pause
+        exit /b 26
+    )
+    ".venv-nautilus-new\Scripts\python.exe" -m pip install --disable-pip-version-check --upgrade pip wheel
+    if errorlevel 1 exit /b 26
+)
+".venv-nautilus-new\Scripts\python.exe" -c "import nautilus_trader" >nul 2>&1
+if errorlevel 1 (
+    echo Installing NautilusTrader 1.231.0 into the isolated runtime...
+    ".venv-nautilus-new\Scripts\python.exe" -m pip install --disable-pip-version-check -r ".\requirements-nautilus.txt"
+    if errorlevel 1 (
+        echo NautilusTrader installation failed.
+        pause
+        exit /b 26
+    )
+)
+
 echo Applying V17 direct-pull runtime guards...
 ".venv\Scripts\python.exe" scripts\apply_v17_release_patches.py
 if errorlevel 1 (
