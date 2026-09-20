@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 import urllib.parse
 from datetime import datetime, timezone
@@ -21,7 +22,31 @@ _COMMODITY_SYMBOLS = ("CRUDEOIL", "GOLD", "SILVER", "NATURALGAS")
 _ALIAS_MAP: dict[str, str] = {}
 _START_ERROR = ""
 _LOCK = threading.RLock()
-HEALTH = ServiceHealthClock("JARVIS_FYERS_READ_ONLY_BRIDGE", "1.0")
+_QUARANTINED_SUBSCRIPTIONS: list[dict[str, Any]] = []
+HEALTH = ServiceHealthClock("JARVIS_FYERS_READ_ONLY_BRIDGE", "1.1")
+
+
+def _subscription_quarantine_reason(symbol: str) -> str | None:
+    requested = str(symbol or "").strip().upper()
+    # MCX option execution is intentionally not verified in V17.  Research
+    # tickers must never be injected into the global FYERS websocket because a
+    # provider-side invalid-symbol error would degrade unrelated index/future
+    # feeds. Verified MCX futures continue to end in FUT and are allowed.
+    if re.match(r"^MCX:.*(?:CE|PE)$", requested):
+        return "MCX_OPTION_RESEARCH_ONLY"
+    return None
+
+
+def _record_quarantine(symbol: str, reason: str) -> None:
+    with _LOCK:
+        _QUARANTINED_SUBSCRIPTIONS.append(
+            {
+                "symbol": str(symbol or "").strip().upper(),
+                "reason": reason,
+                "at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+        del _QUARANTINED_SUBSCRIPTIONS[:-20]
 
 
 def _commodity_provider_symbol(symbol: str) -> str:
@@ -102,6 +127,8 @@ def status_payload() -> dict[str, Any]:
             **status,
             "error": status.get("error") or _START_ERROR or None,
             "aliases": dict(_ALIAS_MAP),
+            "quarantined_subscriptions": list(_QUARANTINED_SUBSCRIPTIONS),
+            "quarantined_count": len(_QUARANTINED_SUBSCRIPTIONS),
             "data_only": True,
             "live_orders": False,
             "service": "isolated_fyers_live_bridge",
@@ -145,6 +172,23 @@ def subscribe_payload(symbol: str) -> dict[str, Any]:
     requested = str(symbol or "").strip().upper()
     if not requested:
         return {"success": False, "message": "A FYERS symbol is required.", "live_orders": False}
+
+    quarantine_reason = _subscription_quarantine_reason(requested)
+    if quarantine_reason:
+        _record_quarantine(requested, quarantine_reason)
+        return {
+            "success": False,
+            "quarantined": True,
+            "reason": quarantine_reason,
+            "symbol": requested,
+            "message": (
+                "Research-only MCX option ticker was quarantined before the "
+                "global FYERS websocket. MCX option execution remains disabled."
+            ),
+            "data_only": True,
+            "live_orders": False,
+        }
+
     try:
         result = fyers_live_stream.subscribe([requested])
         return {"success": True, **result, "live_orders": False}
@@ -212,7 +256,8 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 body = {}
             payload = subscribe_payload(str(body.get("symbol") or ""))
-            return self.send_json(payload, 200 if payload.get("success") else 400)
+            status = 200 if payload.get("success") or payload.get("quarantined") else 400
+            return self.send_json(payload, status)
         self.send_error(404)
 
     def log_message(self, *_args) -> None:
