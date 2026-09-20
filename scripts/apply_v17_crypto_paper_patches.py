@@ -16,7 +16,9 @@ ROUTER_TARGET = ROOT / "workstation" / "quant_terminal_v2_static" / "v16_workspa
 
 HTTP_REQUIRED = (
     "from workstation.v17_crypto_paper_lane import crypto_paper_lane",
-    'results["CRYPTO_UNDERLYING"]',
+    "from workstation.v17_cross_market_control_plane import cross_market_control_plane",
+    'updates["armed"] = action == "start"',
+    '"control_plane": control_plane',
     '"crypto_underlying_paper": crypto_status',
     "_crypto_lane_status()",
     '"/v17_crypto_paper_runtime.js"',
@@ -41,7 +43,7 @@ def verify_committed_http_integration() -> None:
             "Committed V17 crypto HTTP integration is incomplete; refusing to manufacture "
             f"execution authority only at startup. Missing: {joined}"
         )
-    print("Verified committed V17 crypto HTTP/start-stop/status integration.")
+    print("Verified committed V17.3 control-plane/crypto HTTP integration.")
 
 
 def replace_once(path: Path, old: str, new: str, label: str) -> None:
