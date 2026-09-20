@@ -581,7 +581,7 @@
   function bindCenterControls() {
     ensureOptionChartActions();
     const underlying = $("v16OptionUnderlying");
-    if (underlying && !underlying.dataset.v16RouterBound) { underlying.dataset.v16RouterBound = "1"; underlying.addEventListener("change", () => { underlying.dataset.userChosen = "1"; selectedContract = null; selectedContractPayload = null; setOptionChartFocus(false); latestChain=null; const expiry=$("v16OptionExpiry"); if(expiry)expiry.value=""; syncUnderlyingChartContext(); renderCapability(); loadChain({force:true}); refreshState(true); }); }
+    if (underlying && !underlying.dataset.v16RouterBound) { underlying.dataset.v16RouterBound = "1"; underlying.addEventListener("change", () => { underlying.dataset.userChosen = "1"; selectedContract = null; selectedContractPayload = null; setOptionChartFocus(false); latestChain=null; const expiry=$("v16OptionExpiry"); if(expiry)expiry.value=""; renderCapability(); loadChain({force:true}); refreshState(true); }); }
     const expiry = $("v16OptionExpiry"); if (expiry && !expiry.dataset.v16RouterBound) { expiry.dataset.v16RouterBound="1"; expiry.addEventListener("change",()=>{selectedContract=null;selectedContractPayload=null;setOptionChartFocus(false);latestChain=null;loadChain({force:true});}); }
     const reload = $("v16OptionReload"); if (reload && !reload.dataset.v16RouterBound) { reload.dataset.v16RouterBound="1"; reload.addEventListener("click",()=>loadChain({force:true})); }
     const capital = $("v16OptionCapital"); if (capital && !capital.dataset.v16RouterBound) { capital.dataset.v16RouterBound="1"; capital.addEventListener("change",event=>{syncCapital(event.target.value);refreshState(true);}); }
