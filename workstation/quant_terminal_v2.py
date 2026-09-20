@@ -27,6 +27,8 @@ PORT = int(os.getenv("JARVIS_WORKSTATION_PORT", "8787"))
 LIVE_BRIDGE_HOST = os.getenv("JARVIS_FYERS_BRIDGE_HOST", "127.0.0.1")
 LIVE_BRIDGE_PORT = int(os.getenv("JARVIS_FYERS_BRIDGE_PORT", "8790"))
 LIVE_BRIDGE_URL = f"http://{LIVE_BRIDGE_HOST}:{LIVE_BRIDGE_PORT}"
+LIVE_BRIDGE_EXPECTED_SERVICE = "isolated_fyers_live_bridge"
+LIVE_BRIDGE_EXPECTED_VERSION = "1.1"
 AUTO_PAPER_START = os.getenv("JARVIS_AUTO_PAPER_START", "1").strip().lower() not in {
     "0",
     "false",
@@ -465,22 +467,128 @@ def _port_open(host: str, port: int) -> bool:
         sock.close()
 
 
+def _live_bridge_contract_current() -> bool:
+    if not _port_open(LIVE_BRIDGE_HOST, LIVE_BRIDGE_PORT):
+        return False
+    payload = _bridge_request("/api/status", timeout=0.8) or {}
+    return bool(
+        payload.get("service") == LIVE_BRIDGE_EXPECTED_SERVICE
+        and str(payload.get("version") or "") == LIVE_BRIDGE_EXPECTED_VERSION
+        and payload.get("subscription_quarantine") is True
+        and "quarantined_count" in payload
+    )
+
+
+def _trusted_stale_live_bridge_pid() -> int | None:
+    """Return the owning PID only for the expected JARVIS FYERS bridge process."""
+    if os.name != "nt" or not _port_open(LIVE_BRIDGE_HOST, LIVE_BRIDGE_PORT):
+        return None
+    script = (
+        f"$c=Get-NetTCPConnection -LocalPort {int(LIVE_BRIDGE_PORT)} -State Listen "
+        "-ErrorAction SilentlyContinue | Select-Object -First 1; "
+        "if(-not $c){exit 0}; "
+        "$p=Get-CimInstance Win32_Process -Filter "
+        "'ProcessId=' + $c.OwningProcess -ErrorAction SilentlyContinue; "
+        "if($p){[pscustomobject]@{pid=$p.ProcessId;exe=$p.ExecutablePath;cmd=$p.CommandLine}"
+        "|ConvertTo-Json -Compress}"
+    )
+    try:
+        completed = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-Command", script],
+            capture_output=True,
+            text=True,
+            timeout=3.0,
+            creationflags=int(getattr(subprocess, "CREATE_NO_WINDOW", 0)),
+        )
+        raw = str(completed.stdout or "").strip()
+        if not raw:
+            return None
+        value = json.loads(raw)
+        pid = int(value.get("pid") or 0)
+        command = str(value.get("cmd") or "").lower()
+        executable = str(value.get("exe") or "")
+        if pid <= 0 or "workstation.fyers_live_bridge_service" not in command:
+            return None
+
+        from omni.runtime_paths import fyers_python
+
+        expected_python = str(fyers_python().resolve()).lower()
+        if executable and str(Path(executable).resolve()).lower() != expected_python:
+            return None
+        return pid
+    except Exception:
+        return None
+
+
+def _replace_stale_live_bridge() -> bool:
+    """Replace an obsolete bridge only when ownership is positively trusted."""
+    pid = _trusted_stale_live_bridge_pid()
+    if pid is None:
+        return False
+    try:
+        subprocess.run(
+            ["taskkill", "/PID", str(pid), "/T", "/F"],
+            capture_output=True,
+            timeout=4.0,
+            creationflags=int(getattr(subprocess, "CREATE_NO_WINDOW", 0)),
+        )
+    except Exception:
+        return False
+
+    deadline = time.monotonic() + 4.0
+    while time.monotonic() < deadline:
+        if not _port_open(LIVE_BRIDGE_HOST, LIVE_BRIDGE_PORT):
+            return True
+        time.sleep(0.1)
+    return not _port_open(LIVE_BRIDGE_HOST, LIVE_BRIDGE_PORT)
+
+
+def _stop_owned_live_bridge() -> None:
+    global _LIVE_BRIDGE_PROCESS
+    process = _LIVE_BRIDGE_PROCESS
+    _LIVE_BRIDGE_PROCESS = None
+    if process is None or process.poll() is not None:
+        return
+    try:
+        process.terminate()
+        process.wait(timeout=2.0)
+    except Exception:
+        try:
+            process.kill()
+        except Exception:
+            pass
+
+
 def start_live_bridge() -> bool:
     global _LIVE_BRIDGE_RETRY_AT
-    if _port_open(LIVE_BRIDGE_HOST, LIVE_BRIDGE_PORT):
+    if _live_bridge_contract_current():
         LIVE_BRIDGE_STARTUP.update(state="AVAILABLE", error=None)
         return True
+    if _port_open(LIVE_BRIDGE_HOST, LIVE_BRIDGE_PORT):
+        if not _replace_stale_live_bridge():
+            LIVE_BRIDGE_STARTUP.update(
+                state="INCOMPATIBLE_BRIDGE",
+                error="Port 8790 is occupied by an unverified or obsolete process; refusing to terminate an unknown listener.",
+            )
+            return False
     if time.monotonic() < _LIVE_BRIDGE_RETRY_AT or not _LIVE_BRIDGE_LOCK.acquire(blocking=False):
         return False
     try:
         _LIVE_BRIDGE_RETRY_AT = time.monotonic() + 30
         if _LIVE_BRIDGE_PROCESS is not None and _LIVE_BRIDGE_PROCESS.poll() is None:
+            if _live_bridge_contract_current():
+                LIVE_BRIDGE_STARTUP.update(state="AVAILABLE", error=None)
+                return True
             LIVE_BRIDGE_STARTUP.update(state="STARTING_OR_RECONNECTING")
             return False
         LIVE_BRIDGE_STARTUP.update(state="STARTING", error=None)
         result = _start_live_bridge_unlocked()
-        LIVE_BRIDGE_STARTUP.update(state="AVAILABLE" if result else "UNAVAILABLE", error=None if result else "FYERS environment, login or bridge unavailable; see data/logs/fyers_bridge.log")
-        return result
+        contract_ok = bool(result and _live_bridge_contract_current())
+        LIVE_BRIDGE_STARTUP.update(
+            state="AVAILABLE" if contract_ok else "UNAVAILABLE",
+            error=None if contract_ok else "Current FYERS bridge contract was not established; see data/logs/fyers_bridge.log",
+        )
+        return contract_ok
     except Exception as exc:
         LIVE_BRIDGE_STARTUP.update(state="UNAVAILABLE", error=type(exc).__name__)
         return False
@@ -491,7 +599,7 @@ def start_live_bridge() -> bool:
 def _start_live_bridge_unlocked() -> bool:
     global _LIVE_BRIDGE_PROCESS
     if _port_open(LIVE_BRIDGE_HOST, LIVE_BRIDGE_PORT):
-        return True
+        return _live_bridge_contract_current()
 
     from omni.runtime_paths import fyers_python
 
@@ -1771,6 +1879,8 @@ def main() -> int:
         exclusive_server(HOST, PORT, Handler).serve_forever()
     except KeyboardInterrupt:
         pass
+    finally:
+        _stop_owned_live_bridge()
     return 0
 
 
