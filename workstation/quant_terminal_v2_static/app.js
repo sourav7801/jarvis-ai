@@ -402,6 +402,13 @@ function mountCharts(generation=workspaceGeneration,{progressive=true}={}){
   const hydrate=async()=>{
     if(!order.length)return;
     await loadSlot(order[0],generation,1);
+
+    // OPTIONS is a separate workflow. Entering it should not fan out into
+    // 4/8 generic market-history requests while the exact option chain is
+    // still being resolved. Other chart slots stay mounted and load only when
+    // the user focuses/reloads them.
+    if(activeWorkspace==="OPTIONS") return;
+
     if(!progressive)return Promise.allSettled(order.slice(1).map(i=>loadSlot(i,generation,2)));
     for(let offset=1;offset<order.length;offset+=2){
       if(generation!==workspaceGeneration)break;
@@ -650,15 +657,16 @@ function startTimers(){
     if(liveTickBusy)return;
     liveTickBusy=true;
     try{
-      const india=chartSlots.filter(slot=>String(marketMeta(slot.symbol).kind).startsWith("INDIA"));
-      const tasks=[];
-      if(india.length){const slot=india[chartLiveCursor%india.length];chartLiveCursor++;tasks.push(pollSlotLive(slot))}
-      tasks.push(refreshOneWatch());
+      const tasks=[refreshOneWatch()];
+      if(activeWorkspace!=="OPTIONS"){
+        const india=chartSlots.filter(slot=>String(marketMeta(slot.symbol).kind).startsWith("INDIA"));
+        if(india.length){const slot=india[chartLiveCursor%india.length];chartLiveCursor++;tasks.push(pollSlotLive(slot))}
+      }
       await Promise.allSettled(tasks);
     }finally{liveTickBusy=false}
   },2500);
   if(providerTimer)clearInterval(providerTimer);providerTimer=setInterval(refreshProvider,7000);
-  if(signalTimer)clearInterval(signalTimer);signalTimer=setInterval(()=>loadDecision(selectedSymbol),30000);
+  if(signalTimer)clearInterval(signalTimer);signalTimer=setInterval(()=>{if(activeWorkspace!=="OPTIONS")void loadDecision(selectedSymbol)},30000);
 }
 
 async function bootstrap(){
