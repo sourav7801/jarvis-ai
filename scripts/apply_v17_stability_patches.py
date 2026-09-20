@@ -38,7 +38,6 @@ STAGED_WATCHLIST_MARKERS = (
     "for(let offset=0;offset<MARKETS.length;offset+=2){",
     "const batch=MARKETS.slice(offset,offset+2);",
     "await Promise.allSettled(batch.map(async item=>{",
-    'jarvisScope:"watchlist"',
 )
 
 V174_CANDLE_MARKERS = (
