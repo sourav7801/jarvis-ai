@@ -396,6 +396,48 @@
     return stream.running ? "RECONNECTING" : "DISCONNECTED";
   }
 
+  function ensurePerformanceDiagnostics() {
+    let details = $("v17PerformanceDiagnostics");
+    if (details) return details;
+    const host = document.querySelector(".intel-panel");
+    if (!host) return null;
+    details = document.createElement("details");
+    details.id = "v17PerformanceDiagnostics";
+    details.style.cssText = "border:1px solid #174052;border-radius:6px;padding:7px;margin:8px 0;background:#06141b;color:#9cc6d4;font-size:8px;";
+    details.innerHTML = '<summary style="cursor:pointer;color:#91dff1;letter-spacing:.08em">V17.4 PERFORMANCE · DATA PLANE</summary><pre id="v17PerformanceText" style="white-space:pre-wrap;margin:7px 0 0;color:#86aab8;font:8px/1.45 Consolas,monospace">Diagnostics waiting…</pre>';
+    host.appendChild(details);
+    return details;
+  }
+
+  async function refreshPerformanceDiagnostics() {
+    const details = ensurePerformanceDiagnostics();
+    if (!details) return;
+    const text = $("v17PerformanceText");
+    const browser = window.JARVIS_V17_DATA_PLANE?.snapshot?.() || {};
+    let server = {};
+    try {
+      const response = await upstreamFetch("/api/v17/diagnostics/performance", {
+        cache: "no-store",
+        jarvisPriority: 4,
+        jarvisScope: "diagnostics",
+      });
+      if (response.ok) server = await response.json();
+    } catch {}
+    if (!text) return;
+    const marketCache = server?.server?.market_cache || {};
+    const stream = server?.server?.fyers_stream || {};
+    text.textContent = [
+      `workspace       ${browser.workspace || "—"} · generation ${browser.generation ?? "—"}`,
+      `active jobs     live ${browser.active?.live ?? 0} · history ${browser.active?.history ?? 0} · module ${browser.active?.module ?? 0}`,
+      `queued jobs     live ${browser.queued?.live ?? 0} · history ${browser.queued?.history ?? 0} · module ${browser.queued?.module ?? 0}`,
+      `browser cache   hits ${browser.metrics?.cacheHits ?? 0} · single-flight ${browser.metrics?.singleFlightHits ?? 0}`,
+      `superseded      ${browser.metrics?.superseded ?? 0} · slow ${browser.metrics?.slowRequests ?? 0}`,
+      `server history  entries ${marketCache.entries ?? "—"} · pending ${marketCache.pending ?? "—"} · provider loads ${marketCache.provider_loads ?? "—"}`,
+      `FYERS stream    ${stream.connected ? "CONNECTED" : stream.running ? "RECONNECTING" : "OFFLINE"} · snapshots ${stream.snapshots ?? "—"}`,
+      "Read-only diagnostics · PAPER safety and execution authority unchanged.",
+    ].join("\n");
+  }
+
   function renderStatus(status) {
     const pill = $("v17RuntimePill");
     if (pill) {
@@ -443,6 +485,7 @@
       applyChartPreference();
     }
     window.JARVIS_V17_STATUS = status;
+    window.dispatchEvent(new CustomEvent("jarvis:v17-status",{detail:status}));
     relabelInheritedLineage();
   }
 
@@ -474,7 +517,9 @@
     bindControls();
     readPreferences().catch(error => setAutopilotMessage(`Preferences unavailable: ${error.message}`, "warn"));
     refresh();
+    refreshPerformanceDiagnostics();
     setInterval(refresh, 15000);
+    setInterval(refreshPerformanceDiagnostics, 30000);
     const observer = new MutationObserver(() => {
       relabelInheritedLineage();
       ensureChainEvidenceMode();
