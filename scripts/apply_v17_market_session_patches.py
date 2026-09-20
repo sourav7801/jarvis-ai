@@ -89,7 +89,7 @@ def main() -> int:
         semantic_markers=(
             "const batch=MARKETS.slice(offset,offset+2)",
             "statusLabel:payload.market_closed?\"CLOSED\"",
-            "},12000)",
+            'jarvisScope:"watchlist"',
         ),
     )
     print("V17 closed-market market-data patches complete.")
