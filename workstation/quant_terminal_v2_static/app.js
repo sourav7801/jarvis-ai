@@ -517,15 +517,38 @@ function connectCryptoSocket(slot){
   }catch{}
 }
 
+function applyV17MarketHealth(status){
+  const market=status?.market_data;
+  if(!market?.state)return false;
+  const state=String(market.state).toUpperCase();
+  const feeds=market.feeds||{};
+  const labels=[
+    ["FYERS",feeds.FYERS_STREAM?.state],
+    ["HISTORY",feeds.FYERS_HISTORY?.state],
+    ["MCX",feeds.MCX_FUTURES?.state],
+    ["CRYPTO",feeds.BINANCE_PUBLIC?.state],
+    ["PAPER",feeds.CANONICAL_PAPER_STATE?.state],
+  ].filter(([,value])=>value).map(([name,value])=>`${name} ${String(value).replaceAll("_"," ")}`);
+  $("providerState").textContent=state.replaceAll("_"," ");
+  $("providerState").dataset.v17AggregatedAt=String(Date.now());
+  $("providerMessage").textContent=labels.length?labels.join(" · "):"Cross-market feed health is available from V17.";
+  return true;
+}
+
+window.addEventListener("jarvis:v17-status",event=>applyV17MarketHealth(event.detail));
+
 async function refreshProvider(){
   try{
     const payload=await fetchJson("/api/provider",{jarvisPriority:1,jarvisScope:"terminal"},6000);
     const button=$("providerButton");const state=payload.state||"UNKNOWN";button.textContent=`FYERS · ${state.replaceAll("_"," ")}`;button.className="status-pill "+(state==="CONNECTED"?"connected":state==="LOGIN_REQUIRED"?"error":"warn");
     $("providerState").dataset.lastVerifiedAt=String(Date.now());
-    $("providerState").textContent=state.replaceAll("_"," ");
-    const error=payload.bridge?.error;$("providerMessage").textContent=state==="CONNECTED"?"Read-only FYERS live stream connected.":state==="DEGRADED"?`FYERS REST fallback active while the live stream reconnects${error?`: ${error}`:"."}`:error||"FYERS session is not live. Use the local login button if today's token has expired.";
+    if(!applyV17MarketHealth(window.JARVIS_V17_STATUS)){
+      $("providerState").textContent=state.replaceAll("_"," ");
+      const error=payload.bridge?.error;$("providerMessage").textContent=state==="CONNECTED"?"Read-only FYERS live stream connected.":state==="DEGRADED"?`FYERS REST fallback active while the live stream reconnects${error?`: ${error}`:"."}`:error||"FYERS session is not live. Use the local login button if today's token has expired.";
+    }
   }catch(error){
     if(isSuperseded(error))return;
+    if(applyV17MarketHealth(window.JARVIS_V17_STATUS))return;
     const last=Number($("providerState").dataset.lastVerifiedAt||0);
     const recent=last&&Date.now()-last<30000;
     $("providerState").textContent=recent?"DEGRADED":"PARTIAL";
