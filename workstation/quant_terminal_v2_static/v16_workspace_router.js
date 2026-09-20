@@ -579,7 +579,7 @@
   function route() {
     ensureStyle(); ensureOptionsCenter(); ensureOptionChartActions(); ensureExtraOptionUnderlyings(); ensureOptionsSidebar(); bindCenterControls();
     const mode = activeMode(); const options = mode === "OPTIONS"; const entering = options && lastMode !== "OPTIONS"; lastMode = mode;
-    if (entering) { const select=$("v16OptionUnderlying"); if(select)select.dataset.userChosen=""; syncUnderlyingFromMarketContext(); selectedContract=null; selectedContractPayload=null; setOptionChartFocus(false); latestChain=null; syncUnderlyingChartContext(); }
+    if (entering) { const select=$("v16OptionUnderlying"); if(select)select.dataset.userChosen=""; syncUnderlyingFromMarketContext(); selectedContract=null; selectedContractPayload=null; setOptionChartFocus(false); latestChain=null; }
     setOptionsVisibility(options); setCenterOptionsVisibility(options);
     if (options) {
       syncCapital(optionCapitalWorkspace());
