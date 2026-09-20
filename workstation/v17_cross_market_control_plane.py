@@ -80,7 +80,11 @@ class V17CrossMarketControlPlane:
         changed = False
         lane = crypto_lane or crypto_paper_lane
 
-        targets = list(prefs.get("start_workspaces") or [])
+        targets = (
+            list(prefs.get("start_workspaces") or [])
+            if armed
+            else ["INTRADAY", "SWING", "INVESTMENT"]
+        )
         for workspace in targets:
             name = str(workspace).upper()
             try:
