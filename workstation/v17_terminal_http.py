@@ -13,6 +13,7 @@ from typing import Any
 from workstation.v16_terminal_http import build_handler as build_v16_handler
 from workstation.v17_autopilot_preferences import load_preferences, save_preferences
 from workstation.v17_crypto_paper_lane import crypto_paper_lane
+from workstation.v17_cross_market_control_plane import cross_market_control_plane
 
 V17_STATUS_PATH = "/api/v17/trading/status"
 V17_PREFERENCES_PATH = "/api/v17/autopilot/preferences"
@@ -114,61 +115,42 @@ def _autopilot_control(runtime: Any, body: dict[str, Any]) -> dict[str, Any]:
     action = str(body.get("action") or "").strip().lower()
     if action in {"resume", "run"}:
         action = "start"
-    if action in {"stop", "pause", "pause_new_entries", "stop_scanner"}:
+    if action in {"stop", "pause", "pause_new_entries", "stop_scanner", "stop_for_day"}:
         action = "stop"
     if action not in {"start", "stop"}:
         raise ValueError("Choose V17 autopilot action start or stop")
 
     updates = _preference_updates(body)
-    preferences = save_preferences(updates) if updates else load_preferences()
-    targets = list(preferences["start_workspaces"])
-    workspaces = targets if action == "start" else ["INTRADAY", "SWING", "INVESTMENT"]
-    runtime_action = "start" if action == "start" else "pause"
-    results: dict[str, dict[str, Any]] = {}
-    for workspace in workspaces:
-        try:
-            results[workspace] = dict(runtime.control(workspace, runtime_action))
-        except Exception as exc:
-            results[workspace] = {
-                "success": False,
-                "state": "PROBLEM",
-                "reason": type(exc).__name__,
-                "message": str(exc)[:300],
-            }
-
-    try:
-        if action == "start":
-            results["CRYPTO_UNDERLYING"] = dict(crypto_paper_lane.start())
-        else:
-            results["CRYPTO_UNDERLYING"] = dict(crypto_paper_lane.stop_new_entries())
-    except Exception as exc:
-        results["CRYPTO_UNDERLYING"] = {
-            "success": False,
-            "state": "PROBLEM",
-            "reason": type(exc).__name__,
-            "message": str(exc)[:300],
-            "paper_only": True,
-            "live_execution": False,
-        }
-
-    success = all(item.get("success") is True for item in results.values())
+    updates["armed"] = action == "start"
+    preferences = save_preferences(updates)
+    control = cross_market_control_plane.reconcile(
+        runtime,
+        preferences=preferences,
+        force=True,
+    )
+    results = dict(control.get("lanes") or {})
+    success = not bool(control.get("last_error"))
     states = {
         name: item.get("state") or ("RUNNING" if item.get("running") else "PAUSED")
         for name, item in results.items()
+        if isinstance(item, dict)
     }
     return _safety(
         {
             "success": success,
             "service": "JARVIS_V17_ONE_TOUCH_AUTOPILOT",
+            "version": "17.3",
             "action": action.upper(),
+            "armed": bool(preferences.get("armed")),
             "results": results,
             "states": states,
+            "control_plane": control,
             "preferences": preferences,
             "options_capital_fraction": preferences["options_capital_fraction"],
             "message": (
-                "V17 PAPER autopilot started canonical sessions plus BTC/ETH/SOL adaptive underlying scanning."
+                "V17.3 PAPER control plane armed. India follows its session, MCX follows its session, and BTC/ETH/SOL resumes 24/7 after restarts."
                 if action == "start"
-                else "V17 new-entry sessions paused, including crypto underlying scanning; existing Paper Desk positions remain managed."
+                else "V17.3 PAPER control plane disarmed. New entries stay paused after restarts; existing Paper Desk positions remain managed."
             ),
         }
     )
@@ -242,6 +224,10 @@ def _v17_status(runtime, workspace: str) -> dict:
         "stream": _fyers_stream_status(),
     }
     preferences = load_preferences()
+    control_plane = cross_market_control_plane.reconcile(
+        runtime,
+        preferences=preferences,
+    )
     crypto_status = _crypto_lane_status()
 
     service = getattr(runtime, "v17_autonomy_service", None)
@@ -249,7 +235,7 @@ def _v17_status(runtime, workspace: str) -> dict:
         return {
             "success": False,
             "service": "JARVIS_V17_AUTONOMOUS_OPTIONS_PAPER_RUNTIME",
-            "version": "17.2",
+            "version": "17.3",
             "installed": False,
             "reason": "V17_AUTONOMY_SERVICE_NOT_INSTALLED",
             "workspace": route["requested_workspace"],
@@ -257,6 +243,7 @@ def _v17_status(runtime, workspace: str) -> dict:
             "route": route,
             "market_data": market_data,
             "autopilot_preferences": preferences,
+            "control_plane": control_plane,
             "crypto_underlying_paper": crypto_status,
             **safety,
         }
@@ -266,7 +253,7 @@ def _v17_status(runtime, workspace: str) -> dict:
         {
             "success": True,
             "service": "JARVIS_V17_AUTONOMOUS_OPTIONS_PAPER_RUNTIME",
-            "version": "17.2",
+            "version": "17.3",
             "runtime_identity": "V17_AUTONOMOUS_OPTIONS",
             "verified_parent": "V16_TRADING_CONVERGENCE",
             "workspace": route["requested_workspace"],
@@ -274,6 +261,7 @@ def _v17_status(runtime, workspace: str) -> dict:
             "route": route,
             "market_data": market_data,
             "autopilot_preferences": preferences,
+            "control_plane": control_plane,
             "crypto_underlying_paper": crypto_status,
             **safety,
         }
@@ -285,7 +273,7 @@ def build_handler(base, runtime):
     V16Handler = build_v16_handler(base, runtime)
 
     class V17TerminalHandler(V16Handler):
-        server_version = "JarvisQuantV17/1.4"
+        server_version = "JarvisQuantV17/1.5"
 
         def _serve_v17_root(self):
             from workstation.quant_terminal_v2 import STATIC
@@ -304,8 +292,8 @@ def build_handler(base, runtime):
                 '<script defer src="/v16_option_decision_runtime.js?v=170222"></script>'
                 '<script defer src="/v16_workspace_router.js?v=170222"></script>'
                 '<script defer src="/v16_option_readiness_runtime.js"></script>'
-                '<script defer src="/v17_runtime.js?v=170222"></script>'
-                '<script defer src="/v17_crypto_paper_runtime.js?v=170224"></script>'
+                '<script defer src="/v17_runtime.js?v=170300"></script>'
+                '<script defer src="/v17_crypto_paper_runtime.js?v=170300"></script>'
             )
             content = html.replace("</head>", injection + "</head>").encode("utf-8")
             self.send_response(200)
