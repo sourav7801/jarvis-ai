@@ -31,6 +31,26 @@ class _FakeRuntime:
         return self.status(workspace)
 
 
+class _ControlOnlyRuntime:
+    """Matches the production TerminalRuntime surface: control(), no status()."""
+
+    def __init__(self):
+        self._desired = {
+            "INTRADAY": False,
+            "SWING": False,
+            "INVESTMENT": False,
+        }
+        self.calls = []
+
+    def control(self, workspace, action):
+        self.calls.append((workspace, action))
+        self._desired[workspace] = action == "start"
+        return {
+            "success": True,
+            "state": "STARTING" if action == "start" else "PAUSED",
+        }
+
+
 class _FakeCryptoLane:
     def __init__(self):
         self.running = False
@@ -110,6 +130,46 @@ class V17CrossMarketControlPlaneTests(unittest.TestCase):
             self.assertFalse(status["armed"])
             self.assertEqual(crypto.stops, 1)
             self.assertTrue(all(not value for value in runtime.running.values()))
+
+
+    def test_control_plane_supports_production_control_only_runtime(self):
+        runtime = _ControlOnlyRuntime()
+        crypto = _FakeCryptoLane()
+        plane = V17CrossMarketControlPlane()
+        armed = {
+            **preferences.DEFAULTS,
+            "armed": True,
+            "start_workspaces": ["INTRADAY", "SWING", "INVESTMENT"],
+        }
+
+        status = plane.reconcile(
+            runtime,
+            preferences=armed,
+            force=True,
+            crypto_lane=crypto,
+        )
+        self.assertTrue(status["armed"])
+        self.assertTrue(all(runtime._desired.values()))
+        self.assertEqual(crypto.starts, 1)
+
+        disarmed = {**armed, "armed": False}
+        status = plane.reconcile(
+            runtime,
+            preferences=disarmed,
+            force=True,
+            crypto_lane=crypto,
+        )
+        self.assertFalse(status["armed"])
+        self.assertTrue(all(not value for value in runtime._desired.values()))
+        self.assertEqual(
+            runtime.calls[-3:],
+            [
+                ("INTRADAY", "pause"),
+                ("SWING", "pause"),
+                ("INVESTMENT", "pause"),
+            ],
+        )
+
 
     def test_mcx_option_research_is_quarantined_before_websocket(self):
         symbol = "MCX:CRUDEOIL26SEP7900CE"
