@@ -36,9 +36,12 @@ _GOVERNOR_DIR = ROOT / "data" / "reliability" / "fyers_provider"
 _GOVERNOR_STATE = _GOVERNOR_DIR / "state.json"
 _GOVERNOR_LOCK = _GOVERNOR_DIR / "provider.lock"
 _HISTORY_CACHE_DIR = _GOVERNOR_DIR / "history_cache"
-_MIN_REQUEST_INTERVAL_SECONDS = 1.05
-_RATE_LIMIT_COOLDOWN_SECONDS = 65.0
+_QUOTE_CACHE_DIR = _GOVERNOR_DIR / "quote_cache"
+_MIN_REQUEST_INTERVAL_SECONDS = 1.50
+_RATE_LIMIT_COOLDOWN_SECONDS = 180.0
 _LOCK_STALE_SECONDS = 30.0
+_CANONICAL_HISTORY_BARS = 800
+_QUOTE_CACHE_TTL_SECONDS = 8.0
 
 SYMBOLS = {
     "NIFTY": "NSE:NIFTY50-INDEX",
@@ -191,6 +194,7 @@ def _response_error(response: Any) -> str:
 
 def _ensure_governor_dirs() -> None:
     _HISTORY_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    _QUOTE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _load_governor_state() -> dict[str, Any]:
@@ -265,9 +269,13 @@ def _governed_provider_call(call: Callable[[], Any]) -> Any:
         state["last_provider_code"] = details.get("provider_code")
         state["last_provider_state"] = details.get("provider_state")
         if details.get("provider_code") == 429:
-            state["cooldown_until_epoch"] = finished + _RATE_LIMIT_COOLDOWN_SECONDS
+            strikes = min(int(state.get("rate_limit_strikes") or 0) + 1, 4)
+            state["rate_limit_strikes"] = strikes
+            cooldown = min(900.0, _RATE_LIMIT_COOLDOWN_SECONDS * (2 ** (strikes - 1)))
+            state["cooldown_until_epoch"] = finished + cooldown
         elif float(state.get("cooldown_until_epoch") or 0.0) <= finished:
             state["cooldown_until_epoch"] = 0.0
+            state["rate_limit_strikes"] = 0
         _save_governor_state(state)
         return response
 
@@ -281,10 +289,78 @@ def _cache_ttl_seconds(resolution: str) -> float:
     return 300.0
 
 
-def _history_cache_path(provider_symbol: str, resolution: str, bars: int) -> Path:
-    raw = f"{provider_symbol}|{resolution}|{int(bars)}".encode("utf-8")
+def _history_snapshot_bars(requested_bars: int) -> int:
+    """Return the canonical per-symbol/timeframe snapshot size.
+
+    A larger common snapshot lets 220/300/500-bar consumers reuse one provider
+    response. Very large explicit requests are still honored rather than
+    silently truncated.
+    """
+    try:
+        configured = int(float(os.getenv("JARVIS_FYERS_HISTORY_SNAPSHOT_BARS", "1000")))
+    except (TypeError, ValueError):
+        configured = 1000
+    return max(int(requested_bars), max(220, min(configured, 5000)))
+
+
+def _history_stale_ttl_seconds() -> float:
+    try:
+        configured = float(os.getenv("JARVIS_FYERS_HISTORY_STALE_TTL_SECONDS", "900"))
+    except (TypeError, ValueError):
+        configured = 900.0
+    return max(_cache_ttl_seconds("1"), min(configured, 3600.0))
+
+
+def _history_cache_path(provider_symbol: str, resolution: str, bars: int | None = None) -> Path:
+    # ``bars`` is accepted for backwards compatibility but deliberately does
+    # not participate in identity. All consumers of a provider symbol and
+    # resolution share one canonical snapshot and slice it locally.
+    raw = f"{provider_symbol}|{resolution}".encode("utf-8")
     digest = hashlib.sha256(raw).hexdigest()[:24]
     return _HISTORY_CACHE_DIR / f"{digest}.json"
+
+
+def _history_request_lock_path(provider_symbol: str, resolution: str) -> Path:
+    raw = f"{provider_symbol}|{resolution}|singleflight".encode("utf-8")
+    digest = hashlib.sha256(raw).hexdigest()[:24]
+    return _HISTORY_CACHE_DIR / f"{digest}.request.lock"
+
+
+@contextmanager
+def _history_request_lock(provider_symbol: str, resolution: str, timeout_seconds: float = 45.0):
+    """Cross-process single-flight lock for one canonical history snapshot."""
+    _ensure_governor_dirs()
+    path = _history_request_lock_path(provider_symbol, resolution)
+    deadline = time.monotonic() + max(float(timeout_seconds), 1.0)
+    fd: int | None = None
+    while time.monotonic() < deadline:
+        try:
+            fd = os.open(str(path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, f"{os.getpid()}\n{time.time()}".encode("ascii", errors="ignore"))
+            break
+        except FileExistsError:
+            try:
+                if time.time() - path.stat().st_mtime > 120.0:
+                    path.unlink(missing_ok=True)
+                    continue
+            except OSError:
+                pass
+            time.sleep(0.05)
+    if fd is None:
+        raise RuntimeError(
+            f"FYERS history single-flight lock timed out for {provider_symbol} {resolution}."
+        )
+    try:
+        yield
+    finally:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def _frame_to_cache_rows(frame: pd.DataFrame) -> list[dict[str, Any]]:
@@ -325,30 +401,52 @@ def _cache_rows_to_frame(rows: Any) -> pd.DataFrame:
     )
 
 
-def _load_history_cache(provider_symbol: str, resolution: str, bars: int) -> pd.DataFrame | None:
-    path = _history_cache_path(provider_symbol, resolution, bars)
+def _read_history_cache(provider_symbol: str, resolution: str) -> tuple[pd.DataFrame | None, float | None]:
+    path = _history_cache_path(provider_symbol, resolution)
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
         age = time.time() - float(payload.get("saved_at_epoch") or 0.0)
-        if age < 0 or age > _cache_ttl_seconds(resolution):
-            return None
         frame = _cache_rows_to_frame(payload.get("rows"))
-        return frame.tail(bars) if not frame.empty else None
+        if age < 0 or frame.empty:
+            return None, None
+        return frame, age
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return None, None
+
+
+def _load_history_cache(
+    provider_symbol: str,
+    resolution: str,
+    bars: int,
+    *,
+    max_age_seconds: float | None = None,
+    require_full: bool = True,
+) -> pd.DataFrame | None:
+    frame, age = _read_history_cache(provider_symbol, resolution)
+    if frame is None or age is None:
         return None
+    ttl = _cache_ttl_seconds(resolution) if max_age_seconds is None else max(float(max_age_seconds), 0.0)
+    if age > ttl:
+        return None
+    requested = max(1, int(bars))
+    if require_full and len(frame) < requested:
+        return None
+    return frame.tail(requested)
 
 
 def _save_history_cache(provider_symbol: str, resolution: str, bars: int, frame: pd.DataFrame) -> None:
     if frame.empty:
         return
+    canonical = frame.sort_index().tail(max(1, int(bars)))
     _write_json_atomic(
-        _history_cache_path(provider_symbol, resolution, bars),
+        _history_cache_path(provider_symbol, resolution),
         {
             "saved_at_epoch": time.time(),
             "provider_symbol": provider_symbol,
             "resolution": resolution,
-            "bars": int(bars),
-            "rows": _frame_to_cache_rows(frame.tail(bars)),
+            "bars": len(canonical),
+            "cache_identity": "provider_symbol+resolution",
+            "rows": _frame_to_cache_rows(canonical),
         },
     )
 
@@ -393,86 +491,10 @@ def get_intraday_data(
             "data": None,
         }
 
-    cached = _load_history_cache(provider_symbol, resolution, bars)
-    if cached is not None:
-        return {
-            "success": True,
-            "source": "FYERS",
-            "data_quality": "BROKER_HISTORICAL",
-            "symbol": requested_symbol,
-            "provider_symbol": provider_symbol,
-            "timeframe": timeframe,
-            "bars": len(cached),
-            "data": cached,
-            "message": "Historical candles loaded from the bounded FYERS completed-history cache.",
-            "provider_state": "READY",
-            "provider_code": 200,
-            "provider_cache_hit": True,
-            "market_data_fabricated": False,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
+    requested_bars = max(1, int(bars))
+    snapshot_bars = _history_snapshot_bars(requested_bars)
 
-    try:
-        fyers = client or create_client()
-        end = datetime.now(INDIA_TZ).date()
-        start = end - timedelta(days=_calendar_days_for_bars(bars, resolution))
-        max_days = 100 if resolution.isdigit() else 366
-        rows: list[list[Any]] = []
-        errors: list[dict[str, Any]] = []
-        for range_from, range_to in _windows(start, end, max_days):
-            try:
-                response = _governed_provider_call(
-                    lambda rf=range_from, rt=range_to: fyers.history(
-                        data={
-                            "symbol": provider_symbol,
-                            "resolution": resolution,
-                            "date_format": "1",
-                            "range_from": rf.isoformat(),
-                            "range_to": rt.isoformat(),
-                            "cont_flag": "1",
-                        }
-                    )
-                )
-            except FyersRateLimited as exc:
-                errors.append({
-                    "provider_state": "RATE_LIMITED",
-                    "provider_code": 429,
-                    "message": str(exc),
-                    "retry_after_seconds": int(round(exc.retry_after_seconds)),
-                })
-                break
-            if isinstance(response, dict) and response.get("s") == "ok":
-                rows.extend(response.get("candles") or [])
-            elif isinstance(response, dict) and response.get("s") == "no_data":
-                continue
-            else:
-                details = _response_details(response)
-                errors.append(details)
-                if details.get("provider_state") == "RATE_LIMITED":
-                    break
-
-        frame = candles_to_frame(rows).tail(bars)
-        if frame.empty:
-            details = errors[-1] if errors else {
-                "provider_state": "NO_DATA",
-                "provider_code": None,
-                "message": "FYERS returned no candles.",
-                "retry_after_seconds": None,
-            }
-            return {
-                "success": False,
-                "source": "FYERS",
-                "data_quality": "UNAVAILABLE",
-                "symbol": requested_symbol,
-                "provider_symbol": provider_symbol,
-                "timeframe": timeframe,
-                "bars": 0,
-                "data": None,
-                **details,
-                "market_data_fabricated": False,
-            }
-
-        _save_history_cache(provider_symbol, resolution, bars, frame)
+    def ready_cache_payload(frame: pd.DataFrame, *, after_singleflight: bool = False) -> dict[str, Any]:
         return {
             "success": True,
             "source": "FYERS",
@@ -482,15 +504,186 @@ def get_intraday_data(
             "timeframe": timeframe,
             "bars": len(frame),
             "data": frame,
-            "message": "Historical candles loaded from FYERS API v3.",
+            "message": (
+                "Historical candles loaded from the canonical FYERS symbol/timeframe cache"
+                + (" after single-flight coalescing." if after_singleflight else ".")
+            ),
             "provider_state": "READY",
             "provider_code": 200,
-            "provider_cache_hit": False,
-            "provider_warnings": errors,
+            "provider_cache_hit": True,
+            "provider_cache_stale": False,
+            "provider_rate_limited": False,
+            "stale": False,
+            "stream_degraded": False,
+            "cache_identity": "provider_symbol+resolution",
             "market_data_fabricated": False,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
+
+    def stale_cache_payload(exc: FyersRateLimited | None, details: dict[str, Any] | None = None) -> dict[str, Any] | None:
+        stale = _load_history_cache(
+            provider_symbol,
+            resolution,
+            requested_bars,
+            max_age_seconds=_history_stale_ttl_seconds(),
+            require_full=False,
+        )
+        if stale is None or stale.empty:
+            return None
+        retry_after = int(round(exc.retry_after_seconds)) if exc is not None else int(
+            (details or {}).get("retry_after_seconds") or _RATE_LIMIT_COOLDOWN_SECONDS
+        )
+        return {
+            "success": True,
+            "source": "FYERS",
+            "data_quality": "BROKER_HISTORICAL_STALE",
+            "symbol": requested_symbol,
+            "provider_symbol": provider_symbol,
+            "timeframe": timeframe,
+            "bars": len(stale),
+            "data": stale,
+            "message": (
+                "FYERS history is rate limited; serving the last verified canonical "
+                "history snapshot for display only. Automatic evidence remains blocked."
+            ),
+            "provider_state": "RATE_LIMITED",
+            "provider_code": 429,
+            "retry_after_seconds": retry_after,
+            "provider_cache_hit": True,
+            "provider_cache_stale": True,
+            "provider_rate_limited": True,
+            "stale": True,
+            "stream_degraded": True,
+            "cache_identity": "provider_symbol+resolution",
+            "market_data_fabricated": False,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+    cached = _load_history_cache(provider_symbol, resolution, requested_bars)
+    if cached is not None:
+        return ready_cache_payload(cached)
+
+    try:
+        # Different workers requesting 220/300/500 bars for the same market
+        # identity now collapse into one provider call. The follower rechecks
+        # the canonical snapshot after the leader releases this lock.
+        with _history_request_lock(provider_symbol, resolution):
+            cached = _load_history_cache(provider_symbol, resolution, requested_bars)
+            if cached is not None:
+                return ready_cache_payload(cached, after_singleflight=True)
+
+            fyers = client or create_client()
+            end = datetime.now(INDIA_TZ).date()
+            start = end - timedelta(days=_calendar_days_for_bars(snapshot_bars, resolution))
+            max_days = 100 if resolution.isdigit() else 366
+            rows: list[list[Any]] = []
+            errors: list[dict[str, Any]] = []
+            rate_limit_details: dict[str, Any] | None = None
+            for range_from, range_to in _windows(start, end, max_days):
+                try:
+                    response = _governed_provider_call(
+                        lambda rf=range_from, rt=range_to: fyers.history(
+                            data={
+                                "symbol": provider_symbol,
+                                "resolution": resolution,
+                                "date_format": "1",
+                                "range_from": rf.isoformat(),
+                                "range_to": rt.isoformat(),
+                                "cont_flag": "1",
+                            }
+                        )
+                    )
+                except FyersRateLimited as exc:
+                    stale_payload = stale_cache_payload(exc)
+                    if stale_payload is not None:
+                        return stale_payload
+                    raise
+                if isinstance(response, dict) and response.get("s") == "ok":
+                    rows.extend(response.get("candles") or [])
+                elif isinstance(response, dict) and response.get("s") == "no_data":
+                    continue
+                else:
+                    details = _response_details(response)
+                    errors.append(details)
+                    if details.get("provider_state") == "RATE_LIMITED":
+                        rate_limit_details = details
+                        break
+
+            if rate_limit_details is not None:
+                stale_payload = stale_cache_payload(None, rate_limit_details)
+                if stale_payload is not None:
+                    return stale_payload
+                return {
+                    "success": False,
+                    "source": "FYERS",
+                    "data_quality": "UNAVAILABLE",
+                    "symbol": requested_symbol,
+                    "provider_symbol": provider_symbol,
+                    "timeframe": timeframe,
+                    "bars": 0,
+                    "data": None,
+                    **rate_limit_details,
+                    "provider_cache_hit": False,
+                    "provider_cache_stale": False,
+                    "provider_rate_limited": True,
+                    "stale": True,
+                    "stream_degraded": True,
+                    "market_data_fabricated": False,
+                }
+
+            frame = candles_to_frame(rows).tail(snapshot_bars)
+            if frame.empty:
+                details = errors[-1] if errors else {
+                    "provider_state": "NO_DATA",
+                    "provider_code": None,
+                    "message": "FYERS returned no candles.",
+                    "retry_after_seconds": None,
+                }
+                return {
+                    "success": False,
+                    "source": "FYERS",
+                    "data_quality": "UNAVAILABLE",
+                    "symbol": requested_symbol,
+                    "provider_symbol": provider_symbol,
+                    "timeframe": timeframe,
+                    "bars": 0,
+                    "data": None,
+                    **details,
+                    "provider_cache_hit": False,
+                    "provider_cache_stale": False,
+                    "provider_rate_limited": False,
+                    "market_data_fabricated": False,
+                }
+
+            _save_history_cache(provider_symbol, resolution, snapshot_bars, frame)
+            sliced = frame.tail(requested_bars)
+            return {
+                "success": True,
+                "source": "FYERS",
+                "data_quality": "BROKER_HISTORICAL",
+                "symbol": requested_symbol,
+                "provider_symbol": provider_symbol,
+                "timeframe": timeframe,
+                "bars": len(sliced),
+                "data": sliced,
+                "message": "Historical candles loaded from FYERS API v3 into the canonical symbol/timeframe snapshot.",
+                "provider_state": "READY",
+                "provider_code": 200,
+                "provider_cache_hit": False,
+                "provider_cache_stale": False,
+                "provider_rate_limited": False,
+                "provider_snapshot_bars": len(frame),
+                "stale": False,
+                "stream_degraded": False,
+                "cache_identity": "provider_symbol+resolution",
+                "provider_warnings": errors,
+                "market_data_fabricated": False,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
     except FyersRateLimited as exc:
+        stale_payload = stale_cache_payload(exc)
+        if stale_payload is not None:
+            return stale_payload
         return {
             "success": False,
             "source": "FYERS",
@@ -503,6 +696,11 @@ def get_intraday_data(
             "provider_state": "RATE_LIMITED",
             "provider_code": 429,
             "retry_after_seconds": int(round(exc.retry_after_seconds)),
+            "provider_cache_hit": False,
+            "provider_cache_stale": False,
+            "provider_rate_limited": True,
+            "stale": True,
+            "stream_degraded": True,
             "message": str(exc),
             "market_data_fabricated": False,
         }
@@ -527,6 +725,11 @@ def get_quote(symbol: str, *, client: Any = None) -> dict[str, Any]:
     provider_symbol = ""
     try:
         provider_symbol = normalize_symbol(symbol)
+        cached = _load_quote_cache(provider_symbol)
+        if cached is not None:
+            cached["symbol"] = str(symbol or "").strip().upper()
+            cached["provider_symbol"] = provider_symbol
+            return cached
         fyers = client or create_client()
         response = _governed_provider_call(lambda: fyers.quotes(data={"symbols": provider_symbol}))
         items = response.get("d", []) if isinstance(response, dict) else []
@@ -541,13 +744,14 @@ def get_quote(symbol: str, *, client: Any = None) -> dict[str, Any]:
             }
         item = items[0]
         values = item.get("v", {}) if isinstance(item, dict) else {}
-        return {
+        result = {
             "success": True,
             "source": "FYERS",
             "symbol": str(symbol).strip().upper(),
             "provider_symbol": provider_symbol,
             "provider_state": "READY",
             "provider_code": 200,
+            "provider_cache_hit": False,
             "ltp": values.get("lp"),
             "change": values.get("ch"),
             "change_percent": values.get("chp"),
@@ -560,6 +764,8 @@ def get_quote(symbol: str, *, client: Any = None) -> dict[str, Any]:
             "ask": values.get("ask"),
             "exchange_timestamp": values.get("tt"),
         }
+        _save_quote_cache(provider_symbol, result)
+        return result
     except FyersRateLimited as exc:
         return {
             "success": False,
@@ -597,7 +803,10 @@ def provider_governor_status() -> dict[str, Any]:
         "retry_after_seconds": max(0, int(round(cooldown_until - now))),
         "last_provider_code": state.get("last_provider_code"),
         "last_provider_state": state.get("last_provider_state"),
+        "rate_limit_strikes": int(state.get("rate_limit_strikes") or 0),
         "history_cache": True,
+        "quote_cache": True,
+        "canonical_history_bars": _CANONICAL_HISTORY_BARS,
         "market_data_fabricated": False,
         "read_only": True,
         "live_orders": False,

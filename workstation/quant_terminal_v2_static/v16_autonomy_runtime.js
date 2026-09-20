@@ -72,7 +72,27 @@
     node.dataset.kind = kind;
   }
 
-  function providerState(state) {
+  function providerState(state, symbol = "") {
+    const wanted = String(symbol || "").trim().toUpperCase();
+    if (wanted) {
+      const mark = state?.market_data?.marks?.[wanted];
+      if (mark && typeof mark === "object") {
+        if (mark.eligible_for_entry === true) return {degraded: false, label: "VERIFIED", symbol: wanted};
+        const reason = String(mark.reason || "").toUpperCase();
+        if (reason.includes("LOGIN")) return {degraded: true, label: "LOGIN REQUIRED", symbol: wanted};
+        if (reason.includes("RATE") || reason.includes("429")) return {degraded: true, label: "RATE LIMITED", symbol: wanted};
+        if (reason) return {degraded: true, label: reason.replaceAll("_", " "), symbol: wanted};
+      }
+      const row = (Array.isArray(state?.watchlist) ? state.watchlist : []).find(item => String(item?.symbol || "").toUpperCase() === wanted);
+      if (row) {
+        if (row.eligible_for_entry === true) return {degraded: false, label: "VERIFIED", symbol: wanted};
+        const reason = String(row.reason || "").toUpperCase();
+        if (reason.includes("LOGIN")) return {degraded: true, label: "LOGIN REQUIRED", symbol: wanted};
+        if (reason.includes("RATE") || reason.includes("429")) return {degraded: true, label: "RATE LIMITED", symbol: wanted};
+        if (reason) return {degraded: true, label: reason.replaceAll("_", " "), symbol: wanted};
+      }
+      return {degraded: false, label: "CANDIDATE VERIFIED", symbol: wanted};
+    }
     const providers = Object.values(state?.market_data?.providers || {});
     if (!providers.length) return {degraded: false, label: "WAITING"};
     if (providers.some(item => String(item.state || "").toUpperCase() === "LOGIN_REQUIRED")) return {degraded: true, label: "LOGIN REQUIRED"};
@@ -106,10 +126,11 @@
     const candidates = Array.isArray(state?.scan_decisions?.candidates) ? state.scan_decisions.candidates : [];
     const actionable = candidates.find(item => String(item.stage || "").toUpperCase() === "ACTIONABLE");
     const candidate = actionable || candidates[0] || null;
-    const selectedUnderlying = String($("v16OptionUnderlying")?.value || candidate?.symbol || "NIFTY").toUpperCase();
-    const underlying = INDEX_OPTION_UNDERLYINGS.has(selectedUnderlying) ? selectedUnderlying : String(candidate?.symbol || selectedUnderlying || "—").toUpperCase();
+    const candidateSymbol = String(candidate?.symbol || "").toUpperCase();
+    const selectedUnderlying = String($("v16OptionUnderlying")?.value || "NIFTY").toUpperCase();
+    const underlying = String(candidateSymbol || selectedUnderlying || "—").toUpperCase();
     const optionPosition = INDEX_OPTION_UNDERLYINGS.has(underlying) ? optionPositionFor(state, underlying) : null;
-    const market = providerState(state);
+    const market = providerState(state, candidateSymbol || underlying);
     const running = String(session.entry_session || "").toUpperCase() === "RUNNING";
     const direction = normalizedDirection(candidate);
     const metadata = optionPosition?.metadata || {};
@@ -177,9 +198,9 @@
     const running = String(session.entry_session || "").toUpperCase() === "RUNNING";
     const scanning = Boolean(session.scanning);
     const reconciliation = session.reconciliation_ok !== false;
-    const market = providerState(state);
     const candidates = Array.isArray(state?.scan_decisions?.candidates) ? state.scan_decisions.candidates : [];
     const actionable = candidates.find(item => String(item.stage || "").toUpperCase() === "ACTIONABLE");
+    const market = providerState(state, actionable?.symbol || candidates[0]?.symbol || "");
 
     const badge = $("v16AutoBadge");
     if (badge) {

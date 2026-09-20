@@ -370,7 +370,15 @@ function mountCharts(generation=workspaceGeneration,{progressive=true}={}){
   host.className=`chart-grid layout-${layout}`;
 
   for(let index=0;index<layout;index++){
-    const config=slotView(index);const symbol=config.symbol;
+    const config=slotView(index);
+    const usedSymbols=new Set(chartSlots.map(slot=>String(slot?.symbol||"").toUpperCase()));
+    let symbol=String(config.symbol||"").toUpperCase();
+    if(usedSymbols.has(symbol)){
+      symbol=SLOT_DEFAULTS.find(item=>!usedSymbols.has(item))||symbol;
+      config.symbol=symbol;
+      const view=workspaceView();
+      view.slots[index]={...config,symbol};
+    }
     const cell=document.createElement("div");cell.className="chart-cell"+(index===selectedSlot?" selected":"");cell.dataset.slot=String(index);
     const head=document.createElement("div");head.className="chart-head";
     head.innerHTML=`<strong>${marketMeta(symbol).label}</strong><span>${config.timeframe} · QUEUED</span>`;
