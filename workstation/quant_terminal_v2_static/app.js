@@ -434,7 +434,7 @@ function createSeries(slot,payload){
   centerChart(slot);
 }
 
-async function loadSlot(index,generation=workspaceGeneration,priority=2){
+async function loadSlot(index,generation=workspaceGeneration,priority=2,forceProvider=false){
   const slot=chartSlots[index];if(!slot)return;
   const timeframe=slot.timeframe;const version=slot.loadVersion=(slot.loadVersion||0)+1;
   if(slot.loadController){try{slot.loadController.abort("slot superseded")}catch{}}
@@ -444,14 +444,15 @@ async function loadSlot(index,generation=workspaceGeneration,priority=2){
   if(workspaceSignal.aborted)onWorkspaceAbort();else workspaceSignal.addEventListener("abort",onWorkspaceAbort,{once:true});
   if(slot.cryptoSocket){try{slot.cryptoSocket.close()}catch{}slot.cryptoSocket=null}
   const symbol=slot.symbol;const meta=marketMeta(symbol);
-  const params=new URLSearchParams({symbol,timeframe,bars:"700"});
+  const params=new URLSearchParams({symbol,timeframe,bars:"700",display:"1"});
+  if(forceProvider)params.set("fresh","1");
   const url=`/api/candles?${params}`;
   slot.head.querySelector("strong").textContent=meta.label;
-  slot.head.querySelector("span").textContent=`${timeframe} · LOADING`;
-  setStatus(slot,`Loading ${meta.label} ${timeframe} candles…`);
+  slot.head.querySelector("span").textContent=`${timeframe} · ${forceProvider?"REFRESHING":"LOADING"}`;
+  setStatus(slot,forceProvider?`Refreshing ${meta.label} ${timeframe} from provider…`:`Loading ${meta.label} ${timeframe} chart…`);
 
-  // Stale-while-revalidate: preserve a previously verified chart while the
-  // selected workspace refreshes instead of replacing it with a blank panel.
+  // Preserve any already-rendered series while revalidating. Navigation must
+  // never blank a previously verified chart.
   const cached=cachedCandles(url,300000);
   if(cached?.payload?.success&&cached.payload.candles?.length&&!slot.data.length){
     try{
@@ -462,12 +463,19 @@ async function loadSlot(index,generation=workspaceGeneration,priority=2){
   }
 
   try{
-    const payload=await readCandles(url,{signal:controller.signal,generation,priority,forceFresh:Boolean(cached)});
+    const payload=await readCandles(url,{signal:controller.signal,generation,priority,forceFresh:Boolean(cached)||forceProvider});
     if(generation!==workspaceGeneration||chartSlots[index]!==slot||slot.loadVersion!==version||slot.symbol!==symbol||slot.timeframe!==timeframe)return;
     if(!payload.success||!payload.candles?.length)throw new Error(payload.message||"Verified candles unavailable.");
     createSeries(slot,payload);
-    slot.head.querySelector("span").textContent=`${timeframe} · ${payload.source}`;
-    setStatus(slot,`${payload.source} · ${payload.provider_symbol} · ${payload.bars} bars · ${payload.data_quality}`,"live");
+    const displayOnly=Boolean(payload.display_only);
+    const stale=Boolean(payload.stale||payload.provider_cache_stale);
+    const sourceLabel=displayOnly?(stale?"VERIFIED CACHE · STALE":"VERIFIED CACHE"):payload.source;
+    slot.head.querySelector("span").textContent=`${timeframe} · ${sourceLabel}`;
+    setStatus(
+      slot,
+      `${payload.source} · ${payload.provider_symbol||symbol} · ${payload.bars} bars · ${payload.data_quality}${displayOnly?" · DISPLAY ONLY":""}`,
+      displayOnly||stale?"degraded":"live"
+    );
     if(meta.kind==="CRYPTO")connectCryptoSocket(slot);else pollSlotLive(slot);
   }catch(error){
     if(isSuperseded(error)||generation!==workspaceGeneration||chartSlots[index]!==slot||slot.loadVersion!==version)return;
@@ -619,12 +627,12 @@ function bindControls(){
   document.querySelectorAll("[data-timeframe]").forEach(button=>button.addEventListener("click",()=>setChartTimeframe(selectedSlot,button.dataset.timeframe)));
   document.querySelectorAll("[data-indicator]").forEach(button=>button.addEventListener("click",()=>{const key=button.dataset.indicator;indicatorState[key]=!indicatorState[key];const slot=chartSlots[selectedSlot];if(slot){slot.indicators[key]=indicatorState[key];updateIndicators(slot)}syncControls();persistCharts()}));
   $("fitButton").addEventListener("click",()=>chartSlots.forEach(centerChart));
-  $("reloadCharts").addEventListener("click",()=>chartSlots.forEach((_,i)=>loadSlot(i)));
+  $("reloadCharts").addEventListener("click",()=>chartSlots.forEach((_,i)=>loadSlot(i,workspaceGeneration,i===selectedSlot?1:2,true)));
   $("scanButton").addEventListener("click",scanSelected);
   $("sendCommand").addEventListener("click",sendCommand);$("commandInput").addEventListener("keydown",event=>{if(event.key==="Enter")sendCommand()});
   document.querySelectorAll("[data-module]").forEach(button=>button.addEventListener("click",()=>openIntelligenceModule(button.dataset.module)));
   $("loginButton").addEventListener("click",async()=>{try{const payload=await fetchJson("/api/fyers/login",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"},15000);$("providerMessage").textContent=payload.message||"FYERS login launched."}catch(error){$("providerMessage").textContent=error.message}});
-  $("restartButton").addEventListener("click",async()=>{try{await fetchJson("/api/market/restart",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"},15000);setTimeout(refreshProvider,700);chartSlots.forEach((_,i)=>loadSlot(i))}catch(error){$("providerMessage").textContent=error.message}});
+  $("restartButton").addEventListener("click",async()=>{try{await fetchJson("/api/market/restart",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"},15000);setTimeout(refreshProvider,700);chartSlots.forEach((_,i)=>loadSlot(i,workspaceGeneration,i===selectedSlot?1:2,true))}catch(error){$("providerMessage").textContent=error.message}});
   $("providerButton").addEventListener("click",()=>$("providerState").scrollIntoView({behavior:"smooth",block:"center"}));
 }
 
