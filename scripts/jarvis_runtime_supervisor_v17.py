@@ -100,6 +100,19 @@ class JarvisRuntimeSupervisorV17(JarvisRuntimeSupervisorV15):
 
 def v17_services(root: Path = ROOT) -> tuple[ManagedService, ...]:
     python = str(Path(sys.executable).resolve())
+    # NautilusTrader is intentionally isolated from the main V17 environment.
+    # Prefer the dedicated environment when it exists; fall back to the main
+    # interpreter only when the package was installed there.
+    nautilus_candidates = [
+        Path(os.getenv("JARVIS_NAUTILUS_PY", "")).expanduser() if os.getenv("JARVIS_NAUTILUS_PY") else None,
+        root / ".venv-nautilus-new" / "Scripts" / "python.exe",
+        root / ".venv-nautilus" / "Scripts" / "python.exe",
+        Path(python),
+    ]
+    nautilus_python = next(
+        (str(path.resolve()) for path in nautilus_candidates if path and path.exists()),
+        python,
+    )
     services: list[ManagedService] = []
     for service in v16.v16_services(root):
         if service.name == "master":
@@ -149,6 +162,33 @@ def v17_services(root: Path = ROOT) -> tuple[ManagedService, ...]:
             )
             continue
         services.append(service)
+
+    # Make the V17 service set explicit so a future V16 lineage change cannot
+    # silently drop Nautilus from the supervised product.
+    if not any(service.name == "nautilus" for service in services):
+        services.append(
+            ManagedService(
+                name="nautilus",
+                argv=(nautilus_python, str(root / "start_jarvis_nautilus_core.py")),
+                health_url="http://127.0.0.1:8792/health",
+                expected_service="JARVIS_NAUTILUS_QUANT_CORE",
+                port=8792,
+                environment=(),
+            )
+        )
+    else:
+        services = [
+            ManagedService(
+                name=service.name,
+                argv=(nautilus_python, service.argv[1]) if service.name == "nautilus" else service.argv,
+                health_url=service.health_url,
+                expected_service=service.expected_service,
+                port=service.port,
+                health_markers=service.health_markers,
+                environment=service.environment,
+            )
+            for service in services
+        ]
     return tuple(services)
 
 
