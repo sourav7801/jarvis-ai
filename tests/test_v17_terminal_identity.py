@@ -26,7 +26,7 @@ class V17TerminalIdentityTests(unittest.TestCase):
         payload = _v17_status(_Runtime(), "INTRADAY")
         self.assertEqual(V17_STATUS_PATH, "/api/v17/trading/status")
         self.assertTrue(payload["success"])
-        self.assertEqual(payload["version"], "17.4")
+        self.assertEqual(payload["version"], "17.4.1")
         self.assertEqual(payload["runtime_identity"], "V17_AUTONOMOUS_OPTIONS")
         self.assertEqual(payload["workspace"], "INTRADAY")
         self.assertTrue(payload["paper_only"])
