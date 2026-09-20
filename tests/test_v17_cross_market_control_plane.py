@@ -164,6 +164,16 @@ class V17CrossMarketControlPlaneTests(unittest.TestCase):
         self.assertIn("ARMED · AUTO-RESUME", ui)
         self.assertIn("V17.3 is DISARMED", cross_ui)
 
+    def test_v17_process_boot_reconciles_durable_intent_without_browser(self):
+        root = Path(__file__).resolve().parents[1]
+        launcher = (root / "start_jarvis_professional_terminal_v17.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("boot_preferences = load_preferences()", launcher)
+        self.assertIn("cross_market_control_plane.reconcile(", launcher)
+        self.assertIn("crypto_lane=crypto_paper_lane", launcher)
+        self.assertIn("ARMED / AUTO-RESUME", launcher)
+
 
 if __name__ == "__main__":
     unittest.main()
