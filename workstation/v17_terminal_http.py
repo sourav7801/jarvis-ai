@@ -18,6 +18,7 @@ from workstation.v17_cross_market_control_plane import cross_market_control_plan
 V17_STATUS_PATH = "/api/v17/trading/status"
 V17_PREFERENCES_PATH = "/api/v17/autopilot/preferences"
 V17_CONTROL_PATH = "/api/v17/autopilot/control"
+V17_PERFORMANCE_PATH = "/api/v17/diagnostics/performance"
 
 _ROUTE_META = {
     "INTRADAY": {"label": "Intraday", "execution_workspace": "INTRADAY", "horizon": "SESSION"},
@@ -140,7 +141,7 @@ def _autopilot_control(runtime: Any, body: dict[str, Any]) -> dict[str, Any]:
         {
             "success": success,
             "service": "JARVIS_V17_ONE_TOUCH_AUTOPILOT",
-            "version": "17.3",
+            "version": "17.4",
             "action": action.upper(),
             "armed": bool(preferences.get("armed")),
             "results": results,
@@ -216,6 +217,38 @@ def _fyers_stream_status() -> dict:
     return payload
 
 
+
+def _performance_payload() -> dict:
+    from workstation.terminal_data import ANALYSIS_POOL, MARKET_CACHE
+
+    cache = MARKET_CACHE.status()
+    stream = _fyers_stream_status()
+    return _safety(
+        {
+            "success": True,
+            "service": "JARVIS_V17_PERFORMANCE_DIAGNOSTICS",
+            "version": "17.4",
+            "server": {
+                "market_cache": cache,
+                "analysis_pool": {
+                    "workers": getattr(ANALYSIS_POOL, "workers", None),
+                    "capacity": getattr(ANALYSIS_POOL, "capacity", None),
+                },
+                "fyers_stream": {
+                    "connected": bool(stream.get("connected")),
+                    "running": bool(stream.get("running")),
+                    "snapshots": stream.get("snapshots"),
+                    "error": stream.get("error"),
+                    "service": stream.get("service"),
+                    "version": stream.get("version"),
+                },
+            },
+            "browser_metrics_source": "window.JARVIS_V17_DATA_PLANE.snapshot()",
+            "notes": "Read-only diagnostics. No credentials, tokens, or broker-write authority are exposed.",
+        }
+    )
+
+
 def _v17_status(runtime, workspace: str) -> dict:
     route = _route_metadata(workspace)
     safety = _safety()
@@ -275,26 +308,26 @@ def build_handler(base, runtime):
     V16Handler = build_v16_handler(base, runtime)
 
     class V17TerminalHandler(V16Handler):
-        server_version = "JarvisQuantV17/1.5"
+        server_version = "JarvisQuantV17/1.6"
 
         def _serve_v17_root(self):
             from workstation.quant_terminal_v2 import STATIC
 
             html = (STATIC / "index.html").read_text(encoding="utf-8")
             html = html.replace('<script src="/paper_desk_runtime.js"></script>', "")
-            html = html.replace('<script src="/app.js"></script>', '<script src="/app.js?v=170223"></script>')
+            html = html.replace('<script src="/app.js"></script>', '<script src="/app.js?v=170400"></script>')
             html = html.replace("V15 AUTONOMOUS MARKET REASONING · PAPER / RESEARCH", "V17 AUTONOMOUS OPTIONS RUNTIME · PAPER / RESEARCH")
             html = html.replace("JARVIS Quant V15 ·", "JARVIS Quant V17 · autonomous options ·")
             html = html.replace("JARVIS V15 reasons across verified market state", "JARVIS V17 uses the verified V15 reasoning core across market state")
             injection = (
                 '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V17_SINGLE_OPTION_CONTROLLER=true;</script>'
-                '<script src="/v17_live_fetch_scheduler.js?v=170102"></script>'
+                '<script src="/v17_live_fetch_scheduler.js?v=170400"></script>'
                 '<link rel="stylesheet" href="/v16_autonomy_runtime.css">'
                 '<script defer src="/v16_autonomy_runtime.js"></script>'
                 '<script defer src="/v16_option_decision_runtime.js?v=170222"></script>'
-                '<script defer src="/v16_workspace_router.js?v=170222"></script>'
+                '<script defer src="/v16_workspace_router.js?v=170400"></script>'
                 '<script defer src="/v16_option_readiness_runtime.js"></script>'
-                '<script defer src="/v17_runtime.js?v=170300"></script>'
+                '<script defer src="/v17_runtime.js?v=170400"></script>'
                 '<script defer src="/v17_crypto_paper_runtime.js?v=170300"></script>'
             )
             content = html.replace("</head>", injection + "</head>").encode("utf-8")
@@ -330,6 +363,11 @@ def build_handler(base, runtime):
                 workspace = str(params.get("workspace", ["INTRADAY"])[0]).upper()
                 return self.send_json(_v17_status(runtime, workspace))
 
+            if parsed.path == V17_PERFORMANCE_PATH:
+                if not self._local():
+                    return self.send_json(_safety({"success": False, "reason": "LOCAL_TERMINAL_ONLY"}), 403)
+                return self.send_json(_performance_payload())
+
             return super().do_GET()
 
         def do_POST(self):
@@ -363,11 +401,13 @@ __all__ = [
     "V17_STATUS_PATH",
     "V17_PREFERENCES_PATH",
     "V17_CONTROL_PATH",
+    "V17_PERFORMANCE_PATH",
     "_autopilot_control",
     "_crypto_lane_status",
     "_fyers_stream_status",
     "_normalize_capital_fraction",
     "_preference_updates",
+    "_performance_payload",
     "_route_metadata",
     "_v17_status",
     "build_handler",
