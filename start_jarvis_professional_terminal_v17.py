@@ -59,6 +59,21 @@ def main() -> int:
             daemon=True,
         ).start()
 
+        # V17.3 durable PAPER intent is reconciled at process boot, not only
+        # after a browser status request.  A fresh install defaults DISARMED;
+        # only an explicit prior START JARVIS can persist armed=True.
+        from workstation.v17_autopilot_preferences import load_preferences
+        from workstation.v17_cross_market_control_plane import cross_market_control_plane
+        from workstation.v17_crypto_paper_lane import crypto_paper_lane
+
+        boot_preferences = load_preferences()
+        boot_control = cross_market_control_plane.reconcile(
+            runtime,
+            preferences=boot_preferences,
+            force=True,
+            crypto_lane=crypto_paper_lane,
+        )
+
         url = f"http://{trading_app.HOST}:{trading_app.PORT}"
         status = autonomy.status("INTRADAY")
         print("=" * 76)
@@ -75,6 +90,11 @@ def main() -> int:
         print("Frequency: broad continuous opportunity scanning; NO forced trade quota")
         print("Shared market-data cache: ENABLED")
         print("Visible terminal identity: V17 AUTONOMOUS OPTIONS")
+        print(
+            "Cross-market PAPER control: "
+            + ("ARMED / AUTO-RESUME" if boot_control.get("armed") else "DISARMED")
+            + f" · {boot_control.get('last_action') or 'UNKNOWN'}"
+        )
         print("Live broker execution: LOCKED")
         print("Mode: PAPER ONLY")
 
