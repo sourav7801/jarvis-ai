@@ -52,7 +52,7 @@ jobs:
           node --check workstation/quant_terminal_v2_static/v16_workspace_router.js
           node --check workstation/quant_terminal_v2_static/v16_option_decision_runtime.js
 
-      - name: Verify V17.4 unified data-plane invariants
+      - name: Verify V17.4.1 unified data-plane invariants
         shell: pwsh
         run: |
           $app = Get-Content workstation/quant_terminal_v2_static/app.js -Raw
@@ -73,6 +73,11 @@ jobs:
           if ($router -notmatch 'CHAIN_CACHE_MS = 15000') { throw 'OPTIONS chain cache missing' }
           if ($router -notmatch 'chainAbortController') { throw 'OPTIONS chain supersession missing' }
           if ($router -notmatch '\},10000\);') { throw 'Aggressive OPTIONS polling loop still present' }
+          if ($app -notmatch 'display:"1"') { throw 'Display-history chart lane missing' }
+          if ($app -notmatch 'params\.set\("fresh","1"\)') { throw 'Manual provider refresh bypass missing' }
+          $displayHistory = Get-Content workstation/v17_display_history.py -Raw
+          if ($displayHistory -notmatch 'DISPLAY ONLY') { throw 'Display-only history safety contract missing' }
+          if ($displayHistory -notmatch '"execution_eligible": False') { throw 'Display cache execution hard-block missing' }
 
       - name: Verify canonical FYERS history invariants
         shell: pwsh
