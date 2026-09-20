@@ -48,6 +48,23 @@ if (-not (Test-Path (Join-Path $Venv "Scripts\python.exe"))) {
 
 $VenvPython = Join-Path $Venv "Scripts\python.exe"
 
+# NautilusTrader is intentionally isolated from the main FYERS/Quant Python
+# environment. V17's supervisor prefers this interpreter when present.
+$NautilusVenv = Join-Path $Root ".venv-nautilus-new"
+$NautilusPython = Join-Path $NautilusVenv "Scripts\python.exe"
+if (-not (Test-Path $NautilusPython)) {
+    Write-Host "Preparing isolated NautilusTrader environment..." -ForegroundColor Cyan
+    & $PythonExe -m venv $NautilusVenv
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    & $NautilusPython -m pip install --disable-pip-version-check --upgrade pip wheel
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+if (Test-Path (Join-Path $Root "requirements-nautilus.txt")) {
+    Write-Host "Ensuring NautilusTrader dependency contract..." -ForegroundColor Cyan
+    & $NautilusPython -m pip install --disable-pip-version-check -r (Join-Path $Root "requirements-nautilus.txt")
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+
 # FYERS API v3 3.1.18 requires setuptools==68.0.0. Keep the installer
 # deterministic and do not let a generic tooling upgrade replace that pin.
 & $VenvPython -m pip install --disable-pip-version-check --upgrade pip wheel
