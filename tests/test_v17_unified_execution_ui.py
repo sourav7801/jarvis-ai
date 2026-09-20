@@ -60,7 +60,7 @@ class V17UnifiedExecutionUiTests(unittest.TestCase):
 
     def test_india_monitor_asset_is_cache_busted(self):
         text = (ROOT / "workstation" / "v17_terminal_http.py").read_text(encoding="utf-8")
-        self.assertIn('/v17_crypto_paper_runtime.js?v=170224', text)
+        self.assertIn('/v17_crypto_paper_runtime.js?v=170300', text)
 
 
 if __name__ == "__main__":
