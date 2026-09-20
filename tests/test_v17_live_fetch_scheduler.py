@@ -74,6 +74,7 @@ class V17UnifiedDataPlaneTests(unittest.TestCase):
         self.assertIn("chainAbortController.abort()", self.router_js)
         self.assertIn("queueMicrotask(()=>void refreshState(true))", self.router_js)
         self.assertIn("setTimeout(()=>void loadChain(),25)", self.router_js)
+        self.assertIn("for (let attempt = 0; attempt < 30; attempt++)", self.router_js)
         self.assertIn("},10000);", self.router_js)
 
     def test_v17_http_cache_busts_v174_assets_and_has_diagnostics(self):
