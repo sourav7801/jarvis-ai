@@ -77,6 +77,19 @@ class V17UnifiedDataPlaneTests(unittest.TestCase):
         self.assertIn("for (let attempt = 0; attempt < 30; attempt++)", self.router_js)
         self.assertIn("},10000);", self.router_js)
 
+    def test_options_runtime_does_not_own_generic_autonomy_poll(self):
+        autonomy_js = (self.project_root / "workstation" / "quant_terminal_v2_static" / "v16_autonomy_runtime.js").read_text(encoding="utf-8")
+        self.assertIn('=== "OPTIONS") return;', autonomy_js)
+
+    def test_options_selection_does_not_reload_generic_chart(self):
+        self.assertNotIn("syncUnderlyingChartContext(); renderCapability();", self.router_js)
+        self.assertIn("loadChain({force:true}); refreshState(true);", self.router_js)
+
+    def test_v17_runtime_does_not_observe_entire_document(self):
+        runtime_js = (self.project_root / "workstation" / "quant_terminal_v2_static" / "v17_runtime.js").read_text(encoding="utf-8")
+        self.assertNotIn("observer.observe(document.body", runtime_js)
+        self.assertIn("observerHost", runtime_js)
+
     def test_v17_http_cache_busts_v174_assets_and_has_diagnostics(self):
         self.assertIn('/app.js?v=170401', self.terminal_http)
         self.assertIn('/v17_live_fetch_scheduler.js?v=170401', self.terminal_http)
