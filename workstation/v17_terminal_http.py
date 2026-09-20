@@ -127,6 +127,7 @@ def _autopilot_control(runtime: Any, body: dict[str, Any]) -> dict[str, Any]:
         runtime,
         preferences=preferences,
         force=True,
+        crypto_lane=crypto_paper_lane,
     )
     results = dict(control.get("lanes") or {})
     success = not bool(control.get("last_error"))
@@ -227,6 +228,7 @@ def _v17_status(runtime, workspace: str) -> dict:
     control_plane = cross_market_control_plane.reconcile(
         runtime,
         preferences=preferences,
+        crypto_lane=crypto_paper_lane,
     )
     crypto_status = _crypto_lane_status()
 
