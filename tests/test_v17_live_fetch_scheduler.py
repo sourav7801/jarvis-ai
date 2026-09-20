@@ -72,12 +72,12 @@ class V17UnifiedDataPlaneTests(unittest.TestCase):
         self.assertIn("},10000);", self.router_js)
 
     def test_v17_http_cache_busts_v174_assets_and_has_diagnostics(self):
-        self.assertIn('/app.js?v=170400', self.terminal_http)
-        self.assertIn('/v17_live_fetch_scheduler.js?v=170400', self.terminal_http)
-        self.assertIn('/v16_workspace_router.js?v=170400', self.terminal_http)
-        self.assertIn('/v17_runtime.js?v=170400', self.terminal_http)
+        self.assertIn('/app.js?v=170401', self.terminal_http)
+        self.assertIn('/v17_live_fetch_scheduler.js?v=170401', self.terminal_http)
+        self.assertIn('/v16_workspace_router.js?v=170401', self.terminal_http)
+        self.assertIn('/v17_runtime.js?v=170401', self.terminal_http)
         self.assertIn('/api/v17/diagnostics/performance', self.terminal_http)
-        self.assertIn('"version": "17.4"', self.terminal_http)
+        self.assertIn('"version": "17.4.1"', self.terminal_http)
 
 
 if __name__ == "__main__":
