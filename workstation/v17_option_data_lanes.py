@@ -122,12 +122,12 @@ class V17OptionDataLanes:
 
         return dict(option_candles(provider, instrument, timeframe, bars) or {})
 
-    def chain_request(self, workspace: str, symbol: str, expiry: str | None) -> dict[str, Any]:
-        key = (str(symbol).upper(), str(expiry or "NEAREST"))
+    def chain_request(self, workspace: str, symbol: str, expiry: str | None, *, wait: float = 0.0) -> dict[str, Any]:
+        key = (str(workspace).upper(), str(symbol).upper(), str(expiry or "NEAREST"))
         return self.chain.request(
             key,
             lambda: self.chain_result(symbol, expiry),
-            wait=0.0,
+            wait=max(0.0, min(float(wait), 5.5)),
         )
 
     def chart_request(self, provider: str, instrument: str, timeframe: str, bars: int) -> dict[str, Any]:
