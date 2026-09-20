@@ -1,0 +1,200 @@
+"""V17.3 cross-market PAPER control plane.
+
+This module persists no broker credentials and exposes no broker-order methods.
+It reconciles the operator's explicit PAPER armed intent with the canonical
+workspace scanners plus the BTC/ETH/SOL and session-aware MCX PAPER lanes.
+
+A restart must not silently forget an explicit START JARVIS intent, but a
+disarmed terminal must never arm itself.  All live-order authority remains
+locked.
+"""
+from __future__ import annotations
+
+from datetime import datetime, timezone
+import threading
+import time
+from typing import Any
+
+from workstation.v17_autopilot_preferences import load_preferences
+from workstation.v17_crypto_paper_lane import crypto_paper_lane
+
+_RECONCILE_INTERVAL_SECONDS = 5.0
+
+
+def _iso_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _workspace_running(payload: dict[str, Any] | None) -> bool:
+    value = dict(payload or {})
+    session = value.get("session") if isinstance(value.get("session"), dict) else {}
+    state = str(
+        value.get("state")
+        or session.get("entry_session")
+        or session.get("state")
+        or ""
+    ).upper()
+    return bool(value.get("running")) or state in {"RUNNING", "ACTIVE", "SCANNING"}
+
+
+class V17CrossMarketControlPlane:
+    """Reconciles durable PAPER intent with session-aware execution lanes."""
+
+    def __init__(self) -> None:
+        self._lock = threading.RLock()
+        self._last_reconcile_monotonic = 0.0
+        self._last_reconcile_at: str | None = None
+        self._last_action = "NOT_RECONCILED"
+        self._last_error: str | None = None
+        self._resume_count = 0
+        self._reconcile_count = 0
+        self._results: dict[str, Any] = {}
+
+    def reconcile(
+        self,
+        runtime: Any,
+        *,
+        preferences: dict[str, Any] | None = None,
+        force: bool = False,
+    ) -> dict[str, Any]:
+        prefs = dict(preferences or load_preferences())
+        armed = bool(prefs.get("armed", False))
+        now = time.monotonic()
+
+        with self._lock:
+            if (
+                not force
+                and self._last_reconcile_monotonic
+                and now - self._last_reconcile_monotonic < _RECONCILE_INTERVAL_SECONDS
+            ):
+                return self.status(preferences=prefs)
+            self._last_reconcile_monotonic = now
+
+        results: dict[str, Any] = {}
+        errors: list[str] = []
+        changed = False
+
+        targets = list(prefs.get("start_workspaces") or [])
+        for workspace in targets:
+            name = str(workspace).upper()
+            try:
+                current = dict(runtime.status(name))
+            except Exception as exc:
+                current = {
+                    "success": False,
+                    "state": "PROBLEM",
+                    "message": f"{type(exc).__name__}: {exc}"[:300],
+                }
+
+            running = _workspace_running(current)
+            desired_action = None
+            if armed and not running:
+                desired_action = "start"
+            elif not armed and running:
+                desired_action = "pause"
+
+            if desired_action:
+                try:
+                    current = dict(runtime.control(name, desired_action))
+                    changed = True
+                except Exception as exc:
+                    errors.append(f"{name}:{type(exc).__name__}")
+                    current = {
+                        **current,
+                        "success": False,
+                        "state": "PROBLEM",
+                        "message": f"{type(exc).__name__}: {exc}"[:300],
+                    }
+
+            results[name] = {
+                "desired": "RUNNING" if armed else "PAUSED",
+                "running": _workspace_running(current),
+                "state": current.get("state")
+                or (current.get("session") or {}).get("entry_session")
+                or ("RUNNING" if _workspace_running(current) else "PAUSED"),
+                "success": current.get("success") is not False,
+            }
+
+        try:
+            crypto = dict(crypto_paper_lane.status())
+            crypto_running = bool(crypto.get("running"))
+            if armed and not crypto_running:
+                crypto = dict(crypto_paper_lane.start())
+                changed = True
+                with self._lock:
+                    self._resume_count += 1
+            elif not armed and crypto_running:
+                crypto = dict(crypto_paper_lane.stop_new_entries())
+                changed = True
+
+            mcx = crypto.get("mcx_underlying_paper")
+            if not isinstance(mcx, dict):
+                try:
+                    mcx = dict(crypto_paper_lane.status().get("mcx_underlying_paper") or {})
+                except Exception:
+                    mcx = {}
+
+            results["CRYPTO_UNDERLYING"] = {
+                "desired": "RUNNING" if armed else "PAUSED",
+                "running": bool(crypto.get("running")),
+                "state": crypto.get("state") or ("RUNNING" if crypto.get("running") else "PAUSED"),
+                "scan_cycles": crypto.get("scan_cycles"),
+                "success": crypto.get("success") is not False,
+            }
+            results["MCX_FUTURES_PAPER"] = {
+                "desired": "SESSION_AWARE" if armed else "PAUSED",
+                "running": bool(mcx.get("running")),
+                "state": mcx.get("state") or "UNKNOWN",
+                "session_open": mcx.get("session_open"),
+                "scan_cycles": mcx.get("scan_cycles"),
+                "success": mcx.get("success") is not False,
+            }
+        except Exception as exc:
+            errors.append(f"CRYPTO_MCX:{type(exc).__name__}")
+            results["CRYPTO_UNDERLYING"] = {
+                "desired": "RUNNING" if armed else "PAUSED",
+                "running": False,
+                "state": "PROBLEM",
+                "success": False,
+            }
+
+        with self._lock:
+            self._reconcile_count += 1
+            self._last_reconcile_at = _iso_now()
+            self._last_error = ", ".join(errors) if errors else None
+            if errors:
+                self._last_action = "RECONCILE_WITH_ERRORS"
+            elif changed:
+                self._last_action = "AUTO_RESUME" if armed else "AUTO_PAUSE"
+            else:
+                self._last_action = "IN_SYNC"
+            self._results = results
+            return self.status(preferences=prefs)
+
+    def status(self, *, preferences: dict[str, Any] | None = None) -> dict[str, Any]:
+        prefs = dict(preferences or load_preferences())
+        with self._lock:
+            return {
+                "service": "JARVIS_V17_CROSS_MARKET_CONTROL_PLANE",
+                "version": "17.3",
+                "armed": bool(prefs.get("armed", False)),
+                "desired_state": "ARMED" if prefs.get("armed") else "DISARMED",
+                "last_reconcile_at": self._last_reconcile_at,
+                "last_action": self._last_action,
+                "last_error": self._last_error,
+                "resume_count": self._resume_count,
+                "reconcile_count": self._reconcile_count,
+                "lanes": dict(self._results),
+                "paper_only": True,
+                "live_execution": False,
+                "live_orders_locked": True,
+            }
+
+
+cross_market_control_plane = V17CrossMarketControlPlane()
+
+
+__all__ = [
+    "V17CrossMarketControlPlane",
+    "cross_market_control_plane",
+]
