@@ -1,5 +1,5 @@
 (() => {
-  const CORE_URL = "http://127.0.0.1:8792/status";
+  const CORE_URL = "http://127.0.0.1:8792/health";
   let badge = null;
 
   function ensureBadge() {
@@ -35,10 +35,15 @@
         el.textContent = `NAUTILUS · ${payload.nautilus_version || "READY"}`;
         el.style.color = "#77f7aa";
         el.style.borderColor = "#2f6f50";
+      } else if (["STARTING", "PROBING"].includes(String(payload.phase || "").toUpperCase())) {
+        el.textContent = `NAUTILUS · ${String(payload.phase).toUpperCase()}`;
+        el.style.color = "#ffd166";
+        el.style.borderColor = "#7a662b";
       } else {
         el.textContent = "NAUTILUS · OFFLINE";
         el.style.color = "#ffb35c";
         el.style.borderColor = "#7a5730";
+        el.title = payload.error || "NautilusTrader engine is unavailable.";
       }
     } catch (_error) {
       el.textContent = "NAUTILUS · OFFLINE";
