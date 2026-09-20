@@ -264,7 +264,9 @@ def _fyers_candles(
         market="india",
         timeframe=timeframe,
         bars=bars,
-        timeout=25,
+        # Regular FYERS chart history is display-only; fail fast so a degraded
+        # provider produces DATA UNAVAILABLE instead of a long spinner.
+        timeout=10,
     )
     payload = dict(result) if isinstance(result, dict) else {}
     candles = _frame_candles(payload.get("data")) if payload.get("success") else []
