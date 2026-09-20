@@ -355,7 +355,7 @@
     if (authority) {
       authority.innerHTML = `<b>${armed ? "ARMED · AUTO-RESUME" : "DISARMED"} · ${escapeHtml(crypto?.qualification_authority || "ADAPTIVE PAPER")}</b><br>` +
         `Crypto ${escapeHtml(crypto?.adaptive_policy_version || "—")} · MCX ${escapeHtml(mcx?.adaptive_policy_version || "—")} · ` +
-        `India exact-option contracts: NIFTY / BANKNIFTY / SENSEX · MCX options research-only${quarantineCount ? ` · ${quarantineCount} research subscription${quarantineCount === 1 ? "" : "s"} quarantined` : ""} · live broker execution locked.`;
+        `India exact-option contracts: NIFTY / BANKNIFTY / SENSEX · MCX options disabled for execution · research-only${quarantineCount ? ` · ${quarantineCount} research subscription${quarantineCount === 1 ? "" : "s"} quarantined` : ""} · live broker execution locked.`;
     }
     const cross = $("v17CrossMarketState");
     if (cross) {
