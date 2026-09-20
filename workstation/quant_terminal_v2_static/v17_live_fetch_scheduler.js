@@ -166,7 +166,18 @@
       nativeFetch(task.input, sanitizeInit(task.init, controller.signal))
         .then(async response => {
           const body = await response.clone().text();
-          if (response.ok) cacheFor(kind)?.set(task.info.key, responseEntry(response, body));
+          // A module response can legitimately be {pending:true} while the
+          // server-side analysis job is still running. Never cache that
+          // transient state: caching it hides the completed result from the
+          // resolver and makes the OPTIONS workspace appear stuck.
+          let cacheResponse = response.ok;
+          if (cacheResponse && kind === "module") {
+            try {
+              const parsed = JSON.parse(body);
+              cacheResponse = parsed?.pending !== true;
+            } catch {}
+          }
+          if (cacheResponse) cacheFor(kind)?.set(task.info.key, responseEntry(response, body));
           task.resolve(response);
         })
         .catch(error => {
