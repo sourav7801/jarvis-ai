@@ -33,8 +33,10 @@ class V1731BridgeContractTests(unittest.TestCase):
         helper = text.split("def _trusted_stale_live_bridge_pid()", 1)[1].split(
             "def _replace_stale_live_bridge", 1
         )[0]
+        self.assertIn("identity.get(\"service\") != LIVE_BRIDGE_EXPECTED_SERVICE", helper)
         self.assertIn("workstation.fyers_live_bridge_service", helper)
-        self.assertIn("fyers_python().resolve()", helper)
+        self.assertIn('\"python\" not in name', helper)
+        self.assertNotIn("fyers_python().resolve()", helper)
         self.assertIn("return None", helper)
 
     def test_owned_bridge_is_stopped_with_quant_runtime(self):
