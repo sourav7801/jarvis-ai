@@ -24,6 +24,7 @@ _LOCK = threading.RLock()
 
 DEFAULTS: dict[str, Any] = {
     "one_touch_autopilot": True,
+    "armed": False,
     "chart_first_options": True,
     "options_capital_fraction": 0.50,
     "start_workspaces": ["INTRADAY", "SWING", "INVESTMENT"],
@@ -71,6 +72,7 @@ def load_preferences() -> dict[str, Any]:
         result["daily_rebalance"] = False
         result["cross_workspace_top_up"] = False
         result["production_code_rewrite"] = False
+        result["armed"] = bool(result.get("armed", False))
         return result
 
 
@@ -82,6 +84,7 @@ def save_preferences(updates: dict[str, Any] | None = None) -> dict[str, Any]:
         "options_capital_fraction",
         "start_workspaces",
         "learning_enabled",
+        "armed",
     }
     unknown = set(updates) - allowed
     if unknown:
@@ -93,7 +96,7 @@ def save_preferences(updates: dict[str, Any] | None = None) -> dict[str, Any]:
             current["options_capital_fraction"] = _fraction(
                 updates["options_capital_fraction"]
             )
-        for key in ("one_touch_autopilot", "chart_first_options", "learning_enabled"):
+        for key in ("one_touch_autopilot", "chart_first_options", "learning_enabled", "armed"):
             if key in updates:
                 current[key] = bool(updates[key])
         if "start_workspaces" in updates:
