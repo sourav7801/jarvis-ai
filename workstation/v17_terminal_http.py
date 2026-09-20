@@ -150,9 +150,9 @@ def _autopilot_control(runtime: Any, body: dict[str, Any]) -> dict[str, Any]:
             "preferences": preferences,
             "options_capital_fraction": preferences["options_capital_fraction"],
             "message": (
-                "V17.3 PAPER control plane armed. India follows its session, MCX follows its session, and BTC/ETH/SOL resumes 24/7 after restarts."
+                "V17.4 PAPER control plane armed. India follows its session, MCX follows its session, and BTC/ETH/SOL resumes 24/7 after restarts."
                 if action == "start"
-                else "V17.3 PAPER control plane disarmed. New entries stay paused after restarts; existing Paper Desk positions remain managed."
+                else "V17.4 PAPER control plane disarmed. New entries stay paused after restarts; existing Paper Desk positions remain managed."
             ),
         }
     )
@@ -252,11 +252,6 @@ def _performance_payload() -> dict:
 def _v17_status(runtime, workspace: str) -> dict:
     route = _route_metadata(workspace)
     safety = _safety()
-    market_data = {
-        "primary_provider": "FYERS",
-        "read_only": True,
-        "stream": _fyers_stream_status(),
-    }
     preferences = load_preferences()
     control_plane = cross_market_control_plane.reconcile(
         runtime,
@@ -264,13 +259,63 @@ def _v17_status(runtime, workspace: str) -> dict:
         crypto_lane=crypto_paper_lane,
     )
     crypto_status = _crypto_lane_status()
+    stream = _fyers_stream_status()
+
+    fyers_state = str(stream.get("state") or "").upper()
+    if stream.get("connected") is True and stream.get("fresh") is not False:
+        fyers_health = "READY"
+    elif fyers_state in {"CONNECTING", "RECONNECTING"} or stream.get("running"):
+        fyers_health = "RECONNECTING"
+    else:
+        fyers_health = "OFFLINE"
+
+    crypto_rows = crypto_status.get("last_rows_summary") or []
+    crypto_ready = any(
+        isinstance(row, dict) and row.get("success") is not False
+        for row in crypto_rows
+    )
+    crypto_health = "READY" if crypto_ready else (
+        "DEGRADED" if crypto_status.get("running") else "OFFLINE"
+    )
+    mcx = crypto_status.get("mcx_underlying_paper") or {}
+    mcx_health = "CLOSED" if mcx.get("session_open") is False else fyers_health
+
+    feeds = {
+        "FYERS_STREAM": {"state": fyers_health, "read_only": True},
+        "FYERS_HISTORY": {
+            "state": "READY" if fyers_health == "READY" else "DEGRADED",
+            "read_only": True,
+        },
+        "INDIA_INDEX_OPTIONS": {"state": fyers_health, "execution": "PAPER_ONLY"},
+        "MCX_FUTURES": {"state": mcx_health, "execution": "PAPER_ONLY"},
+        "BINANCE_PUBLIC": {"state": crypto_health, "execution": "PAPER_ONLY"},
+        "DERIBIT_RESEARCH": {"state": "READY", "execution": "RESEARCH_ONLY"},
+        "CANONICAL_PAPER_STATE": {"state": "READY", "execution": "PAPER_ONLY"},
+    }
+    feed_states = [value["state"] for value in feeds.values()]
+    if all(state in {"READY", "CLOSED"} for state in feed_states):
+        overall = "READY"
+    elif any(state == "READY" for state in feed_states):
+        overall = "PARTIAL"
+    elif any(state in {"DEGRADED", "RECONNECTING"} for state in feed_states):
+        overall = "DEGRADED"
+    else:
+        overall = "OFFLINE"
+
+    market_data = {
+        "primary_provider": "FYERS",
+        "read_only": True,
+        "state": overall,
+        "feeds": feeds,
+        "stream": stream,
+    }
 
     service = getattr(runtime, "v17_autonomy_service", None)
     if service is None:
         return {
             "success": False,
             "service": "JARVIS_V17_AUTONOMOUS_OPTIONS_PAPER_RUNTIME",
-            "version": "17.3",
+            "version": "17.4",
             "installed": False,
             "reason": "V17_AUTONOMY_SERVICE_NOT_INSTALLED",
             "workspace": route["requested_workspace"],
@@ -288,7 +333,7 @@ def _v17_status(runtime, workspace: str) -> dict:
         {
             "success": True,
             "service": "JARVIS_V17_AUTONOMOUS_OPTIONS_PAPER_RUNTIME",
-            "version": "17.3",
+            "version": "17.4",
             "runtime_identity": "V17_AUTONOMOUS_OPTIONS",
             "verified_parent": "V16_TRADING_CONVERGENCE",
             "workspace": route["requested_workspace"],
