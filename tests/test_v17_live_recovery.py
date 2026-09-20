@@ -44,7 +44,7 @@ class V17LiveRecoveryTests(unittest.TestCase):
 
     def test_v17_root_cache_busts_watchlist_runtime(self):
         text = (ROOT / "workstation" / "v17_terminal_http.py").read_text(encoding="utf-8")
-        self.assertIn('/app.js?v=170400', text)
+        self.assertIn('/app.js?v=170401', text)
 
 
 if __name__ == "__main__":
