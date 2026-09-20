@@ -104,6 +104,17 @@ class V17MarketHealthAggregationTests(unittest.TestCase):
         self.assertFalse(payload["live_execution"])
         self.assertTrue(payload["live_orders_locked"])
 
+    def test_browser_data_session_consumes_aggregated_v17_health(self):
+        root = __import__("pathlib").Path(__file__).resolve().parents[1]
+        app = (
+            root / "workstation" / "quant_terminal_v2_static" / "app.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn("function applyV17MarketHealth(status)", app)
+        self.assertIn('window.addEventListener("jarvis:v17-status"', app)
+        self.assertIn("market=status?.market_data", app)
+        self.assertIn("feeds.BINANCE_PUBLIC?.state", app)
+        self.assertIn("feeds.MCX_FUTURES?.state", app)
+
 
 if __name__ == "__main__":
     unittest.main()
