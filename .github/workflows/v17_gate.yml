@@ -47,20 +47,32 @@ jobs:
         run: |
           node --check workstation/quant_terminal_v2_static/v17_live_fetch_scheduler.js
           node --check workstation/quant_terminal_v2_static/v17_crypto_paper_runtime.js
+          node --check workstation/quant_terminal_v2_static/v17_runtime.js
           node --check workstation/quant_terminal_v2_static/app.js
           node --check workstation/quant_terminal_v2_static/v16_workspace_router.js
           node --check workstation/quant_terminal_v2_static/v16_option_decision_runtime.js
 
-      - name: Verify V17 load-governor invariants
+      - name: Verify V17.4 unified data-plane invariants
         shell: pwsh
         run: |
           $app = Get-Content workstation/quant_terminal_v2_static/app.js -Raw
           $scheduler = Get-Content workstation/quant_terminal_v2_static/v17_live_fetch_scheduler.js -Raw
-          if ($app -notmatch 'candleActive>=2') { throw 'Chart-history concurrency guard missing' }
+          $router = Get-Content workstation/quant_terminal_v2_static/v16_workspace_router.js -Raw
+          if ($app -notmatch 'if\(candleActive<2\)') { throw 'Bounded chart-history concurrency missing' }
+          if ($app -notmatch 'workspaceGeneration') { throw 'Workspace generation guard missing' }
+          if ($app -notmatch 'workspaceAbortController') { throw 'Workspace cancellation missing' }
+          if ($app -notmatch 'workspaceRuntimes=new Map') { throw 'Workspace chart preservation missing' }
           if ($app -notmatch 'MARKETS\.slice\(offset,offset\+2\)') { throw 'Staged watchlist hydration missing' }
           if ($app -notmatch 'liveTickBusy') { throw 'Non-overlapping live polling guard missing' }
+          if ($scheduler -notmatch 'const limits = Object.freeze\(\{ live: 2, history: 2, module: 1 \}\)') { throw 'Unified data-plane limits missing' }
           if ($scheduler -notmatch '/api/v16/trading/workspace-state') { throw 'Canonical state dedupe missing' }
+          if ($scheduler -notmatch '/api/candles') { throw 'History scheduling missing' }
+          if ($scheduler -notmatch '/api/terminal/module') { throw 'Module scheduling missing' }
+          if ($scheduler -notmatch 'REQUEST_SUPERSEDED') { throw 'Supersession contract missing' }
           if ($scheduler -notmatch 'writesIntercepted: false') { throw 'Read-only transport boundary missing' }
+          if ($router -notmatch 'CHAIN_CACHE_MS = 15000') { throw 'OPTIONS chain cache missing' }
+          if ($router -notmatch 'chainAbortController') { throw 'OPTIONS chain supersession missing' }
+          if ($router -notmatch '\},10000\);') { throw 'Aggressive OPTIONS polling loop still present' }
 
       - name: Verify canonical FYERS history invariants
         shell: pwsh
