@@ -131,7 +131,9 @@ class V17CrossMarketControlPlane:
             desired_running = bool(current.get("desired_running", running))
             active_or_requested = running or desired_running
             desired_action = None
-            if armed and not active_or_requested:
+            if force:
+                desired_action = "start" if armed else "pause"
+            elif armed and not active_or_requested:
                 desired_action = "start"
             elif not armed and active_or_requested:
                 desired_action = "pause"
@@ -164,12 +166,13 @@ class V17CrossMarketControlPlane:
         try:
             crypto = dict(lane.status())
             crypto_running = bool(crypto.get("running"))
-            if armed and not crypto_running:
+            if armed and (force or not crypto_running):
                 crypto = dict(lane.start())
                 changed = True
-                with self._lock:
-                    self._resume_count += 1
-            elif not armed and crypto_running:
+                if not crypto_running:
+                    with self._lock:
+                        self._resume_count += 1
+            elif not armed and (force or crypto_running):
                 crypto = dict(lane.stop_new_entries())
                 changed = True
 
