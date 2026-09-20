@@ -266,12 +266,33 @@ async function loadDecision(symbol=selectedSymbol){
 
 function buildWatch(){
   const host=$("marketWatch");
+  const existing=[...host.querySelectorAll(".market-tile[data-symbol]")];
+  const expected=MARKETS.map(item=>item.symbol);
+  const current=existing.map(tile=>tile.dataset.symbol);
+  if(existing.length===expected.length&&expected.every((symbol,index)=>current[index]===symbol)){
+    existing.forEach(tile=>tile.classList.toggle("active",tile.dataset.symbol===selectedSymbol));
+    return;
+  }
+
+  const retained=new Map(existing.map(tile=>[
+    tile.dataset.symbol,
+    {
+      price:tile.querySelector("[data-watch-price]")?.textContent||"—",
+      change:tile.querySelector("[data-watch-change]")?.textContent||"waiting",
+      lastVerified:tile.dataset.lastVerified||"",
+      degraded:tile.classList.contains("degraded"),
+      dataError:tile.classList.contains("data-error"),
+    }
+  ]));
   host.innerHTML="";
   MARKETS.forEach(item=>{
     const button=document.createElement("button");
-    button.className=`market-tile asset-${String(item.kind||"market").toLowerCase().replaceAll("_","-")}`+(item.symbol===selectedSymbol?" active":"");
+    const previous=retained.get(item.symbol);
+    button.className=`market-tile asset-${String(item.kind||"market").toLowerCase().replaceAll("_","-")}`+(item.symbol===selectedSymbol?" active":"")+(previous?.degraded?" degraded":"")+(previous?.dataError?" data-error":"");
     button.dataset.symbol=item.symbol;
-    const feed=item.kind==="CRYPTO"?"PUBLIC CRYPTO":String(item.kind).includes("GLOBAL")?"PUBLIC DELAYED":"BROKER DATA";button.innerHTML=`<strong>${item.label}</strong><span class="price" data-watch-price>—</span><small>${feed}</small><em data-watch-change>waiting</em>`;
+    if(previous?.lastVerified)button.dataset.lastVerified=previous.lastVerified;
+    const feed=item.kind==="CRYPTO"?"PUBLIC CRYPTO":String(item.kind).includes("GLOBAL")?"PUBLIC DELAYED":"BROKER DATA";
+    button.innerHTML=`<strong>${item.label}</strong><span class="price" data-watch-price>${escapeHtml(previous?.price||"—")}</span><small>${feed}</small><em data-watch-change>${escapeHtml(previous?.change||"waiting")}</em>`;
     button.addEventListener("click",()=>selectMarket(item.symbol));
     host.appendChild(button);
   });
