@@ -38,7 +38,25 @@ STAGED_WATCHLIST_MARKERS = (
     "for(let offset=0;offset<MARKETS.length;offset+=2){",
     "const batch=MARKETS.slice(offset,offset+2);",
     "await Promise.allSettled(batch.map(async item=>{",
-    "fetchJson(`/api/live?${new URLSearchParams({symbol:item.symbol})}`,{},12000)",
+    'jarvisScope:"watchlist"',
+)
+
+V174_CANDLE_MARKERS = (
+    "async function acquireCandleLane(signal)",
+    "if(candleActive<2){candleActive+=1;return}",
+    "releaseCandleLane()",
+)
+
+V174_BOOTSTRAP_MARKERS = (
+    "const generation=beginWorkspaceTransition(activeWorkspace);",
+    "void mountCharts(generation,{progressive:true});",
+    "setTimeout(()=>void refreshAllWatch(),400);",
+)
+
+V174_TIMER_MARKERS = (
+    "if(liveTickBusy)return;",
+    "chartLiveCursor%india.length",
+    "providerTimer=setInterval(refreshProvider,7000)",
 )
 
 OLD_START_TIMERS = '''function startTimers(){\n  if(liveTimer)clearInterval(liveTimer);liveTimer=setInterval(()=>{chartSlots.forEach(slot=>{if(String(marketMeta(slot.symbol).kind).startsWith("INDIA"))pollSlotLive(slot)});refreshOneWatch()},1200);\n  if(providerTimer)clearInterval(providerTimer);providerTimer=setInterval(refreshProvider,5000);\n  if(signalTimer)clearInterval(signalTimer);signalTimer=setInterval(()=>loadDecision(selectedSymbol),30000);\n}\n'''
@@ -70,7 +88,13 @@ def _replace_once(
 
 def main() -> int:
     _replace_once(APP_TARGET, OLD_RUNTIME_COUNTERS, NEW_RUNTIME_COUNTERS, "browser polling counters")
-    _replace_once(APP_TARGET, OLD_CANDLE_GATE, NEW_CANDLE_GATE, "bounded chart-history concurrency")
+    _replace_once(
+        APP_TARGET,
+        OLD_CANDLE_GATE,
+        NEW_CANDLE_GATE,
+        "bounded chart-history concurrency",
+        semantic_markers=V174_CANDLE_MARKERS,
+    )
     _replace_once(
         APP_TARGET,
         OLD_REFRESH_ALL,
@@ -78,8 +102,20 @@ def main() -> int:
         "staged watchlist hydration",
         semantic_markers=STAGED_WATCHLIST_MARKERS,
     )
-    _replace_once(APP_TARGET, OLD_START_TIMERS, NEW_START_TIMERS, "rotating non-overlapping live polling")
-    _replace_once(APP_TARGET, OLD_BOOTSTRAP_TAIL, NEW_BOOTSTRAP_TAIL, "staged terminal bootstrap")
+    _replace_once(
+        APP_TARGET,
+        OLD_START_TIMERS,
+        NEW_START_TIMERS,
+        "rotating non-overlapping live polling",
+        semantic_markers=V174_TIMER_MARKERS,
+    )
+    _replace_once(
+        APP_TARGET,
+        OLD_BOOTSTRAP_TAIL,
+        NEW_BOOTSTRAP_TAIL,
+        "staged terminal bootstrap",
+        semantic_markers=V174_BOOTSTRAP_MARKERS,
+    )
     print("V17 browser/runtime stability patches complete.")
     return 0
 
