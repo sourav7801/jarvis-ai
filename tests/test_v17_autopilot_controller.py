@@ -25,10 +25,25 @@ class FakeBridge:
 class FakeRuntime:
     def __init__(self):
         self.calls = []
+        self.states = {
+            "INTRADAY": "PAUSED",
+            "SWING": "PAUSED",
+            "INVESTMENT": "PAUSED",
+        }
+
+    def status(self, workspace):
+        state = self.states.get(workspace, "PAUSED")
+        return {
+            "success": True,
+            "state": state,
+            "running": state == "RUNNING",
+            "session": {"entry_session": state},
+        }
 
     def control(self, workspace, action):
         self.calls.append((workspace, action))
-        return {"success": True, "state": "STARTING" if action == "start" else "PAUSED"}
+        self.states[workspace] = "RUNNING" if action == "start" else "PAUSED"
+        return self.status(workspace)
 
 
 class V17AutopilotControllerTests(unittest.TestCase):
@@ -58,16 +73,23 @@ class V17AutopilotControllerTests(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertEqual(result["options_capital_fraction"], 0.5)
         self.assertEqual(runtime.calls, [("INTRADAY", "start"), ("SWING", "start"), ("INVESTMENT", "start")])
+        self.assertTrue(preferences.load_preferences()["armed"])
         self.assertFalse(result["daily_rebalance"])
         self.assertFalse(result["cross_workspace_top_up"])
         self.assertFalse(result["production_code_rewrite"])
 
     def test_one_touch_stop_pauses_all_entry_sessions(self):
         runtime = FakeRuntime()
-        preferences.save_preferences({"start_workspaces": ["INTRADAY"]})
+        runtime.states = {
+            "INTRADAY": "RUNNING",
+            "SWING": "RUNNING",
+            "INVESTMENT": "RUNNING",
+        }
+        preferences.save_preferences({"start_workspaces": ["INTRADAY"], "armed": True})
         result = _autopilot_control(runtime, {"action": "stop"})
         self.assertTrue(result["success"])
         self.assertEqual(runtime.calls, [("INTRADAY", "pause"), ("SWING", "pause"), ("INVESTMENT", "pause")])
+        self.assertFalse(preferences.load_preferences()["armed"])
 
     def test_v17_option_bridge_overrides_caller_fraction_with_durable_mandate(self):
         preferences.save_preferences({"options_capital_fraction": 0.65})
