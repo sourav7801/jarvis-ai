@@ -404,7 +404,7 @@
     details = document.createElement("details");
     details.id = "v17PerformanceDiagnostics";
     details.style.cssText = "border:1px solid #174052;border-radius:6px;padding:7px;margin:8px 0;background:#06141b;color:#9cc6d4;font-size:8px;";
-    details.innerHTML = '<summary style="cursor:pointer;color:#91dff1;letter-spacing:.08em">V17.4 PERFORMANCE · DATA PLANE</summary><pre id="v17PerformanceText" style="white-space:pre-wrap;margin:7px 0 0;color:#86aab8;font:8px/1.45 Consolas,monospace">Diagnostics waiting…</pre>';
+    details.innerHTML = '<summary style="cursor:pointer;color:#91dff1;letter-spacing:.08em">V17.4.1 PERFORMANCE · DATA PLANE</summary><pre id="v17PerformanceText" style="white-space:pre-wrap;margin:7px 0 0;color:#86aab8;font:8px/1.45 Consolas,monospace">Diagnostics waiting…</pre>';
     host.appendChild(details);
     return details;
   }
