@@ -23,7 +23,8 @@ _ALIAS_MAP: dict[str, str] = {}
 _START_ERROR = ""
 _LOCK = threading.RLock()
 _QUARANTINED_SUBSCRIPTIONS: list[dict[str, Any]] = []
-HEALTH = ServiceHealthClock("JARVIS_FYERS_READ_ONLY_BRIDGE", "1.1")
+BRIDGE_CONTRACT_VERSION = "1.1"
+HEALTH = ServiceHealthClock("JARVIS_FYERS_READ_ONLY_BRIDGE", BRIDGE_CONTRACT_VERSION)
 
 
 def _subscription_quarantine_reason(symbol: str) -> str | None:
@@ -127,6 +128,8 @@ def status_payload() -> dict[str, Any]:
             **status,
             "error": status.get("error") or _START_ERROR or None,
             "aliases": dict(_ALIAS_MAP),
+            "version": BRIDGE_CONTRACT_VERSION,
+            "subscription_quarantine": True,
             "quarantined_subscriptions": list(_QUARANTINED_SUBSCRIPTIONS),
             "quarantined_count": len(_QUARANTINED_SUBSCRIPTIONS),
             "data_only": True,
