@@ -141,7 +141,7 @@ def _autopilot_control(runtime: Any, body: dict[str, Any]) -> dict[str, Any]:
         {
             "success": success,
             "service": "JARVIS_V17_ONE_TOUCH_AUTOPILOT",
-            "version": "17.4",
+            "version": "17.4.1",
             "action": action.upper(),
             "armed": bool(preferences.get("armed")),
             "results": results,
@@ -150,9 +150,9 @@ def _autopilot_control(runtime: Any, body: dict[str, Any]) -> dict[str, Any]:
             "preferences": preferences,
             "options_capital_fraction": preferences["options_capital_fraction"],
             "message": (
-                "V17.4 PAPER control plane armed. India follows its session, MCX follows its session, and BTC/ETH/SOL resumes 24/7 after restarts."
+                "V17.4.1 PAPER control plane armed. India follows its session, MCX follows its session, and BTC/ETH/SOL resumes 24/7 after restarts."
                 if action == "start"
-                else "V17.4 PAPER control plane disarmed. New entries stay paused after restarts; existing Paper Desk positions remain managed."
+                else "V17.4.1 PAPER control plane disarmed. New entries stay paused after restarts; existing Paper Desk positions remain managed."
             ),
         }
     )
@@ -220,6 +220,7 @@ def _fyers_stream_status() -> dict:
 
 def _performance_payload() -> dict:
     from workstation.terminal_data import ANALYSIS_POOL, MARKET_CACHE
+    from workstation import quant_terminal_v2
 
     cache = MARKET_CACHE.status()
     stream = _fyers_stream_status()
@@ -227,13 +228,14 @@ def _performance_payload() -> dict:
         {
             "success": True,
             "service": "JARVIS_V17_PERFORMANCE_DIAGNOSTICS",
-            "version": "17.4",
+            "version": "17.4.1",
             "server": {
                 "market_cache": cache,
                 "analysis_pool": {
                     "workers": getattr(ANALYSIS_POOL, "workers", None),
                     "capacity": getattr(ANALYSIS_POOL, "capacity", None),
                 },
+                "display_history": quant_terminal_v2.display_history_metrics(),
                 "fyers_stream": {
                     "connected": bool(stream.get("connected")),
                     "running": bool(stream.get("running")),
@@ -244,7 +246,7 @@ def _performance_payload() -> dict:
                 },
             },
             "browser_metrics_source": "window.JARVIS_V17_DATA_PLANE.snapshot()",
-            "notes": "Read-only diagnostics. No credentials, tokens, or broker-write authority are exposed.",
+            "notes": "Read-only diagnostics. Display-history cache is chart-only and never execution evidence.",
         }
     )
 
@@ -315,7 +317,7 @@ def _v17_status(runtime, workspace: str) -> dict:
         return {
             "success": False,
             "service": "JARVIS_V17_AUTONOMOUS_OPTIONS_PAPER_RUNTIME",
-            "version": "17.4",
+            "version": "17.4.1",
             "installed": False,
             "reason": "V17_AUTONOMY_SERVICE_NOT_INSTALLED",
             "workspace": route["requested_workspace"],
@@ -333,7 +335,7 @@ def _v17_status(runtime, workspace: str) -> dict:
         {
             "success": True,
             "service": "JARVIS_V17_AUTONOMOUS_OPTIONS_PAPER_RUNTIME",
-            "version": "17.4",
+            "version": "17.4.1",
             "runtime_identity": "V17_AUTONOMOUS_OPTIONS",
             "verified_parent": "V16_TRADING_CONVERGENCE",
             "workspace": route["requested_workspace"],
@@ -353,26 +355,26 @@ def build_handler(base, runtime):
     V16Handler = build_v16_handler(base, runtime)
 
     class V17TerminalHandler(V16Handler):
-        server_version = "JarvisQuantV17/1.6"
+        server_version = "JarvisQuantV17/1.7"
 
         def _serve_v17_root(self):
             from workstation.quant_terminal_v2 import STATIC
 
             html = (STATIC / "index.html").read_text(encoding="utf-8")
             html = html.replace('<script src="/paper_desk_runtime.js"></script>', "")
-            html = html.replace('<script src="/app.js"></script>', '<script src="/app.js?v=170400"></script>')
+            html = html.replace('<script src="/app.js"></script>', '<script src="/app.js?v=170401"></script>')
             html = html.replace("V15 AUTONOMOUS MARKET REASONING · PAPER / RESEARCH", "V17 AUTONOMOUS OPTIONS RUNTIME · PAPER / RESEARCH")
             html = html.replace("JARVIS Quant V15 ·", "JARVIS Quant V17 · autonomous options ·")
             html = html.replace("JARVIS V15 reasons across verified market state", "JARVIS V17 uses the verified V15 reasoning core across market state")
             injection = (
                 '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V17_SINGLE_OPTION_CONTROLLER=true;</script>'
-                '<script src="/v17_live_fetch_scheduler.js?v=170400"></script>'
+                '<script src="/v17_live_fetch_scheduler.js?v=170401"></script>'
                 '<link rel="stylesheet" href="/v16_autonomy_runtime.css">'
                 '<script defer src="/v16_autonomy_runtime.js"></script>'
                 '<script defer src="/v16_option_decision_runtime.js?v=170222"></script>'
-                '<script defer src="/v16_workspace_router.js?v=170400"></script>'
+                '<script defer src="/v16_workspace_router.js?v=170401"></script>'
                 '<script defer src="/v16_option_readiness_runtime.js"></script>'
-                '<script defer src="/v17_runtime.js?v=170400"></script>'
+                '<script defer src="/v17_runtime.js?v=170401"></script>'
                 '<script defer src="/v17_crypto_paper_runtime.js?v=170300"></script>'
             )
             content = html.replace("</head>", injection + "</head>").encode("utf-8")
