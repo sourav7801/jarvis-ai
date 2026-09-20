@@ -350,8 +350,8 @@ def _v17_status(runtime, workspace: str) -> dict:
     return payload
 
 
-def _option_chain_lane(workspace: str, symbol: str, expiry: str | None) -> dict[str, Any]:
-    result = OPTION_DATA_LANES.chain_request(workspace, symbol, expiry)
+def _option_chain_lane(workspace: str, symbol: str, expiry: str | None, wait: float = 0.0) -> dict[str, Any]:
+    result = OPTION_DATA_LANES.chain_request(workspace, symbol, expiry, wait=wait)
     if result.get("pending"):
         return _safety({
             "success": True,
@@ -433,9 +433,8 @@ def build_handler(base, runtime):
             injection = (
                 '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V17_SINGLE_OPTION_CONTROLLER=true;</script>'
                 '<script src="/v17_live_fetch_scheduler.js?v=170403"></script>'
-                '<link rel="stylesheet" href="/v16_workspace.css">'
-                '<script defer src="/v16_workspace_router.js?v=170403"></script>'
                 '<script defer src="/v17_runtime.js?v=170403"></script>'
+                '<script defer src="/v17_options_runtime.js?v=170402"></script>'
                 '<script defer src="/v17_crypto_paper_runtime.js?v=170301"></script>'
             )
             content = html.replace("</head>", injection + "</head>").encode("utf-8")
@@ -455,6 +454,14 @@ def build_handler(base, runtime):
             # Option-chain analysis is isolated from the generic research pool.
             # A slow FYERS call can therefore never consume the workers used by
             # workspace state, chart hydration, or unrelated intelligence.
+            if parsed.path == "/api/v17/options/chain" and self._local():
+                params = urllib.parse.parse_qs(parsed.query)
+                workspace = str(params.get("workspace", ["OPTIONS"])[0]).upper()
+                symbol = str(params.get("symbol", ["NIFTY"])[0]).upper()
+                expiry = params.get("expiry", [None])[0] or None
+                payload = _option_chain_lane(workspace, symbol, expiry, wait=5.0)
+                return self.send_json(payload, 503 if payload.get("success") is False else 200)
+
             if parsed.path == "/api/terminal/module" and self._local():
                 params = urllib.parse.parse_qs(parsed.query)
                 module = str(params.get("module", [""])[0]).strip().lower()
