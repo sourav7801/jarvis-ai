@@ -19,6 +19,7 @@ FYERS_NSE_FO_MASTER = "https://public.fyers.in/sym_details/NSE_FO_sym_master.jso
 UNDERLYINGS = {
     "NIFTY": "NSE:NIFTY50-INDEX",
     "BANKNIFTY": "NSE:NIFTYBANK-INDEX",
+    "SENSEX": "BSE:SENSEX-INDEX",
 }
 
 MCX_UNDERLYINGS = {"CRUDEOIL", "GOLD", "SILVER", "NATURALGAS"}
