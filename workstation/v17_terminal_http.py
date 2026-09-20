@@ -414,9 +414,19 @@ def build_handler(base, runtime):
                 "v16_option_experience_runtime.js",
                 "adaptive_brain_runtime.js",
                 "advanced_terminal_runtime.js",
+                "scan_consistency_hotfix.js",
             )
             for asset in legacy_scripts:
                 html = html.replace(f'<script src="/{asset}"></script>', "")
+
+            # Remove the legacy inline V16 option/readiness/pinning block. It
+            # contains its own timers and targets DOM elements that V17 no
+            # longer mounts.
+            inline_start = html.find('<script>\n(() => {\n  "use strict";\n  const $ = id => document.getElementById(id);')
+            if inline_start >= 0 and 'function refreshTruthfulOptionGates()' in html[inline_start:inline_start + 6000]:
+                inline_end = html.find("</script>", inline_start)
+                if inline_end >= 0:
+                    html = html[:inline_start] + html[inline_end + len("</script>"):]
             html = html.replace("V15 AUTONOMOUS MARKET REASONING · PAPER / RESEARCH", "V17 AUTONOMOUS OPTIONS RUNTIME · PAPER / RESEARCH")
             html = html.replace("JARVIS Quant V15 ·", "JARVIS Quant V17 · autonomous options ·")
             html = html.replace("JARVIS V15 reasons across verified market state", "JARVIS V17 uses the verified V15 reasoning core across market state")
