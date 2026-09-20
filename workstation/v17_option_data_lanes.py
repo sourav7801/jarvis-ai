@@ -29,9 +29,6 @@ class _SingleLane:
         for key, (at, _payload) in list(self.cache.items()):
             if now - at > self.cache_ttl:
                 self.cache.pop(key, None)
-        for key, future in list(self.futures.items()):
-            if future.done():
-                self.futures.pop(key, None)
 
     def request(self, key: tuple[Any, ...], loader: Callable[[], Any], *, wait: float = 0.0) -> dict[str, Any]:
         with self.lock:
@@ -41,6 +38,21 @@ class _SingleLane:
                 return {"success": True, "pending": False, "result": cached[1], "cache_hit": True}
 
             future = self.futures.get(key)
+            if future is not None and future.done():
+                try:
+                    payload = future.result()
+                except Exception as exc:
+                    self.futures.pop(key, None)
+                    return {
+                        "success": False,
+                        "pending": False,
+                        "reason": "OPTIONS_DATA_ERROR",
+                        "message": f"{type(exc).__name__}: {exc}"[:700],
+                    }
+                self.futures.pop(key, None)
+                self.cache[key] = (time.monotonic(), payload)
+                return {"success": True, "pending": False, "result": payload, "cache_hit": False}
+
             if future is None:
                 # Hard back-pressure: one active task per lane and no unbounded
                 # queue of different option requests.
