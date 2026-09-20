@@ -136,7 +136,7 @@
     if (legacyPrimary) legacyPrimary.hidden = true;
     $("v17UnifiedStart")?.addEventListener("click", () => $("v17StartAutopilot")?.click());
     $("v17UnifiedPause")?.addEventListener("click", () => $("v17StopAutopilot")?.click());
-    $("v17UnifiedStopDay")?.addEventListener("click", () => document.querySelector('[data-v16-auto-control="stop_day"]')?.click());
+    $("v17UnifiedStopDay")?.addEventListener("click", () => $("v17StopAutopilot")?.click());
     return card;
   }
 
@@ -223,14 +223,14 @@
 
   function renderPrimary(v17, india) {
     const host=$("v17UnifiedPrimary"); if(!host)return; const legacyPrimary=$("v16AutonomyPrimary"); if(legacyPrimary)legacyPrimary.hidden=true;
-    const crypto=v17?.crypto_underlying_paper||{}; const mcx=crypto?.mcx_underlying_paper||{}; const selected=bestCandidate(v17,india);
-    const openCount=indiaPositions(india).length+Number(mcx?.open_positions||0)+Number(crypto?.open_positions||0); const state=String(selected?.action||(openCount?"POSITION_OPEN":"WAIT")).toUpperCase();
+    const crypto=v17?.crypto_underlying_paper||{}; const mcx=crypto?.mcx_underlying_paper||{}; const control=v17?.control_plane||{}; const armed=Boolean(control?.armed ?? v17?.autopilot_preferences?.armed); const selected=bestCandidate(v17,india);
+    const openCount=indiaPositions(india).length+Number(mcx?.open_positions||0)+Number(crypto?.open_positions||0); const state=String(!armed&&!openCount?"DISARMED":selected?.action||(openCount?"POSITION_OPEN":"WAIT")).toUpperCase();
     const stateNode=$("v17UnifiedState"); if(stateNode){stateNode.textContent=state;stateNode.dataset.state=state.toLowerCase();}
-    const riskReady=Boolean(positive(selected?.entry)&&positive(selected?.stop)&&positive(selected?.target)); const anyRunning=String(india?.session?.entry_session||"").toUpperCase()==="RUNNING"||Boolean(mcx?.running)||Boolean(crypto?.running); const dataReady=selected?!selected.stale:Boolean(v17?.success!==false&&india?.success!==false);
+    const riskReady=Boolean(positive(selected?.entry)&&positive(selected?.stop)&&positive(selected?.target)); const anyRunning=armed&&(String(india?.session?.entry_session||"").toUpperCase()==="RUNNING"||Boolean(mcx?.running)||Boolean(crypto?.running)); const dataReady=selected?!selected.stale:Boolean(v17?.success!==false&&india?.success!==false);
     const pipeline=[["SCAN",anyRunning?"ACTIVE":"PAUSED"],["DATA",dataReady?"READY":"BLOCKED"],["DECISION",selected?.action||"WAIT"],["RISK",selected&&["LONG","SHORT"].includes(selected.side)?(riskReady?"READY":"WAIT"):"WAIT"],["CAPITAL","CANONICAL"],["PAPER ORDER",openCount?"FILLED":selected?.executable?"READY":"WAIT"],["POSITION",openCount?String(openCount)+" OPEN":"NONE"],["JOURNAL","AUTO"]];
     const pipelineNode=$("v17UnifiedPipeline"); if(pipelineNode)pipelineNode.innerHTML=pipeline.map(([name,value])=>`<div><small>${escapeHtml(name)}</small><b>${escapeHtml(value)}</b></div>`).join("");
     const decision=$("v17UnifiedDecision"); if(decision){if(!selected){decision.innerHTML=`<div class="head"><strong>CANONICAL DECISION</strong><b>WAIT</b></div><div class="v17-primary-reason">No completed cross-market scanner row is available yet. JARVIS will not infer a trade from a chart or manually viewed option chain.</div>`;}else{decision.innerHTML=`<div class="head"><strong>CANONICAL DECISION · ${escapeHtml(selected.market)}</strong><b>${escapeHtml(selected.action)}</b></div><div class="v17-primary-decision-grid"><div><small>SYMBOL</small><b>${escapeHtml(selected.symbol)}</b></div><div><small>DIRECTION</small><b>${escapeHtml(selected.side)}</b></div><div><small>EXPECTED VALUE</small><b>${escapeHtml(number(selected.ev,3))}R</b></div><div><small>CONFIDENCE</small><b>${escapeHtml(percent(selected.confidence))}</b></div><div><small>ENTRY</small><b>${escapeHtml(selected.entry??"—")}</b></div><div><small>STOP / TARGET</small><b>${escapeHtml(selected.stop??"—")} / ${escapeHtml(selected.target??"—")}</b></div><div><small>CONTRACT</small><b>${escapeHtml(selected.contract)}</b></div><div><small>EXECUTION</small><b>${selected.executable?"PAPER ELIGIBLE":"WAIT"}</b></div></div><div class="v17-primary-reason">${escapeHtml(selected.reason)}</div>`;}}
-    const message=$("v17UnifiedMessage"); if(message){message.textContent=openCount?String(openCount)+" canonical PAPER position"+(openCount===1?"":"s")+" open. Paper Desk owns marks, risk management and journaling.":selected?.executable?selected.symbol+" is closest to execution. Final fresh-mark, instrument, capital, reconciliation and duplicate-exposure gates remain authoritative.":"JARVIS is scanning autonomously. WAIT means current evidence rejected the trade; no user action is required.";}
+    const message=$("v17UnifiedMessage"); if(message){message.textContent=openCount?String(openCount)+" canonical PAPER position"+(openCount===1?"":"s")+" open. Paper Desk owns marks, risk management and journaling.":!armed?"V17.3 is DISARMED. Press START JARVIS once to arm durable PAPER intent; crypto will then auto-resume after restarts while India/MCX remain session-aware.":selected?.executable?selected.symbol+" is closest to execution. Final fresh-mark, instrument, capital, reconciliation and duplicate-exposure gates remain authoritative.":"JARVIS is armed and scanning autonomously. WAIT means current evidence rejected the trade; no user action is required.";}
   }
 
   function renderRows(hostId, symbols, rows, mode) {
@@ -348,18 +348,21 @@
   function renderAuthority(v17, india) {
     const crypto = v17?.crypto_underlying_paper || {};
     const mcx = crypto?.mcx_underlying_paper || {};
+    const control = v17?.control_plane || {};
+    const armed = Boolean(control?.armed ?? v17?.autopilot_preferences?.armed);
+    const quarantineCount = Number(v17?.market_data?.stream?.quarantined_count || 0);
     const authority = $("v17CrossMarketAuthority");
     if (authority) {
-      authority.innerHTML = `<b>${escapeHtml(crypto?.qualification_authority || "ADAPTIVE PAPER")}</b><br>` +
+      authority.innerHTML = `<b>${armed ? "ARMED · AUTO-RESUME" : "DISARMED"} · ${escapeHtml(crypto?.qualification_authority || "ADAPTIVE PAPER")}</b><br>` +
         `Crypto ${escapeHtml(crypto?.adaptive_policy_version || "—")} · MCX ${escapeHtml(mcx?.adaptive_policy_version || "—")} · ` +
-        `India exact-option contracts: NIFTY / BANKNIFTY / SENSEX · MCX options disabled · live broker execution locked.`;
+        `India exact-option contracts: NIFTY / BANKNIFTY / SENSEX · MCX options research-only${quarantineCount ? ` · ${quarantineCount} research subscription${quarantineCount === 1 ? "" : "s"} quarantined` : ""} · live broker execution locked.`;
     }
     const cross = $("v17CrossMarketState");
     if (cross) {
       const problem = v17?.success === false || india?.success === false || crypto?.success === false || mcx?.success === false;
       const open = Number(crypto?.open_positions || 0) + Number(mcx?.open_positions || 0) + indiaPositions(india).length;
-      cross.textContent = problem ? "PROBLEM" : open ? `${open} OPEN` : "MONITORING";
-      cross.dataset.state = problem ? "problem" : open ? "actionable" : "running";
+      cross.textContent = problem ? "PROBLEM" : open ? `${open} OPEN` : armed ? "MONITORING" : "DISARMED";
+      cross.dataset.state = problem ? "problem" : open ? "actionable" : armed ? "running" : "wait";
     }
   }
 
