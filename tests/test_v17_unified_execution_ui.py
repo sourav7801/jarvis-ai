@@ -40,7 +40,8 @@ class V17UnifiedExecutionUiTests(unittest.TestCase):
     def test_options_workspace_reasserts_underlying_chart_context(self):
         text = (STATIC / "v16_workspace_router.js").read_text(encoding="utf-8")
         poll = text.split("pollTimer=setInterval", 1)[1]
-        self.assertNotIn("syncUnderlyingChartContext()", poll)\n        self.assertIn("},10000);", poll)
+        self.assertNotIn("syncUnderlyingChartContext()", poll)
+        self.assertIn("},10000);", poll)
 
     def test_v17_http_cache_busts_unified_browser_runtimes(self):
         text = (ROOT / "workstation" / "v17_terminal_http.py").read_text(encoding="utf-8")
