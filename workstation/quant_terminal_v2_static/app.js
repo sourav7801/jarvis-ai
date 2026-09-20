@@ -668,7 +668,7 @@ async function bootstrap(){
 bootstrap();
 
 window.JARVIS_V17_WORKSPACE_RUNTIME=Object.freeze({
-  version:"17.4",
+  version:"17.4.1",
   get generation(){return workspaceGeneration},
   get workspace(){return activeWorkspace},
   get telemetry(){return {...workspaceTelemetry}},
