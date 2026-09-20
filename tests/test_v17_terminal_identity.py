@@ -39,6 +39,33 @@ class V17TerminalIdentityTests(unittest.TestCase):
         self.assertIn("from workstation.v17_terminal_http import build_handler", text)
         self.assertIn("/api/v17/trading/status", text)
 
+    def test_v17_root_removes_legacy_browser_overlay_stack(self):
+        text = (ROOT / "workstation" / "v17_terminal_http.py").read_text(encoding="utf-8")
+        for asset in (
+            "v12_paper_intelligence.js",
+            "v13_contextual_paper_runtime.js",
+            "v14_execution_runtime.js",
+            "v141_risk_geometry_runtime.js",
+            "v15_market_reasoning_runtime.js",
+            "v16_workspace.js",
+            "v16_option_execution.js",
+            "v16_option_readiness_runtime.js",
+            "adaptive_brain_runtime.js",
+            "advanced_terminal_runtime.js",
+        ):
+            self.assertIn(asset, text)
+        self.assertIn("V17 owns the professional Options surface", text)
+
+    def test_v17_options_transition_is_lightweight(self):
+        text = (ROOT / "workstation" / "quant_terminal_v2_static" / "app.js").read_text(encoding="utf-8")
+        self.assertIn('if(activeWorkspace==="OPTIONS") return;', text)
+        self.assertIn('if(activeWorkspace!=="OPTIONS"){', text)
+
+    def test_v17_nautilus_uses_isolated_python_when_available(self):
+        text = (ROOT / "scripts" / "jarvis_runtime_supervisor_v17.py").read_text(encoding="utf-8")
+        self.assertIn(".venv-nautilus-new", text)
+        self.assertIn("JARVIS_NAUTILUS_PY", text)
+
     def test_v17_browser_overlay_is_present(self):
         text = (ROOT / "workstation" / "quant_terminal_v2_static" / "v17_runtime.js").read_text(encoding="utf-8")
         self.assertIn("V17 · ACTIVE", text)
