@@ -282,6 +282,19 @@ def _fyers_candles(
         "message": payload.get("message") or (
             "Historical candles loaded from FYERS." if candles else "FYERS candles unavailable."
         ),
+        # Preserve provider degradation all the way to evidence. A stale cache
+        # may remain useful for chart display but must never become verified
+        # autonomous evidence merely because its last candle is recent.
+        "provider_cache_hit": bool(payload.get("provider_cache_hit")),
+        "provider_cache_stale": bool(payload.get("provider_cache_stale")),
+        "provider_rate_limited": bool(payload.get("provider_rate_limited")),
+        "stale": bool(payload.get("stale") or payload.get("provider_cache_stale")),
+        "stream_degraded": bool(
+            payload.get("stream_degraded")
+            or payload.get("provider_cache_stale")
+            or payload.get("provider_rate_limited")
+        ),
+        "retry_after_seconds": payload.get("retry_after_seconds"),
         "paper_only": True,
         "live_execution": False,
     }
@@ -852,6 +865,40 @@ def live_payload(symbol: str) -> dict[str, Any]:
         payload["live_orders"] = False
         return payload
 
+    # A stale stream snapshot is expected after the instrument's trading
+    # session closes.  If FYERS already supplied a verified last price, do not
+    # spend REST quote quota trying to refresh a market that cannot produce a
+    # new tradable tick.  UNKNOWN calendar state intentionally falls through to
+    # the normal REST fallback; only an explicitly CLOSED session uses this
+    # branch.  The result remains stale and market_closed, so automatic entry
+    # freshness/session gates stay fail-closed.
+    session_closed = False
+    try:
+        from workstation.paper_market_data import PAPER_MARKET_DATA
+
+        session_closed = not bool(PAPER_MARKET_DATA.session_open(canonical))
+    except Exception:
+        session_closed = False
+    if (
+        session_closed
+        and payload
+        and payload.get("success")
+        and bridge_snapshot.get("ltp") is not None
+    ):
+        payload["symbol"] = canonical
+        payload["instrument"] = metadata
+        payload["snapshot_kind"] = "MARKET_CLOSED_STREAM_CACHE"
+        payload["stream_degraded"] = False
+        payload["stale"] = True
+        payload["market_closed"] = True
+        payload["snapshot_age_seconds"] = bridge_age_seconds
+        payload["message"] = (
+            "Market session is closed; serving the last verified FYERS stream "
+            "snapshot without REST quote retries."
+        )
+        payload["live_orders"] = False
+        return payload
+
     # The stream is an optimization, not the only read path. This fallback is
     # used for fixed indices/commodities as well as dynamically selected Indian
     # equities, so a reconnecting socket can never leave the whole watchlist
@@ -963,6 +1010,24 @@ def _atr(candles: list[dict[str, Any]], period: int = 14) -> float | None:
 def _timeframe_evidence(symbol: str, timeframe: str) -> dict[str, Any]:
     payload = candles_payload(symbol, timeframe, 220)
     raw_candles = list(payload.get("candles") or [])
+    provider_stale = bool(
+        payload.get("stale")
+        or payload.get("provider_cache_stale")
+        or payload.get("provider_rate_limited")
+    )
+    if provider_stale:
+        return {
+            "timeframe": timeframe,
+            "available": False,
+            "message": payload.get("message") or "Provider history is stale/degraded.",
+            "source": payload.get("source"),
+            "data_quality": payload.get("data_quality") or "BROKER_HISTORICAL_STALE",
+            "raw_bars": len(raw_candles),
+            "complete_bars": 0,
+            "stale": True,
+            "provider_cache_stale": bool(payload.get("provider_cache_stale")),
+            "provider_rate_limited": bool(payload.get("provider_rate_limited")),
+        }
     from workstation.terminal_data import validate_candles
     error = validate_candles(raw_candles, _TIMEFRAME_SECONDS.get(timeframe, 300))
     if error:
