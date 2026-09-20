@@ -43,6 +43,7 @@ class V17CrossMarketControlPlane:
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._last_reconcile_monotonic = 0.0
+        self._last_requested_armed: bool | None = None
         self._last_reconcile_at: str | None = None
         self._last_action = "NOT_RECONCILED"
         self._last_error: str | None = None
@@ -63,13 +64,16 @@ class V17CrossMarketControlPlane:
         now = time.monotonic()
 
         with self._lock:
+            same_intent = self._last_requested_armed is armed
             if (
                 not force
+                and same_intent
                 and self._last_reconcile_monotonic
                 and now - self._last_reconcile_monotonic < _RECONCILE_INTERVAL_SECONDS
             ):
                 return self.status(preferences=prefs)
             self._last_reconcile_monotonic = now
+            self._last_requested_armed = armed
 
         results: dict[str, Any] = {}
         errors: list[str] = []
