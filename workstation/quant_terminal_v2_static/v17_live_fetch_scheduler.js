@@ -136,7 +136,7 @@
 
   function settleSuperseded(task) {
     metrics.superseded += 1;
-    pending.delete(task.pendingKey);
+    if (pending.get(task.pendingKey) === task) pending.delete(task.pendingKey);
     task.reject(supersededError());
   }
 
@@ -195,7 +195,7 @@
           if (task.externalSignal) task.externalSignal.removeEventListener("abort", onAbort);
           activeTasks.delete(task);
           active[kind] -= 1;
-          pending.delete(task.pendingKey);
+          if (pending.get(task.pendingKey) === task) pending.delete(task.pendingKey);
           metrics.completed += 1;
           pump(kind);
         });
