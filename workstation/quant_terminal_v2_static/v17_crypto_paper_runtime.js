@@ -399,8 +399,10 @@
     }
   }
 
-  const observer = new MutationObserver(() => ensureCard());
-  observer.observe(document.documentElement, {childList: true, subtree: true});
+  // V17 card creation is explicit; never observe the whole terminal DOM.
+  // Chart/candle mutations are frequent and must not trigger cross-market
+  // refresh loops while the Options workspace is hydrating.
+  setTimeout(() => ensureCard(), 0);
   setTimeout(refresh, 900);
   setInterval(refresh, 7500);
 })();
