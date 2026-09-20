@@ -467,7 +467,10 @@
   }
 
   async function resolveModule(url, serial, signal) {
-    for (let attempt = 0; attempt < 10; attempt++) {
+    // Provider-backed option chains can take several seconds (and a selected
+    // expiry may require two read-only FYERS calls). Keep the UI asynchronous,
+    // but give the bounded server-side job enough time to finish.
+    for (let attempt = 0; attempt < 30; attempt++) {
       if (serial !== chainSerial || signal?.aborted) throw requestSuperseded();
       const plane = window.JARVIS_V17_DATA_PLANE?.snapshot?.();
       const payload = await requestJson(url, {
