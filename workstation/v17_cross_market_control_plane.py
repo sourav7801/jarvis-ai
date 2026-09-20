@@ -56,6 +56,7 @@ class V17CrossMarketControlPlane:
         *,
         preferences: dict[str, Any] | None = None,
         force: bool = False,
+        crypto_lane: Any | None = None,
     ) -> dict[str, Any]:
         prefs = dict(preferences or load_preferences())
         armed = bool(prefs.get("armed", False))
@@ -73,6 +74,7 @@ class V17CrossMarketControlPlane:
         results: dict[str, Any] = {}
         errors: list[str] = []
         changed = False
+        lane = crypto_lane or crypto_paper_lane
 
         targets = list(prefs.get("start_workspaces") or [])
         for workspace in targets:
@@ -116,21 +118,21 @@ class V17CrossMarketControlPlane:
             }
 
         try:
-            crypto = dict(crypto_paper_lane.status())
+            crypto = dict(lane.status())
             crypto_running = bool(crypto.get("running"))
             if armed and not crypto_running:
-                crypto = dict(crypto_paper_lane.start())
+                crypto = dict(lane.start())
                 changed = True
                 with self._lock:
                     self._resume_count += 1
             elif not armed and crypto_running:
-                crypto = dict(crypto_paper_lane.stop_new_entries())
+                crypto = dict(lane.stop_new_entries())
                 changed = True
 
             mcx = crypto.get("mcx_underlying_paper")
             if not isinstance(mcx, dict):
                 try:
-                    mcx = dict(crypto_paper_lane.status().get("mcx_underlying_paper") or {})
+                    mcx = dict(lane.status().get("mcx_underlying_paper") or {})
                 except Exception:
                     mcx = {}
 
@@ -139,6 +141,9 @@ class V17CrossMarketControlPlane:
                 "running": bool(crypto.get("running")),
                 "state": crypto.get("state") or ("RUNNING" if crypto.get("running") else "PAUSED"),
                 "scan_cycles": crypto.get("scan_cycles"),
+                "qualification_authority": crypto.get("qualification_authority"),
+                "decision_authority": crypto.get("decision_authority"),
+                "adaptive_policy_version": crypto.get("adaptive_policy_version"),
                 "success": crypto.get("success") is not False,
             }
             results["MCX_FUTURES_PAPER"] = {
