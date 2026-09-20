@@ -177,7 +177,8 @@ async function readCandles(url,{signal=null,generation=workspaceGeneration,prior
   if(signal?.aborted||generation!==workspaceGeneration)throw supersededError();
   const cached=cachedCandles(url,15000);
   if(cached&&!forceFresh)return cached.payload;
-  if(candleReads.has(url))return candleReads.get(url);
+  const readKey=`${generation}|${url}`;
+  if(candleReads.has(readKey))return candleReads.get(readKey);
   const task=(async()=>{
     await acquireCandleLane(signal);
     try{
@@ -189,10 +190,10 @@ async function readCandles(url,{signal=null,generation=workspaceGeneration,prior
       return payload;
     }finally{
       releaseCandleLane();
-      candleReads.delete(url);
+      candleReads.delete(readKey);
     }
   })();
-  candleReads.set(url,task);
+  candleReads.set(readKey,task);
   return task;
 }
 
