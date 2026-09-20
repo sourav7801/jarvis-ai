@@ -488,7 +488,7 @@ def _trusted_stale_live_bridge_pid() -> int | None:
         "-ErrorAction SilentlyContinue | Select-Object -First 1; "
         "if(-not $c){exit 0}; "
         "$p=Get-CimInstance Win32_Process -Filter "
-        "'ProcessId=' + $c.OwningProcess -ErrorAction SilentlyContinue; "
+        "(\"ProcessId=\" + $c.OwningProcess) -ErrorAction SilentlyContinue; "
         "if($p){[pscustomobject]@{pid=$p.ProcessId;exe=$p.ExecutablePath;cmd=$p.CommandLine}"
         "|ConvertTo-Json -Compress}"
     )
