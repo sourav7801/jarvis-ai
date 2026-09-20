@@ -48,6 +48,11 @@ class V17UnifiedDataPlaneTests(unittest.TestCase):
         self.assertIn('if (kind === "canonical") return canonicalFetch', self.scheduler_js)
         self.assertIn("caches.canonical.set", self.scheduler_js)
 
+    def test_module_pending_responses_are_not_cached(self):
+        self.assertIn("A module response can legitimately be {pending:true}", self.scheduler_js)
+        self.assertIn('if (cacheResponse && kind === "module")', self.scheduler_js)
+        self.assertIn("cacheResponse = parsed?.pending !== true", self.scheduler_js)
+
     def test_workspace_generation_supersedes_obsolete_requests(self):
         self.assertIn("function beginWorkspace(workspace, generation)", self.scheduler_js)
         self.assertIn("task.generation < currentGeneration", self.scheduler_js)
