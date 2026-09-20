@@ -219,7 +219,9 @@ def _fyers_candles(instrument: str, timeframe: str, bars: int) -> dict[str, Any]
         market="india",
         timeframe=timeframe,
         bars=max(20, min(int(bars), 2000)),
-        timeout=30,
+        # Option chart history is display-only and must fail fast; never let a
+        # provider stall hold a general terminal thread for 30 seconds.
+        timeout=8,
     )
     payload = dict(result) if isinstance(result, dict) else {}
     candles = _frame_candles(payload.get("data")) if payload.get("success") else []
