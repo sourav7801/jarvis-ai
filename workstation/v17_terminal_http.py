@@ -363,7 +363,7 @@ def _option_chain_lane(workspace: str, symbol: str, expiry: str | None) -> dict[
             "lane": "V17_ISOLATED_OPTION_CHAIN",
         })
     if result.get("success") is not True:
-        return _safety(result), 503
+        return _safety(result)
     payload = dict(result.get("result") or {})
     payload["pending"] = False
     payload["lane"] = "V17_ISOLATED_OPTION_CHAIN"
@@ -433,7 +433,8 @@ def build_handler(base, runtime):
                     workspace = str(params.get("workspace", ["INTRADAY"])[0]).upper()
                     symbol = str(params.get("symbol", ["NIFTY"])[0]).upper()
                     expiry = params.get("expiry", [None])[0] or None
-                    return self.send_json(_option_chain_lane(workspace, symbol, expiry))
+                    payload = _option_chain_lane(workspace, symbol, expiry)
+                    return self.send_json(payload, 503 if payload.get("success") is False else 200)
 
             # Option premium candles get their own bounded worker too. The chart
             # request may time out, but only this lane is affected.
