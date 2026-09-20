@@ -35,6 +35,25 @@ class V17OptionIsolationTests(unittest.TestCase):
         finally:
             lane.pool.shutdown(wait=False, cancel_futures=True)
 
+
+    def test_sensex_is_a_supported_fyers_option_underlying(self):
+        from workstation.india_options_intelligence import UNDERLYINGS
+        self.assertEqual(UNDERLYINGS["SENSEX"], "BSE:SENSEX-INDEX")
+
+    def test_v17_chain_endpoint_uses_bounded_wait(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[1]
+        text = (root / "workstation" / "v17_terminal_http.py").read_text(encoding="utf-8")
+        self.assertIn('/api/v17/options/chain', text)
+        self.assertIn("wait=5.0", text)
+
+    def test_v17_page_does_not_load_v16_option_router(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[1]
+        text = (root / "workstation" / "v17_terminal_http.py").read_text(encoding="utf-8")
+        self.assertIn('v17_options_runtime.js', text)
+        self.assertNotIn('v16_workspace_router.js?v=170403', text)
+
     def test_v17_http_contains_isolated_option_routes(self):
         from pathlib import Path
 
