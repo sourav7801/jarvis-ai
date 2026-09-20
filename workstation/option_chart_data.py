@@ -258,8 +258,14 @@ def option_live(provider: str, instrument: str) -> dict[str, Any]:
         payload = _bridge_request("/api/snapshot?" + query, timeout=1.2) or {}
         snap = payload.get("snapshot") or {}
         if not snap:
-            _bridge_request("/api/subscribe", method="POST", payload={"symbol": resolved_instrument}, timeout=1.2)
+            # Option-chart research must never mutate the shared FYERS stream.
+            # A malformed/unverified MCX option ticker previously propagated a
+            # provider invalid-symbol error into the global DATA SESSION.
+            # Use read-only REST quote fallback instead; exact execution
+            # contracts are handled separately by verified paper execution.
             payload = _bridge_request("/api/quote?" + query, timeout=2.) or {}
+            payload["research_quote_fallback"] = True
+            payload["stream_subscription_attempted"] = False
         return {**payload, "source": "FYERS", "provider_symbol": resolved_instrument, "paper_only": True, "live_execution": False}
     if resolved_provider == "DERIBIT_PUBLIC":
         ticker = dict(_deribit_json("/public/ticker", {"instrument_name": resolved_instrument}) or {})
