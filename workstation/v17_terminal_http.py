@@ -394,7 +394,29 @@ def build_handler(base, runtime):
 
             html = (STATIC / "index.html").read_text(encoding="utf-8")
             html = html.replace('<script src="/paper_desk_runtime.js"></script>', "")
-            html = html.replace('<script src="/app.js"></script>', '<script src="/app.js?v=170402"></script>')
+            html = html.replace('<script src="/app.js"></script>', '<script src="/app.js?v=170403"></script>')
+
+            # V17 owns the professional Options surface. Do not load the old
+            # V12-V16 browser overlay runtimes alongside it: several of those
+            # start their own polling/observation loops and assume the legacy
+            # manual option-ticket DOM.
+            legacy_scripts = (
+                "session_hotfix.js",
+                "v12_paper_intelligence.js",
+                "v13_contextual_paper_runtime.js",
+                "v14_execution_runtime.js",
+                "v141_risk_geometry_runtime.js",
+                "v15_market_reasoning_runtime.js",
+                "v16_workspace.js",
+                "v16_option_execution.js",
+                "v16_option_readiness_runtime.js",
+                "v16_option_decision_runtime.js",
+                "v16_option_experience_runtime.js",
+                "adaptive_brain_runtime.js",
+                "advanced_terminal_runtime.js",
+            )
+            for asset in legacy_scripts:
+                html = html.replace(f'<script src="/{asset}"></script>', "")
             html = html.replace("V15 AUTONOMOUS MARKET REASONING · PAPER / RESEARCH", "V17 AUTONOMOUS OPTIONS RUNTIME · PAPER / RESEARCH")
             html = html.replace("JARVIS Quant V15 ·", "JARVIS Quant V17 · autonomous options ·")
             html = html.replace("JARVIS V15 reasons across verified market state", "JARVIS V17 uses the verified V15 reasoning core across market state")
