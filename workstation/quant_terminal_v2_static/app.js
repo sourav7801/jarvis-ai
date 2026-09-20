@@ -497,22 +497,35 @@ function connectCryptoSocket(slot){
 
 async function refreshProvider(){
   try{
-    const payload=await fetchJson("/api/provider",{},6000);
+    const payload=await fetchJson("/api/provider",{jarvisPriority:1,jarvisScope:"terminal"},6000);
     const button=$("providerButton");const state=payload.state||"UNKNOWN";button.textContent=`FYERS · ${state.replaceAll("_"," ")}`;button.className="status-pill "+(state==="CONNECTED"?"connected":state==="LOGIN_REQUIRED"?"error":"warn");
+    $("providerState").dataset.lastVerifiedAt=String(Date.now());
     $("providerState").textContent=state.replaceAll("_"," ");
     const error=payload.bridge?.error;$("providerMessage").textContent=state==="CONNECTED"?"Read-only FYERS live stream connected.":state==="DEGRADED"?`FYERS REST fallback active while the live stream reconnects${error?`: ${error}`:"."}`:error||"FYERS session is not live. Use the local login button if today's token has expired.";
-  }catch(error){$("providerState").textContent="UNAVAILABLE";$("providerMessage").textContent=error.message}
+  }catch(error){
+    if(isSuperseded(error))return;
+    const last=Number($("providerState").dataset.lastVerifiedAt||0);
+    const recent=last&&Date.now()-last<30000;
+    $("providerState").textContent=recent?"DEGRADED":"PARTIAL";
+    $("providerMessage").textContent=recent?"Provider health refresh delayed; last verified feed state is retained.":(error.message||"Provider health is partially unavailable.");
+  }
 }
 
 async function refreshOneWatch(){
   const item=MARKETS[watchCursor%MARKETS.length];watchCursor++;
-  try{const payload=await fetchJson(`/api/live?${new URLSearchParams({symbol:item.symbol})}`,{},6000);if(payload.success&&payload.snapshot)updateWatchTile(item.symbol,payload.snapshot,{degraded:Boolean(payload.stream_degraded||payload.stale),stale:Boolean(payload.stale),snapshotKind:payload.snapshot_kind,statusLabel:payload.market_closed?"CLOSED":payload.stale?"STALE":payload.snapshot_kind==="REST_QUOTE_FALLBACK"?"REST":payload.stream_degraded?"DEGRADED":"",message:payload.message});else updateWatchTile(item.symbol,null,{message:payload.message||"data unavailable"})}catch(error){updateWatchTile(item.symbol,null,{message:error.message,degraded:true})}
+  try{const payload=await fetchJson(`/api/live?${new URLSearchParams({symbol:item.symbol})}`,{jarvisPriority:3,jarvisScope:"watchlist"},6000);if(payload.success&&payload.snapshot)updateWatchTile(item.symbol,payload.snapshot,{degraded:Boolean(payload.stream_degraded||payload.stale),stale:Boolean(payload.stale),snapshotKind:payload.snapshot_kind,statusLabel:payload.market_closed?"CLOSED":payload.stale?"STALE":payload.snapshot_kind==="REST_QUOTE_FALLBACK"?"REST":payload.stream_degraded?"DEGRADED":"",message:payload.message});else updateWatchTile(item.symbol,null,{message:payload.message||"data unavailable"})}catch(error){if(!isSuperseded(error))updateWatchTile(item.symbol,null,{message:error.message,degraded:true})}
 }
 
 async function refreshAllWatch(){
-  await Promise.allSettled(MARKETS.map(async item=>{
-    try{const payload=await fetchJson(`/api/live?${new URLSearchParams({symbol:item.symbol})}`,{},10000);if(payload.success&&payload.snapshot)updateWatchTile(item.symbol,payload.snapshot,{degraded:Boolean(payload.stream_degraded||payload.stale),stale:Boolean(payload.stale),snapshotKind:payload.snapshot_kind,statusLabel:payload.market_closed?"CLOSED":payload.stale?"STALE":payload.snapshot_kind==="REST_QUOTE_FALLBACK"?"REST":payload.stream_degraded?"DEGRADED":"",message:payload.message});else updateWatchTile(item.symbol,null,{message:payload.message||"data unavailable"})}catch(error){updateWatchTile(item.symbol,null,{message:error.message,degraded:true})}
-  }));
+  // V17.4 lazy watch hydration: never burst the whole universe during a
+  // workspace transition.
+  for(let offset=0;offset<MARKETS.length;offset+=2){
+    const batch=MARKETS.slice(offset,offset+2);
+    await Promise.allSettled(batch.map(async item=>{
+      try{const payload=await fetchJson(`/api/live?${new URLSearchParams({symbol:item.symbol})}`,{jarvisPriority:3,jarvisScope:"watchlist"},10000);if(payload.success&&payload.snapshot)updateWatchTile(item.symbol,payload.snapshot,{degraded:Boolean(payload.stream_degraded||payload.stale),stale:Boolean(payload.stale),snapshotKind:payload.snapshot_kind,statusLabel:payload.market_closed?"CLOSED":payload.stale?"STALE":payload.snapshot_kind==="REST_QUOTE_FALLBACK"?"REST":payload.stream_degraded?"DEGRADED":"",message:payload.message});else updateWatchTile(item.symbol,null,{message:payload.message||"data unavailable"})}catch(error){if(!isSuperseded(error))updateWatchTile(item.symbol,null,{message:error.message,degraded:true})}
+    }));
+    await new Promise(resolve=>setTimeout(resolve,0));
+  }
 }
 
 async function scanSelected(){
