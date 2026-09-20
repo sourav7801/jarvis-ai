@@ -520,12 +520,17 @@
     refreshPerformanceDiagnostics();
     setInterval(refresh, 15000);
     setInterval(refreshPerformanceDiagnostics, 30000);
-    const observer = new MutationObserver(() => {
-      relabelInheritedLineage();
-      ensureChainEvidenceMode();
-      applyChartPreference();
-    });
-    observer.observe(document.body, {subtree: true, childList: true, characterData: true});
+    // Do not observe the entire terminal DOM. Charts and option rows update
+    // frequently; a document-wide observer turns normal rendering into a
+    // feedback loop and can consume the browser main thread during failures.
+    const observerHost = document.querySelector(".workspace-modes");
+    if (observerHost) {
+      const observer = new MutationObserver(() => {
+        relabelInheritedLineage();
+        applyChartPreference();
+      });
+      observer.observe(observerHost, {childList: true, attributes: true});
+    }
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, {once: true});
