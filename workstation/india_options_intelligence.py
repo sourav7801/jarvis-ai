@@ -70,7 +70,35 @@ def _authorization_header() -> str:
     return token if token.startswith(prefix) else prefix + token
 
 
+def _validate_fyers_payload(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise RuntimeError("FYERS option-chain response was not a JSON object.")
+    if str(payload.get("s") or "").lower() not in {"ok", "success"}:
+        code = payload.get("code")
+        message = payload.get("message") or "FYERS option-chain request failed."
+        raise RuntimeError(f"FYERS option-chain failed{f' ({code})' if code is not None else ''}: {message}")
+    return payload
+
+
 def _fyers_json(path: str, params: dict[str, Any], timeout: float = 4.0) -> dict[str, Any]:
+    # Use the same official SDK authentication path as the working quote/history
+    # stack. Keep a raw HTTP fallback for SDK versions that do not expose the
+    # option-chain helper under the same method name.
+    if path == "/options-chain-v3":
+        client = create_client()
+        data = {
+            "symbol": params.get("symbol"),
+            "strikecount": max(1, min(int(params.get("strikecount") or 1), 50)),
+        }
+        if params.get("timestamp") not in (None, ""):
+            data["timestamp"] = str(params["timestamp"])
+        if params.get("greeks") not in (None, ""):
+            value = params.get("greeks")
+            data["greeks"] = value in (True, "1", 1, "true", "True")
+        method = getattr(client, "option_chain", None) or getattr(client, "optionchain", None)
+        if callable(method):
+            return _validate_fyers_payload(method(data=data))
+        # SDK fallback below preserves the exact same app_id:access_token header.
     query = urllib.parse.urlencode({k: v for k, v in params.items() if v not in (None, "")})
     request = urllib.request.Request(
         f"{FYERS_DATA_BASE}{path}?{query}",
@@ -81,11 +109,7 @@ def _fyers_json(path: str, params: dict[str, Any], timeout: float = 4.0) -> dict
     )
     with urllib.request.urlopen(request, timeout=timeout) as response:
         payload = json.loads(response.read().decode("utf-8"))
-    if not isinstance(payload, dict):
-        raise RuntimeError("FYERS option-chain response was not a JSON object.")
-    if str(payload.get("s") or "").lower() not in {"ok", "success"}:
-        raise RuntimeError(str(payload.get("message") or "FYERS option-chain request failed."))
-    return payload
+    return _validate_fyers_payload(payload)
 
 
 def _resolve_underlying(text: str) -> str | None:
