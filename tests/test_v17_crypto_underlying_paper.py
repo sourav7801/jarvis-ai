@@ -16,8 +16,26 @@ from workstation.v17_crypto_paper_lane import (
 
 
 class _Runtime:
+    def __init__(self):
+        self.states = {
+            "INTRADAY": "PAUSED",
+            "SWING": "PAUSED",
+            "INVESTMENT": "PAUSED",
+        }
+
+    def status(self, workspace):
+        state = self.states.get(workspace, "PAUSED")
+        return {
+            "success": True,
+            "state": state,
+            "running": state == "RUNNING",
+            "workspace": workspace,
+            "session": {"entry_session": state},
+        }
+
     def control(self, workspace, action):
-        return {"success": True, "state": "RUNNING" if action == "start" else "PAUSED", "workspace": workspace}
+        self.states[workspace] = "RUNNING" if action == "start" else "PAUSED"
+        return self.status(workspace)
 
 
 class _Service:
@@ -78,6 +96,7 @@ class V17CryptoUnderlyingPaperTests(unittest.TestCase):
             "start_workspaces": ["INTRADAY", "SWING", "INVESTMENT"],
             "options_capital_fraction": 0.50,
             "one_touch_autopilot": True,
+            "armed": True,
             "chart_first_options": True,
             "learning_enabled": True,
         }
@@ -172,9 +191,12 @@ class V17CryptoUnderlyingPaperTests(unittest.TestCase):
     def test_one_touch_start_includes_crypto_underlying_lane(self):
         from workstation import v17_terminal_http as http
 
-        with patch.object(http, "load_preferences", return_value=self._preferences()), patch.object(
-            http, "crypto_paper_lane", _CryptoLane()
-        ):
+        prefs = self._preferences()
+        with patch.object(
+            http,
+            "save_preferences",
+            side_effect=lambda updates: {**prefs, **updates},
+        ), patch.object(http, "crypto_paper_lane", _CryptoLane()):
             result = http._autopilot_control(_Runtime(), {"action": "start"})
         self.assertTrue(result["success"])
         self.assertIn("CRYPTO_UNDERLYING", result["results"])
@@ -187,9 +209,12 @@ class V17CryptoUnderlyingPaperTests(unittest.TestCase):
     def test_one_touch_stop_pauses_crypto_new_entries(self):
         from workstation import v17_terminal_http as http
 
-        with patch.object(http, "load_preferences", return_value=self._preferences()), patch.object(
-            http, "crypto_paper_lane", _CryptoLane()
-        ):
+        prefs = self._preferences()
+        with patch.object(
+            http,
+            "save_preferences",
+            side_effect=lambda updates: {**prefs, **updates},
+        ), patch.object(http, "crypto_paper_lane", _CryptoLane()):
             result = http._autopilot_control(_Runtime(), {"action": "stop"})
         self.assertTrue(result["success"])
         self.assertEqual(result["states"]["CRYPTO_UNDERLYING"], "PAUSED")
