@@ -240,6 +240,9 @@
   }
 
   async function refresh() {
+    // OPTIONS has its own isolated decision/chain controller in V17. Do not
+    // keep the legacy 3-second workspace poll running over that surface.
+    if (String(document.querySelector(".workspace-modes button.active")?.dataset.workspace || "").toUpperCase() === "OPTIONS") return;
     try {
       render(await workspaceState(activeCapitalWorkspace()));
     } catch (error) {
