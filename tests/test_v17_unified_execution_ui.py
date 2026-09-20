@@ -46,8 +46,8 @@ class V17UnifiedExecutionUiTests(unittest.TestCase):
     def test_v17_http_cache_busts_unified_browser_runtimes(self):
         text = (ROOT / "workstation" / "v17_terminal_http.py").read_text(encoding="utf-8")
         self.assertIn('/v16_option_decision_runtime.js?v=170222', text)
-        self.assertIn('/v16_workspace_router.js?v=170400', text)
-        self.assertIn('/v17_runtime.js?v=170400', text)
+        self.assertIn('/v16_workspace_router.js?v=170401', text)
+        self.assertIn('/v17_runtime.js?v=170401', text)
         self.assertIn('/v17_crypto_paper_runtime.js?v=170300', text)
 
     def test_india_monitor_uses_canonical_autonomous_option_map(self):
