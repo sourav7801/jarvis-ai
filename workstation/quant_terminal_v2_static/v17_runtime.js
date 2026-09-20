@@ -100,6 +100,7 @@
         <div><strong>JARVIS V17 · ONE-TOUCH AUTONOMOUS PAPER TRADING</strong><span id="v17RuntimeSummary">Verifying route, provider freshness, strategy and canonical Paper Desk.</span></div>
         <div class="v17-runtime-badges">
           <b id="v17RuntimeMode">PAPER ONLY</b>
+          <b id="v17ArmedState" data-state="paused">DISARMED</b>
           <b id="v17RouteState">INTRADAY</b>
           <b id="v17FeedState" data-state="disconnected">FYERS · DISCONNECTED</b>
         </div>
@@ -420,9 +421,21 @@
       const underlyings = Array.isArray(status.verified_auto_option_underlyings) ? status.verified_auto_option_underlyings.join(" / ") : "NIFTY / BANKNIFTY / SENSEX";
       const routeText = requested === execution ? requested : `${requested} → ${execution} execution`;
       const feedText = feedState === "CONNECTED" ? "FYERS stream fresh" : feedState === "STALE" ? "FYERS stream stale — new entries fail closed" : `FYERS stream ${feedState.toLowerCase()}`;
-      setText(summary, `${routeText} · ${feedText}. Verified PAPER options: ${underlyings}. Adaptive evidence decides; hard safety gates remain authoritative.`);
+      const controlText = status?.control_plane?.armed
+        ? `ARMED · ${String(status.control_plane.last_action || "IN SYNC").replaceAll("_"," ")}`
+        : "DISARMED";
+      setText(summary, `${routeText} · ${feedText} · ${controlText}. Verified PAPER options: ${underlyings}. Adaptive evidence decides; hard safety gates remain authoritative.`);
     }
     setText($("v17RuntimeMode"), status.live_execution ? "LIVE" : "PAPER ONLY");
+    const armed = Boolean(status?.control_plane?.armed ?? status?.autopilot_preferences?.armed);
+    const armedNode = $("v17ArmedState");
+    if (armedNode) {
+      armedNode.dataset.state = armed ? "connected" : "paused";
+      setText(armedNode, armed ? "ARMED · AUTO-RESUME" : "DISARMED");
+      armedNode.title = armed
+        ? "Explicit PAPER intent is durable across terminal restarts. Session and safety gates still decide whether each lane can enter."
+        : "New PAPER entries stay paused across restarts until START JARVIS is pressed.";
+    }
     if (status.autopilot_preferences) {
       latestPreferences = status.autopilot_preferences;
       const input = $("v17OptionsCapital");
