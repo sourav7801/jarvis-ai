@@ -14,6 +14,7 @@ from workstation.v16_terminal_http import build_handler as build_v16_handler
 from workstation.v17_autopilot_preferences import load_preferences, save_preferences
 from workstation.v17_crypto_paper_lane import crypto_paper_lane
 from workstation.v17_cross_market_control_plane import cross_market_control_plane
+from workstation.v17_option_data_lanes import OPTION_DATA_LANES
 
 V17_STATUS_PATH = "/api/v17/trading/status"
 V17_PREFERENCES_PATH = "/api/v17/autopilot/preferences"
@@ -255,11 +256,9 @@ def _v17_status(runtime, workspace: str) -> dict:
     route = _route_metadata(workspace)
     safety = _safety()
     preferences = load_preferences()
-    control_plane = cross_market_control_plane.reconcile(
-        runtime,
-        preferences=preferences,
-        crypto_lane=crypto_paper_lane,
-    )
+    # V17 status is a read-only heartbeat. It must never reconcile/start/pause
+    # trading lanes as a side effect of the browser polling the status endpoint.
+    control_plane = cross_market_control_plane.status(preferences=preferences)
     crypto_status = _crypto_lane_status()
     stream = _fyers_stream_status()
 
@@ -351,6 +350,39 @@ def _v17_status(runtime, workspace: str) -> dict:
     return payload
 
 
+def _option_chain_lane(workspace: str, symbol: str, expiry: str | None) -> dict[str, Any]:
+    result = OPTION_DATA_LANES.chain_request(workspace, symbol, expiry)
+    if result.get("pending"):
+        return _safety({
+            "success": True,
+            "pending": True,
+            "module": "option-chain",
+            "symbol": str(symbol).upper(),
+            "expiry": expiry,
+            "message": result.get("message"),
+            "lane": "V17_ISOLATED_OPTION_CHAIN",
+        })
+    if result.get("success") is not True:
+        return _safety(result), 503
+    payload = dict(result.get("result") or {})
+    payload["pending"] = False
+    payload["lane"] = "V17_ISOLATED_OPTION_CHAIN"
+    payload["cache_hit"] = bool(result.get("cache_hit"))
+    return _safety(payload)
+
+
+def _option_chart_lane(provider: str, instrument: str, timeframe: str, bars: int) -> dict[str, Any]:
+    result = OPTION_DATA_LANES.chart_request(provider, instrument, timeframe, bars)
+    if result.get("success") is not True:
+        payload = _safety(result)
+        payload["lane"] = "V17_ISOLATED_OPTION_CHART"
+        return payload
+    payload = _safety(dict(result.get("result") or {}))
+    payload["lane"] = "V17_ISOLATED_OPTION_CHART"
+    payload["cache_hit"] = bool(result.get("cache_hit"))
+    return payload
+
+
 def build_handler(base, runtime):
     V16Handler = build_v16_handler(base, runtime)
 
@@ -390,6 +422,31 @@ def build_handler(base, runtime):
 
         def do_GET(self):
             parsed = urllib.parse.urlparse(self.path)
+
+            # Option-chain analysis is isolated from the generic research pool.
+            # A slow FYERS call can therefore never consume the workers used by
+            # workspace state, chart hydration, or unrelated intelligence.
+            if parsed.path == "/api/terminal/module" and self._local():
+                params = urllib.parse.parse_qs(parsed.query)
+                module = str(params.get("module", [""])[0]).strip().lower()
+                if module in {"option-chain", "oi-iv"}:
+                    workspace = str(params.get("workspace", ["INTRADAY"])[0]).upper()
+                    symbol = str(params.get("symbol", ["NIFTY"])[0]).upper()
+                    expiry = params.get("expiry", [None])[0] or None
+                    return self.send_json(_option_chain_lane(workspace, symbol, expiry))
+
+            # Option premium candles get their own bounded worker too. The chart
+            # request may time out, but only this lane is affected.
+            if parsed.path == "/api/option-candles" and self._local():
+                params = urllib.parse.parse_qs(parsed.query)
+                provider = str(params.get("provider", [""])[0])
+                instrument = str(params.get("instrument", [""])[0])
+                timeframe = str(params.get("timeframe", ["5m"])[0])
+                try:
+                    bars = int(params.get("bars", ["500"])[0])
+                except (TypeError, ValueError):
+                    bars = 500
+                return self.send_json(_option_chart_lane(provider, instrument, timeframe, bars))
 
             if parsed.path == "/" and self._local():
                 return self._serve_v17_root()
