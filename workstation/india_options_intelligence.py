@@ -69,7 +69,7 @@ def _authorization_header() -> str:
     return token if token.startswith(prefix) else prefix + token
 
 
-def _fyers_json(path: str, params: dict[str, Any], timeout: float = 6.0) -> dict[str, Any]:
+def _fyers_json(path: str, params: dict[str, Any], timeout: float = 4.0) -> dict[str, Any]:
     query = urllib.parse.urlencode({k: v for k, v in params.items() if v not in (None, "")})
     request = urllib.request.Request(
         f"{FYERS_DATA_BASE}{path}?{query}",
