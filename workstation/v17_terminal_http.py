@@ -422,14 +422,11 @@ def build_handler(base, runtime):
             html = html.replace("JARVIS V15 reasons across verified market state", "JARVIS V17 uses the verified V15 reasoning core across market state")
             injection = (
                 '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V17_SINGLE_OPTION_CONTROLLER=true;</script>'
-                '<script src="/v17_live_fetch_scheduler.js?v=170402"></script>'
-                '<link rel="stylesheet" href="/v16_autonomy_runtime.css">'
-                '<script defer src="/v16_autonomy_runtime.js"></script>'
-                '<script defer src="/v16_option_decision_runtime.js?v=170222"></script>'
-                '<script defer src="/v16_workspace_router.js?v=170402"></script>'
-                '<script defer src="/v16_option_readiness_runtime.js"></script>'
-                '<script defer src="/v17_runtime.js?v=170402"></script>'
-                '<script defer src="/v17_crypto_paper_runtime.js?v=170300"></script>'
+                '<script src="/v17_live_fetch_scheduler.js?v=170403"></script>'
+                '<link rel="stylesheet" href="/v16_workspace.css">'
+                '<script defer src="/v16_workspace_router.js?v=170403"></script>'
+                '<script defer src="/v17_runtime.js?v=170403"></script>'
+                '<script defer src="/v17_crypto_paper_runtime.js?v=170301"></script>'
             )
             content = html.replace("</head>", injection + "</head>").encode("utf-8")
             self.send_response(200)
