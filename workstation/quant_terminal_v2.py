@@ -73,6 +73,12 @@ _LIVE_BRIDGE_RETRY_AT = 0.
 LIVE_BRIDGE_STARTUP = {"state": "NOT_STARTED", "error": None}
 _QUOTE_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
 _QUOTE_CACHE_LOCK = threading.RLock()
+_DISPLAY_HISTORY_LOCK = threading.Lock()
+_DISPLAY_HISTORY_METRICS = {
+    "cache_hits": 0,
+    "cache_misses": 0,
+    "provider_fallbacks": 0,
+}
 HEALTH = ServiceHealthClock("JARVIS_QUANT_TERMINAL", "5.0")
 
 
@@ -435,6 +441,79 @@ def candles_payload(symbol: str, timeframe: str = "5m", bars: int = 500) -> dict
             )
         return payload
     return _fyers_candles(canonical, resolved_timeframe, bounded_bars)
+
+
+def _display_provider_symbol(canonical: str) -> str:
+    """Resolve the current read-only FYERS symbol without any provider history call."""
+    bridge = _bridge_request("/api/status", timeout=0.35) or {}
+    aliases = bridge.get("aliases") or {}
+    resolved = str(aliases.get(canonical) or "").strip()
+    if resolved:
+        return resolved
+
+    fixed = {
+        "NIFTY": "NSE:NIFTY50-INDEX",
+        "BANKNIFTY": "NSE:NIFTYBANK-INDEX",
+        "SENSEX": "BSE:SENSEX-INDEX",
+    }
+    if canonical in fixed:
+        return fixed[canonical]
+
+    metadata = symbol_metadata(canonical)
+    return str(metadata.get("provider_symbol") or canonical)
+
+
+def display_candles_payload(
+    symbol: str,
+    timeframe: str = "5m",
+    bars: int = 500,
+) -> dict[str, Any]:
+    """Fast chart-only history path.
+
+    A verified on-disk FYERS snapshot is preferred even when it is older than
+    the strategy freshness gate.  Such data is marked display_only and never
+    reaches strategy/execution evidence.  If no verified snapshot exists, the
+    normal provider path is used.
+    """
+    canonical = normalize_symbol(symbol)
+    resolved_timeframe = normalize_timeframe(timeframe)
+    bounded_bars = max(20, min(int(bars), 7500))
+
+    if canonical in CRYPTO_SYMBOLS:
+        return candles_payload(canonical, resolved_timeframe, bounded_bars)
+
+    metadata = symbol_metadata(canonical)
+    if metadata.get("provider") != "FYERS":
+        return candles_payload(canonical, resolved_timeframe, bounded_bars)
+
+    from workstation.v17_display_history import load_verified_history_snapshot
+
+    provider_symbol = _display_provider_symbol(canonical)
+    cached = load_verified_history_snapshot(
+        provider_symbol,
+        resolved_timeframe,
+        bounded_bars,
+    )
+    if cached.get("success"):
+        with _DISPLAY_HISTORY_LOCK:
+            _DISPLAY_HISTORY_METRICS["cache_hits"] += 1
+        cached["symbol"] = canonical
+        cached["instrument"] = metadata
+        return cached
+
+    with _DISPLAY_HISTORY_LOCK:
+        _DISPLAY_HISTORY_METRICS["cache_misses"] += 1
+        _DISPLAY_HISTORY_METRICS["provider_fallbacks"] += 1
+    payload = candles_payload(canonical, resolved_timeframe, bounded_bars)
+    if isinstance(payload, dict):
+        payload = dict(payload)
+        payload["display_cache_miss"] = True
+    return payload
+
+
+def display_history_metrics() -> dict[str, int]:
+    with _DISPLAY_HISTORY_LOCK:
+        return dict(_DISPLAY_HISTORY_METRICS)
 
 
 def _bridge_request(
@@ -1565,7 +1644,13 @@ class Handler(BaseHTTPRequestHandler):
                 symbol = str((params.get("symbol") or ["NIFTY"])[0])
                 timeframe = str((params.get("timeframe") or ["5m"])[0])
                 bars = int((params.get("bars") or ["500"])[0])
-                payload = candles_payload(symbol, timeframe, bars)
+                display = str((params.get("display") or ["0"])[0]).lower() in {"1", "true", "yes"}
+                fresh = str((params.get("fresh") or ["0"])[0]).lower() in {"1", "true", "yes"}
+                payload = (
+                    display_candles_payload(symbol, timeframe, bars)
+                    if display and not fresh
+                    else candles_payload(symbol, timeframe, bars)
+                )
                 return self.send_json(payload, 200 if payload.get("success") else 503)
             except Exception as exc:
                 return self.send_json({"success": False, "message": _safe_message(exc)}, 400)
