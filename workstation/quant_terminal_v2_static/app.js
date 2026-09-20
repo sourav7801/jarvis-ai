@@ -23,13 +23,23 @@ let liveTimer=null;
 let providerTimer=null;
 let signalTimer=null;
 let watchCursor=0;
+let chartLiveCursor=0;
+let liveTickBusy=false;
 const indicatorState={ema:true,vwap:true,bb:true,rsi:true};
 const RICH_STATE_KEY="jarvis.v16.rich.workspaces";
 const CHART_FRAMES=["1m","3m","5m","15m","30m","1h","2h","4h","1d"];
 let activeWorkspace="INTRADAY";
 let savedWorkspaces={};
+
+// V17.4 workspace runtime: navigation is UI state, never execution lifecycle.
+let workspaceGeneration=0;
+let workspaceAbortController=new AbortController();
+const workspaceRuntimes=new Map();
+const workspaceTelemetry={transitions:0,superseded:0,lastTransitionMs:0,lastWorkspace:"INTRADAY"};
+
 try{savedWorkspaces=JSON.parse(localStorage.getItem(RICH_STATE_KEY)||"{}")}catch{}
 if(!savedWorkspaces||typeof savedWorkspaces!=="object"||Array.isArray(savedWorkspaces))savedWorkspaces={};
+
 function chartCount(value){return Math.max(1,Math.min(8,Math.trunc(Number(value)||4)))}
 function workspaceView(){
   const existing=savedWorkspaces[activeWorkspace];
@@ -52,30 +62,167 @@ function focusChart(index){
   document.querySelectorAll(".chart-cell").forEach((node,i)=>node.classList.toggle("selected",i===index));
   $("scanSymbol").textContent=marketMeta(selectedSymbol).label;syncControls();buildWatch();persistCharts();
 }
+
+function supersededError(){
+  const error=new Error("REQUEST_SUPERSEDED");
+  error.code="REQUEST_SUPERSEDED";
+  return error;
+}
+function isSuperseded(error){return error?.code==="REQUEST_SUPERSEDED"||error?.message==="REQUEST_SUPERSEDED"}
+
+function beginWorkspaceTransition(name){
+  try{workspaceAbortController.abort("workspace superseded")}catch{}
+  workspaceAbortController=new AbortController();
+  workspaceGeneration+=1;
+  workspaceTelemetry.transitions+=1;
+  workspaceTelemetry.lastWorkspace=name;
+  try{window.JARVIS_V17_DATA_PLANE?.beginWorkspace?.(name,workspaceGeneration)}catch{}
+  return workspaceGeneration;
+}
+
+function stashWorkspaceRuntime(){
+  const host=$("chartGrid");
+  if(!host||!chartSlots.length)return;
+  const fragment=document.createDocumentFragment();
+  while(host.firstChild)fragment.appendChild(host.firstChild);
+  for(const slot of chartSlots){
+    if(slot?.cryptoSocket){try{slot.cryptoSocket.close()}catch{}slot.cryptoSocket=null}
+    if(slot?.cryptoTimer){clearTimeout(slot.cryptoTimer);slot.cryptoTimer=null}
+  }
+  workspaceRuntimes.set(activeWorkspace,{fragment,slots:chartSlots,layout,selectedSlot});
+  chartSlots=[];
+}
+
+function restoreWorkspaceRuntime(name,generation){
+  const runtime=workspaceRuntimes.get(name);
+  const host=$("chartGrid");
+  if(!runtime||!host)return false;
+  host.innerHTML="";
+  host.className=`chart-grid layout-${layout}`;
+  host.appendChild(runtime.fragment);
+  chartSlots=runtime.slots;
+  selectedSlot=Math.max(0,Math.min(selectedSlot,chartSlots.length-1));
+  focusChart(selectedSlot);
+  for(const slot of chartSlots){
+    if(marketMeta(slot.symbol).kind==="CRYPTO"&&slot.cell?.isConnected&&!slot.cryptoSocket)connectCryptoSocket(slot);
+  }
+  // Revalidate only the selected chart first; the preserved charts remain
+  // visible immediately while fresh history is fetched in the background.
+  void loadSlot(selectedSlot,generation,1);
+  return true;
+}
+
 async function switchWorkspace(name){
   if(!["INTRADAY","SWING","INVESTMENT","OPTIONS"].includes(name))return;
-  persistCharts();activeWorkspace=name;analysisProfile=name==="OPTIONS"?"intraday":name.toLowerCase();
-  const view=workspaceView();layout=chartCount(view.layout);selectedSlot=Math.min(Number(view.focus)||0,layout-1);
-  chartSlots.forEach(destroySlot);chartSlots=[];
-  selectedSymbol=slotView(selectedSlot).symbol;timeframe=slotView(selectedSlot).timeframe;
-  syncControls();await mountCharts();window.dispatchEvent(new CustomEvent("jarvis:workspace",{detail:{workspace:name}}));
+  if(name===activeWorkspace)return;
+  const started=performance.now();
+  persistCharts();
+  stashWorkspaceRuntime();
+  activeWorkspace=name;
+  analysisProfile=name==="OPTIONS"?"intraday":name.toLowerCase();
+  const generation=beginWorkspaceTransition(name);
+  const view=workspaceView();
+  layout=chartCount(view.layout);
+  selectedSlot=Math.min(Number(view.focus)||0,layout-1);
+  selectedSymbol=slotView(selectedSlot).symbol;
+  timeframe=slotView(selectedSlot).timeframe;
+  syncControls();
+
+  // Workspace visibility changes synchronously. Data hydration must never block
+  // the navigation click.
+  window.dispatchEvent(new CustomEvent("jarvis:workspace",{detail:{workspace:name,generation}}));
+  if(!restoreWorkspaceRuntime(name,generation)){
+    chartSlots=[];
+    void mountCharts(generation,{progressive:true});
+  }
+  workspaceTelemetry.lastTransitionMs=performance.now()-started;
 }
-const candleReads=new Map();const candleCache=new Map();let candleActive=0;const candleQueue=[];
-async function readCandles(url){
-  const cached=candleCache.get(url);if(cached&&Date.now()-cached.at<10000)return cached.payload;
+
+const candleReads=new Map();
+const candleCache=new Map();
+let candleActive=0;
+const candleQueue=[];
+
+function cachedCandles(url,maxAgeMs=300000){
+  const cached=candleCache.get(url);
+  return cached&&Date.now()-cached.at<maxAgeMs?cached:null;
+}
+
+function releaseCandleLane(){
+  candleActive=Math.max(0,candleActive-1);
+  while(candleQueue.length){
+    const waiter=candleQueue.shift();
+    if(waiter.signal?.aborted){waiter.reject(supersededError());continue}
+    candleActive+=1;
+    waiter.resolve();
+    break;
+  }
+}
+
+async function acquireCandleLane(signal){
+  if(signal?.aborted)throw supersededError();
+  if(candleActive<2){candleActive+=1;return}
+  await new Promise((resolve,reject)=>{
+    const waiter={resolve,reject,signal};
+    candleQueue.push(waiter);
+    if(signal)signal.addEventListener("abort",()=>{
+      const index=candleQueue.indexOf(waiter);
+      if(index>=0)candleQueue.splice(index,1);
+      reject(supersededError());
+    },{once:true});
+  });
+}
+
+async function readCandles(url,{signal=null,generation=workspaceGeneration,priority=2,forceFresh=false}={}){
+  if(signal?.aborted||generation!==workspaceGeneration)throw supersededError();
+  const cached=cachedCandles(url,15000);
+  if(cached&&!forceFresh)return cached.payload;
   if(candleReads.has(url))return candleReads.get(url);
   const task=(async()=>{
-    if(candleActive>=4)await new Promise(resolve=>candleQueue.push(resolve));else candleActive++;
-    try{const payload=await fetchJson(url,{},32000);if(payload.success&&payload.candles?.length){candleCache.set(url,{at:Date.now(),payload});while(candleCache.size>64)candleCache.delete(candleCache.keys().next().value)}return payload}
-    finally{const next=candleQueue.shift();if(next)next();else candleActive--;candleReads.delete(url)}
-  })();candleReads.set(url,task);return task;
+    await acquireCandleLane(signal);
+    try{
+      const payload=await fetchJson(url,{signal,jarvisPriority:priority,jarvisGeneration:generation,jarvisScope:"workspace"},26000);
+      if(payload.success&&payload.candles?.length){
+        candleCache.set(url,{at:Date.now(),payload});
+        while(candleCache.size>64)candleCache.delete(candleCache.keys().next().value);
+      }
+      return payload;
+    }finally{
+      releaseCandleLane();
+      candleReads.delete(url);
+    }
+  })();
+  candleReads.set(url,task);
+  return task;
 }
 
 async function fetchJson(url,options={},timeoutMs=12000){
-  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),timeoutMs);
-  try{const response=await fetch(url,{...options,signal:controller.signal});const payload=await response.json();if(!response.ok)throw new Error(payload.message||payload.error||`Provider request failed (${response.status})`);return payload}
-  catch(error){if(error?.name==="AbortError")throw new Error("Market-data request timed out. Use RELOAD DATA to retry.");throw error}
-  finally{clearTimeout(timeout)}
+  const externalSignal=options.signal||null;
+  const controller=new AbortController();
+  let externalAbort=null;
+  if(externalSignal){
+    externalAbort=()=>controller.abort("superseded");
+    if(externalSignal.aborted)externalAbort();
+    else externalSignal.addEventListener("abort",externalAbort,{once:true});
+  }
+  const timeout=setTimeout(()=>controller.abort("timeout"),timeoutMs);
+  try{
+    const response=await fetch(url,{...options,signal:controller.signal});
+    const payload=await response.json();
+    if(!response.ok)throw new Error(payload.message||payload.error||`Provider request failed (${response.status})`);
+    return payload;
+  }catch(error){
+    if(error?.name==="AbortError"){
+      if(externalSignal?.aborted){workspaceTelemetry.superseded+=1;throw supersededError()}
+      const timed=new Error("Market-data request timed out. Use RELOAD DATA to retry.");
+      timed.code="MARKET_DATA_TIMEOUT";
+      throw timed;
+    }
+    throw error;
+  }finally{
+    clearTimeout(timeout);
+    if(externalSignal&&externalAbort)externalSignal.removeEventListener("abort",externalAbort);
+  }
 }
 
 function marketMeta(symbol){return MARKETS.find(item=>item.symbol===symbol)||{symbol,label:symbol,kind:"INDIA"}}
