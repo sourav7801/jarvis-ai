@@ -328,7 +328,7 @@
 
   function snapshot() {
     return {
-      version: "17.4",
+      version: "17.4.1",
       workspace: currentWorkspace,
       generation: currentGeneration,
       active: {...active},
@@ -351,7 +351,7 @@
   }
 
   const api = Object.freeze({
-    version: "17.4",
+    version: "17.4.1",
     beginWorkspace,
     snapshot,
     maxConcurrentLive: limits.live,
