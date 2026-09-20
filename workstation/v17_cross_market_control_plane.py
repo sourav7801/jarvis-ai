@@ -37,6 +37,45 @@ def _workspace_running(payload: dict[str, Any] | None) -> bool:
     return bool(value.get("running")) or state in {"RUNNING", "ACTIVE", "SCANNING"}
 
 
+def _runtime_workspace_status(runtime: Any, name: str) -> dict[str, Any]:
+    """Read canonical workspace intent without requiring a public status method."""
+    status_fn = getattr(runtime, "status", None)
+    if callable(status_fn):
+        try:
+            payload = status_fn(name)
+            if isinstance(payload, dict):
+                return dict(payload)
+        except Exception:
+            pass
+
+    desired_map = getattr(runtime, "_desired", None)
+    desired = bool(desired_map.get(name)) if isinstance(desired_map, dict) else False
+    session: dict[str, Any] = {}
+    desk = getattr(runtime, "desk", None)
+    if desk is not None:
+        try:
+            from workstation import workspace_accounts
+
+            session = dict(workspace_accounts.session(desk, name) or {})
+        except Exception:
+            session = {}
+
+    session_state = str(
+        session.get("entry_session")
+        or session.get("state")
+        or ""
+    ).upper()
+    running = session_state == "RUNNING"
+    state = session_state or ("STARTING" if desired else "PAUSED")
+    return {
+        "success": True,
+        "running": running,
+        "desired_running": desired,
+        "state": state,
+        "session": session,
+    }
+
+
 class V17CrossMarketControlPlane:
     """Reconciles durable PAPER intent with session-aware execution lanes."""
 
@@ -87,20 +126,14 @@ class V17CrossMarketControlPlane:
         )
         for workspace in targets:
             name = str(workspace).upper()
-            try:
-                current = dict(runtime.status(name))
-            except Exception as exc:
-                current = {
-                    "success": False,
-                    "state": "PROBLEM",
-                    "message": f"{type(exc).__name__}: {exc}"[:300],
-                }
-
+            current = _runtime_workspace_status(runtime, name)
             running = _workspace_running(current)
+            desired_running = bool(current.get("desired_running", running))
+            active_or_requested = running or desired_running
             desired_action = None
-            if armed and not running:
+            if armed and not active_or_requested:
                 desired_action = "start"
-            elif not armed and running:
+            elif not armed and active_or_requested:
                 desired_action = "pause"
 
             if desired_action:
@@ -116,12 +149,15 @@ class V17CrossMarketControlPlane:
                         "message": f"{type(exc).__name__}: {exc}"[:300],
                     }
 
+            current_running = _workspace_running(current)
+            current_desired = bool(current.get("desired_running", current_running))
             results[name] = {
                 "desired": "RUNNING" if armed else "PAUSED",
-                "running": _workspace_running(current),
+                "running": current_running,
+                "start_requested": current_desired,
                 "state": current.get("state")
                 or (current.get("session") or {}).get("entry_session")
-                or ("RUNNING" if _workspace_running(current) else "PAUSED"),
+                or ("RUNNING" if current_running else "STARTING" if current_desired else "PAUSED"),
                 "success": current.get("success") is not False,
             }
 
