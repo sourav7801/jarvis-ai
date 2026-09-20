@@ -480,16 +480,27 @@ def _live_bridge_contract_current() -> bool:
 
 
 def _trusted_stale_live_bridge_pid() -> int | None:
-    """Return the owning PID only for the expected JARVIS FYERS bridge process."""
+    """Return the owning PID only for a positively identified JARVIS FYERS bridge.
+
+    Do not require the executable path to match today's selected FYERS venv:
+    an obsolete bridge may have been launched by an older JARVIS Python
+    environment.  Trust instead requires both the loopback service identity and
+    the exact bridge module in the owning Python process command line.
+    """
     if os.name != "nt" or not _port_open(LIVE_BRIDGE_HOST, LIVE_BRIDGE_PORT):
         return None
+
+    identity = _bridge_request("/api/status", timeout=0.8) or {}
+    if identity.get("service") != LIVE_BRIDGE_EXPECTED_SERVICE:
+        return None
+
     script = (
         f"$c=Get-NetTCPConnection -LocalPort {int(LIVE_BRIDGE_PORT)} -State Listen "
         "-ErrorAction SilentlyContinue | Select-Object -First 1; "
         "if(-not $c){exit 0}; "
         "$p=Get-CimInstance Win32_Process -Filter "
         "(\"ProcessId=\" + $c.OwningProcess) -ErrorAction SilentlyContinue; "
-        "if($p){[pscustomobject]@{pid=$p.ProcessId;exe=$p.ExecutablePath;cmd=$p.CommandLine}"
+        "if($p){[pscustomobject]@{pid=$p.ProcessId;name=$p.Name;exe=$p.ExecutablePath;cmd=$p.CommandLine}"
         "|ConvertTo-Json -Compress}"
     )
     try:
@@ -505,15 +516,13 @@ def _trusted_stale_live_bridge_pid() -> int | None:
             return None
         value = json.loads(raw)
         pid = int(value.get("pid") or 0)
+        name = str(value.get("name") or "").lower()
         command = str(value.get("cmd") or "").lower()
-        executable = str(value.get("exe") or "")
-        if pid <= 0 or "workstation.fyers_live_bridge_service" not in command:
+        if pid <= 0 or pid == os.getpid():
             return None
-
-        from omni.runtime_paths import fyers_python
-
-        expected_python = str(fyers_python().resolve()).lower()
-        if executable and str(Path(executable).resolve()).lower() != expected_python:
+        if "python" not in name:
+            return None
+        if "workstation.fyers_live_bridge_service" not in command:
             return None
         return pid
     except Exception:
