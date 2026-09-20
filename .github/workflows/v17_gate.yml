@@ -122,7 +122,9 @@ jobs:
           http = Path("workstation/v17_terminal_http.py").read_text(encoding="utf-8")
           router = Path("workstation/quant_terminal_v2_static/v16_workspace_router.js").read_text(encoding="utf-8")
           crypto_ui = Path("workstation/quant_terminal_v2_static/v17_crypto_paper_runtime.js").read_text(encoding="utf-8")
-          assert 'results["CRYPTO_UNDERLYING"]' in http
+          assert 'from workstation.v17_cross_market_control_plane import cross_market_control_plane' in http
+          assert 'updates["armed"] = action == "start"' in http
+          assert '"control_plane": control_plane' in http
           assert '"crypto_underlying_paper": crypto_status' in http
           assert 'BTC / ETH / SOL · UNDERLYING AUTO PAPER' in router
           assert 'UNDERLYING PAPER POSITION OPEN' in router
