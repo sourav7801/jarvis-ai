@@ -24,6 +24,9 @@
   let pollTimer = null;
   let busy = false;
   let chainSerial = 0;
+  let chainAbortController = null;
+  const chainCache = new Map();
+  const CHAIN_CACHE_MS = 15000;
   let selectedContract = null;
   let selectedContractPayload = null;
   let chartFocus = false;
@@ -128,8 +131,20 @@
     document.head.appendChild(style);
   }
 
+  function requestSuperseded() {
+    const error = new Error("REQUEST_SUPERSEDED");
+    error.code = "REQUEST_SUPERSEDED";
+    return error;
+  }
+
   async function requestJson(url, options = {}, timeoutMs = 12000) {
+    const externalSignal = options.signal || null;
     const controller = new AbortController();
+    const onAbort = () => controller.abort();
+    if (externalSignal) {
+      if (externalSignal.aborted) onAbort();
+      else externalSignal.addEventListener("abort", onAbort, {once:true});
+    }
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await fetch(url, {...options, signal: controller.signal, cache: "no-store"});
@@ -138,9 +153,17 @@
       if (!response.ok) throw new Error(payload.message || payload.reason || `HTTP ${response.status}`);
       return payload;
     } catch (error) {
-      if (error?.name === "AbortError") throw new Error("Request timed out");
+      if (error?.name === "AbortError") {
+        if (externalSignal?.aborted) throw requestSuperseded();
+        const timeout = new Error("Request timed out");
+        timeout.code = "MARKET_DATA_TIMEOUT";
+        throw timeout;
+      }
       throw error;
-    } finally { clearTimeout(timer); }
+    } finally {
+      clearTimeout(timer);
+      if (externalSignal) externalSignal.removeEventListener("abort", onAbort);
+    }
   }
 
   function ensureOptionsCenter() {
@@ -443,8 +466,22 @@
     finally { busy = false; if (button) button.textContent = old; syncSessionButtons(latestState?.session || {}); }
   }
 
-  async function resolveModule(url, serial) {
-    for (let attempt = 0; attempt < 16; attempt++) { if (serial !== chainSerial) return null; const payload = await requestJson(url, {}, 15000); if (!payload?.pending) return payload?.result ?? payload; await new Promise(resolve => setTimeout(resolve, 400)); }
+  async function resolveModule(url, serial, signal) {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      if (serial !== chainSerial || signal?.aborted) throw requestSuperseded();
+      const plane = window.JARVIS_V17_DATA_PLANE?.snapshot?.();
+      const payload = await requestJson(url, {
+        signal,
+        jarvisPriority: 4,
+        jarvisGeneration: plane?.generation,
+        jarvisScope: "workspace",
+      }, 12000);
+      if (!payload?.pending) return payload?.result ?? payload;
+      await new Promise((resolve,reject) => {
+        const timer=setTimeout(resolve,500);
+        signal?.addEventListener("abort",()=>{clearTimeout(timer);reject(requestSuperseded())},{once:true});
+      });
+    }
     throw new Error("Verified option-chain analysis is still busy; retry shortly.");
   }
 
@@ -477,34 +514,65 @@
     renderChain(payload); syncOptionChartActions();
   }
 
-  async function loadChain() {
+  async function loadChain({force=false} = {}) {
     if (activeMode() !== "OPTIONS") return;
-    const serial = ++chainSerial; selectedContract = null; selectedContractPayload = null; setOptionChartFocus(false); latestChain = {underlying:selectedUnderlying(), status:"LOADING", provider:"", rows:0, receivedAt:Date.now(), message:"loading selected option chain"};
+    const underlying = selectedUnderlying();
+    const expiryValue = $("v16OptionExpiry")?.value || "";
+    const workspace = optionCapitalWorkspace();
+    const key = [workspace,underlying,expiryValue].join("|");
+    const cached = chainCache.get(key);
+    if (!force && cached && Date.now() - cached.at < CHAIN_CACHE_MS) {
+      latestChain = cached.latestChain;
+      renderChain(cached.payload);
+      applyChainGateMessage(Boolean(latestState));
+      return cached.payload;
+    }
+
+    if (chainAbortController) {
+      try { chainAbortController.abort(); } catch {}
+    }
+    chainAbortController = new AbortController();
+    const signal = chainAbortController.signal;
+    const serial = ++chainSerial;
+    selectedContract = null;
+    selectedContractPayload = null;
+    setOptionChartFocus(false);
+    latestChain = {underlying,status:"LOADING",provider:"",rows:0,receivedAt:Date.now(),message:"loading selected option chain"};
     if ($("v16SelectedOption")) $("v16SelectedOption").textContent = "No contract selected. Click a row to select it, then use OPEN OPTION CHART.";
     if ($("v16DomainContract")) $("v16DomainContract").textContent = "NO CONTRACT SELECTED";
     syncOptionChartActions();
-    if ($("v16OptionMessage")) $("v16OptionMessage").textContent = "Loading verified option chain…";
+    if ($("v16OptionMessage")) $("v16OptionMessage").textContent = "Loading verified option chain in background…";
     if ($("v16OptionsPipeChain")) $("v16OptionsPipeChain").textContent = "LOADING";
-    const query = new URLSearchParams({workspace:optionCapitalWorkspace(), symbol:selectedUnderlying(), module:"option-chain"}); const expiry = $("v16OptionExpiry")?.value || ""; if (expiry) query.set("expiry",expiry);
+
+    const query = new URLSearchParams({workspace, symbol:underlying, module:"option-chain"});
+    if (expiryValue) query.set("expiry",expiryValue);
+
     try {
-      const payload = await resolveModule(`/api/terminal/module?${query}`,serial); if (!payload || serial !== chainSerial) return;
+      const payload = await resolveModule(`/api/terminal/module?${query}`,serial,signal);
+      if (!payload || serial !== chainSerial || signal.aborted || activeMode() !== "OPTIONS") return null;
       const rows = Array.isArray(payload?.chain) ? payload.chain : [];
       const verified = payload?.success !== false && payload?.stale !== true && payload?.verified !== false && rows.length > 0;
-      latestChain = {underlying:selectedUnderlying(), status:verified?"VERIFIED":"UNAVAILABLE", provider:String(payload?.provider || payload?.source || "OPTION_PROVIDER"), rows:rows.length, receivedAt:Date.now(), message:payload?.message || (verified?"verified selected option chain":"no verified contracts returned")};
-      renderChain(payload); applyChainGateMessage(Boolean(latestState));
+      latestChain = {underlying,status:verified?"VERIFIED":"UNAVAILABLE",provider:String(payload?.provider || payload?.source || "OPTION_PROVIDER"),rows:rows.length,receivedAt:Date.now(),message:payload?.message || (verified?"verified selected option chain":"no verified contracts returned")};
+      chainCache.set(key,{at:Date.now(),payload,latestChain:{...latestChain}});
+      while(chainCache.size>16)chainCache.delete(chainCache.keys().next().value);
+      renderChain(payload);
+      applyChainGateMessage(Boolean(latestState));
+      return payload;
     } catch (error) {
-      if (serial !== chainSerial) return;
-      latestChain = {underlying:selectedUnderlying(), status:"DEGRADED", provider:"", rows:0, receivedAt:Date.now(), message:error.message};
-      renderChain({success:false,message:error.message,chain:[]}); applyChainGateMessage(Boolean(latestState));
+      if (error?.code === "REQUEST_SUPERSEDED" || signal.aborted || serial !== chainSerial) return null;
+      latestChain = {underlying,status:"DEGRADED",provider:"",rows:0,receivedAt:Date.now(),message:error.message};
+      renderChain({success:false,message:error.message,chain:[]});
+      applyChainGateMessage(Boolean(latestState));
+      return null;
     }
   }
 
   function bindCenterControls() {
     ensureOptionChartActions();
     const underlying = $("v16OptionUnderlying");
-    if (underlying && !underlying.dataset.v16RouterBound) { underlying.dataset.v16RouterBound = "1"; underlying.addEventListener("change", () => { underlying.dataset.userChosen = "1"; selectedContract = null; selectedContractPayload = null; setOptionChartFocus(false); latestChain=null; const expiry=$("v16OptionExpiry"); if(expiry)expiry.value=""; syncUnderlyingChartContext(); renderCapability(); loadChain(); refreshState(true); }); }
-    const expiry = $("v16OptionExpiry"); if (expiry && !expiry.dataset.v16RouterBound) { expiry.dataset.v16RouterBound="1"; expiry.addEventListener("change",()=>{selectedContract=null;selectedContractPayload=null;setOptionChartFocus(false);latestChain=null;loadChain();}); }
-    const reload = $("v16OptionReload"); if (reload && !reload.dataset.v16RouterBound) { reload.dataset.v16RouterBound="1"; reload.addEventListener("click",loadChain); }
+    if (underlying && !underlying.dataset.v16RouterBound) { underlying.dataset.v16RouterBound = "1"; underlying.addEventListener("change", () => { underlying.dataset.userChosen = "1"; selectedContract = null; selectedContractPayload = null; setOptionChartFocus(false); latestChain=null; const expiry=$("v16OptionExpiry"); if(expiry)expiry.value=""; syncUnderlyingChartContext(); renderCapability(); loadChain({force:true}); refreshState(true); }); }
+    const expiry = $("v16OptionExpiry"); if (expiry && !expiry.dataset.v16RouterBound) { expiry.dataset.v16RouterBound="1"; expiry.addEventListener("change",()=>{selectedContract=null;selectedContractPayload=null;setOptionChartFocus(false);latestChain=null;loadChain({force:true});}); }
+    const reload = $("v16OptionReload"); if (reload && !reload.dataset.v16RouterBound) { reload.dataset.v16RouterBound="1"; reload.addEventListener("click",()=>loadChain({force:true})); }
     const capital = $("v16OptionCapital"); if (capital && !capital.dataset.v16RouterBound) { capital.dataset.v16RouterBound="1"; capital.addEventListener("change",event=>{syncCapital(event.target.value);refreshState(true);}); }
   }
 
@@ -513,15 +581,26 @@
     const mode = activeMode(); const options = mode === "OPTIONS"; const entering = options && lastMode !== "OPTIONS"; lastMode = mode;
     if (entering) { const select=$("v16OptionUnderlying"); if(select)select.dataset.userChosen=""; syncUnderlyingFromMarketContext(); selectedContract=null; selectedContractPayload=null; setOptionChartFocus(false); latestChain=null; syncUnderlyingChartContext(); }
     setOptionsVisibility(options); setCenterOptionsVisibility(options);
-    if (options) { syncCapital(optionCapitalWorkspace()); renderCapability(); refreshState(true); loadChain(); }
-    else { setOptionChartFocus(false); movePrimaryToTop(); }
+    if (options) {
+      syncCapital(optionCapitalWorkspace());
+      renderCapability();
+      if (entering) {
+        // OPTIONS shell is already visible. Hydrate canonical state and chain
+        // asynchronously instead of blocking the workspace click.
+        queueMicrotask(()=>void refreshState(true));
+        setTimeout(()=>void loadChain(),25);
+      }
+    } else {
+      if (chainAbortController) { try { chainAbortController.abort(); } catch {} }
+      setOptionChartFocus(false); movePrimaryToTop();
+    }
   }
 
   function boot() {
     route();
     document.querySelector(".workspace-modes")?.addEventListener("click",event=>{if(!event.target.closest("button[data-workspace]"))return;setTimeout(route,0);});
     const intel=document.querySelector(".intel-panel"); if(intel)new MutationObserver(()=>{if(activeMode()==="OPTIONS")setOptionsVisibility(true);else movePrimaryToTop();}).observe(intel,{childList:true});
-    pollTimer=setInterval(()=>{ensureOptionsCenter();ensureOptionChartActions();ensureExtraOptionUnderlyings();bindCenterControls();if(activeMode()==="OPTIONS"){setCenterOptionsVisibility(true);syncUnderlyingChartContext();renderCapability();refreshState(false);if($("v16OptionsStateAge")&&latestStateAt)$("v16OptionsStateAge").textContent=`${Math.max(0,Math.round((Date.now()-latestStateAt)/1000))}s`;}else movePrimaryToTop();},2500);
+    pollTimer=setInterval(()=>{ensureOptionsCenter();ensureOptionChartActions();ensureExtraOptionUnderlyings();bindCenterControls();if(activeMode()==="OPTIONS"){setCenterOptionsVisibility(true);renderCapability();void refreshState(false);if($("v16OptionsStateAge")&&latestStateAt)$("v16OptionsStateAge").textContent=`${Math.max(0,Math.round((Date.now()-latestStateAt)/1000))}s`;}else movePrimaryToTop();},10000);
   }
 
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>setTimeout(boot,0),{once:true});else setTimeout(boot,0);
