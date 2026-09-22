@@ -68,6 +68,17 @@ class V17OptionIsolationTests(unittest.TestCase):
         self.assertIn("import os", text)
         self.assertIn('"pid": os.getpid(),', text)
 
+    def test_v20_workspace_state_uses_canonical_provider_health_dependencies(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[1]
+        text = (root / "workstation" / "v17_terminal_http.py").read_text(encoding="utf-8")
+        self.assertIn("from workstation.quant_terminal_v2 import (", text)
+        self.assertIn("    HEALTH,", text)
+        self.assertIn("    provider_health_state,", text)
+        self.assertIn("    provider_payload,", text)
+        self.assertIn("    _safe_message,", text)
+        self.assertIn('"/api/v19/workspace/state"', text)
+
     def test_v20_workspace_os_replaces_legacy_browser_workspace(self):
         from pathlib import Path
         root = Path(__file__).resolve().parents[1]
