@@ -74,7 +74,7 @@ function render(){
  else if(S.view==="STRADDLE")h.innerHTML="<tr><th>CE OI</th><th>CE LTP</th><th>CE IV</th><th>STRIKE</th><th>PE IV</th><th>PE LTP</th><th>PE OI</th><th>STRADDLE</th></tr>";
  else h.innerHTML="<tr><th>CE LTP</th><th>CE BID</th><th>CE ASK</th><th>CE OI</th><th>CE ΔOI</th><th>STRIKE</th><th>PE ΔOI</th><th>PE OI</th><th>PE BID</th><th>PE ASK</th><th>PE LTP</th></tr>";
  body.innerHTML=ps.map(function(p){
-   var ce=p.CE||{},pe=p.PE||(),c=px(ce),q=px(pe),cls=p.strike===atm?"atm":"";
+   var ce=p.CE||{},pe=p.PE||{},c=px(ce),q=px(pe),cls=p.strike===atm?"atm":"";
    if(S.view==="GREEKS")return '<tr class="'+cls+'"><td>'+n(ce.iv)+'</td><td>'+n(ce.delta,3)+'</td><td>'+n(ce.gamma,4)+'</td><td>'+n(ce.theta,3)+'</td><td class="strike">'+n(p.strike,0)+'</td><td>'+n(pe.theta,3)+'</td><td>'+n(pe.gamma,4)+'</td><td>'+n(pe.delta,3)+'</td><td>'+n(pe.iv)+'</td></tr>';
    if(S.view==="STRADDLE")return '<tr class="'+cls+'"><td>'+n(ce.open_interest,0)+'</td><td>'+n(c)+'</td><td>'+n(ce.iv)+'</td><td class="strike">'+n(p.strike,0)+'</td><td>'+n(pe.iv)+'</td><td>'+n(q)+'</td><td>'+n(pe.open_interest,0)+'</td><td>'+n((c||0)+(q||0))+'</td></tr>';
    return '<tr class="'+cls+'"><td class="ce">'+n(ce.ltp)+'</td><td>'+n(ce.bid)+'</td><td>'+n(ce.ask)+'</td><td>'+n(ce.open_interest,0)+'</td><td>'+n(ce.change_in_oi,0)+'</td><td class="strike">'+n(p.strike,0)+'</td><td>'+n(pe.change_in_oi,0)+'</td><td>'+n(pe.open_interest,0)+'</td><td>'+n(pe.bid)+'</td><td>'+n(pe.ask)+'</td><td class="pe">'+n(pe.ltp)+'</td></tr>';
