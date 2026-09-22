@@ -17,7 +17,7 @@
 .v19-context-label{font-size:7px;letter-spacing:.12em;color:#648e9d;margin-right:3px}
 .v19-context-btn{border:1px solid #173f50;background:#07151d;color:#84aebb;border-radius:4px;padding:5px 8px;font-size:8px;cursor:pointer}
 .v19-context-btn.active{border-color:#3dbbdc;color:#e8fbff;background:#0b2631}
-.v19-workspace-grid{display:grid;grid-template-columns:minmax(0,1fr) 252px;gap:6px;min-height:0;flex:1}
+.v19-workspace-grid{display:block;min-height:0;flex:1}
 .v19-main-frame{min-width:0;min-height:0;display:flex;flex-direction:column}
 .v19-main-frame .chart-grid{flex:1;min-height:0}
 .v19-rail{min-width:0;min-height:0;display:flex;flex-direction:column;gap:6px;overflow:auto}
@@ -41,7 +41,6 @@ body.v19-active .workspace{min-width:0}
 body.v19-options .v19-shellbar,body.v19-options .v19-contextbar{display:none}
 body.v19-options .v19-main-frame{display:block}
 body.v19-options .v19-workspace-grid{display:block}
-body.v19-options .v19-rail{display:none!important}
 body.v19-options #v18OptionsWorkbench{height:100%;min-height:0}
-@media(max-width:1200px){.v19-workspace-grid{grid-template-columns:minmax(0,1fr) 220px}.v19-chip{min-width:70px}.v19-titleblock{min-width:170px}}
+@media(max-width:1200px){.v19-workspace-grid{display:block}.v19-chip{min-width:70px}.v19-titleblock{min-width:170px}}
 @media(max-width:900px){.v19-workspace-grid{display:block}.v19-rail{max-height:320px;margin-top:6px}.v19-shellbar{flex-wrap:wrap}.v19-titleblock{flex:1}.v19-statebar{overflow:auto}.v19-bottom{grid-template-columns:1fr}}
