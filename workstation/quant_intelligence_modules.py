@@ -140,11 +140,13 @@ def _options_payload(
         "NIFTY50": "NIFTY",
         "BANKNIFTY": "BANKNIFTY",
         "BANKNIFTYINDEX": "BANKNIFTY",
+        "SENSEX30": "SENSEX",
     }
     canonical = aliases.get(canonical, canonical)
     if canonical in {
         "NIFTY",
         "BANKNIFTY",
+        "SENSEX",
         "CRUDEOIL",
         "GOLD",
         "SILVER",
@@ -176,7 +178,7 @@ def _options_payload(
     return _safe_failure(
         module,
         canonical,
-        "Verified option chains are available for NIFTY, BANKNIFTY, BTC, ETH "
+        "Verified option chains are available for NIFTY, BANKNIFTY, SENSEX, BTC, ETH "
         "and supported MCX commodities when the provider exposes a current "
         "listed chain.",
     )
