@@ -116,6 +116,8 @@ def _resolve_underlying(text: str) -> str | None:
     compact = " ".join(str(text or "").lower().replace("-", " ").split())
     if "bank nifty" in compact or "banknifty" in compact or "nifty bank" in compact:
         return "BANKNIFTY"
+    if "sensex" in compact:
+        return "SENSEX"
     if "nifty 50" in compact or "nifty50" in compact or "nifty" in compact:
         return "NIFTY"
     return None
