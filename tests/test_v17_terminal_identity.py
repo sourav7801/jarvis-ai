@@ -56,6 +56,17 @@ class V17TerminalIdentityTests(unittest.TestCase):
             self.assertIn(asset, text)
         self.assertIn("V17 owns the professional Options surface", text)
 
+    def test_chart_layout_supports_all_1_to_8_values(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[1]
+        js = (root / "workstation" / "quant_terminal_v2_static" / "app.js").read_text(encoding="utf-8")
+        css = (root / "workstation" / "quant_terminal_v2_static" / "style.css").read_text(encoding="utf-8")
+        for value in range(1, 9):
+            if value not in (1, 2, 4, 6, 8):
+                self.assertIn(f"layout-{value}", css)
+        self.assertIn("for(let index=0;index<layout;index++)", js)
+        self.assertIn("for(let offset=1;offset<order.length;offset+=2)", js)
+
     def test_v17_options_transition_is_lightweight(self):
         text = (ROOT / "workstation" / "quant_terminal_v2_static" / "app.js").read_text(encoding="utf-8")
         self.assertIn('if(activeWorkspace==="OPTIONS") return;', text)
