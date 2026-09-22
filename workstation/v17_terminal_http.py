@@ -435,7 +435,6 @@ def build_handler(base, runtime):
                 '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V17_SINGLE_OPTION_CONTROLLER=true;</script>'
                 '<script src="/v17_live_fetch_scheduler.js?v=170403"></script>'
                 '<script defer src="/v17_runtime.js?v=170403"></script>'
-                '<script defer src="/v17_options_runtime.js?v=170404"></script>'
                 '<script defer src="/v18_options_workbench.js?v=180101"></script>'
                 '<script defer src="/v17_crypto_paper_runtime.js?v=170301"></script>'
             )
