@@ -401,19 +401,21 @@ function mountCharts(generation=workspaceGeneration,{progressive=true}={}){
   const order=[selectedSlot,...chartSlots.map((_,i)=>i).filter(i=>i!==selectedSlot)];
   const hydrate=async()=>{
     if(!order.length)return;
+
+    // Every chosen layout renders every chart slot. Data loading is bounded so
+    // four/eight charts do not create a provider burst: at most two history
+    // requests run concurrently through the shared candle lane.
     await loadSlot(order[0],generation,1);
 
-    // OPTIONS is a separate workflow. Entering it should not fan out into
-    // 4/8 generic market-history requests while the exact option chain is
-    // still being resolved. Other chart slots stay mounted and load only when
-    // the user focuses/reloads them.
-    if(activeWorkspace==="OPTIONS") return;
+    if(!progressive){
+      await Promise.allSettled(order.slice(1).map(i=>loadSlot(i,generation,2)));
+      return;
+    }
 
-    if(!progressive)return Promise.allSettled(order.slice(1).map(i=>loadSlot(i,generation,2)));
     for(let offset=1;offset<order.length;offset+=2){
       if(generation!==workspaceGeneration)break;
       await Promise.allSettled(order.slice(offset,offset+2).map(i=>loadSlot(i,generation,2)));
-      await new Promise(resolve=>setTimeout(resolve,0));
+      await new Promise(resolve=>setTimeout(resolve,40));
     }
   };
   return hydrate();
@@ -610,7 +612,7 @@ async function scanSelected(){
 
 async function openSignalChart(chart,decision=null){
   const raw=String(chart?.symbol||chart?.label||"").toUpperCase().replaceAll(" ","");let found=MARKETS.find(item=>item.symbol===raw||item.label.toUpperCase().replaceAll(" ","")===raw);if(!found&&raw){found={symbol:raw,label:String(chart?.label||raw),kind:String(chart?.kind||"INDIA_EQUITY")};MARKETS.push(found)}if(!found)return false;
-  selectedSymbol=found.symbol;selectedSlot=0;layout=[1,2,4,6,8].includes(Number(chart?.layout))?Number(chart.layout):1;const requested=String(chart?.timeframe||timeframe);if(["1m","3m","5m","15m","30m","1h","2h","4h","1d"].includes(requested))timeframe=requested;analysisProfile=String(decision?.profile||chart?.profile||(timeframe==="1d"?"swing":"intraday"));buildWatch();syncControls();await mountCharts();if(decision)applyDecision(chartSlots[0],decision);await scanSelected();return true;
+  selectedSymbol=found.symbol;selectedSlot=0;layout=chartCount(chart?.layout||1);const requested=String(chart?.timeframe||timeframe);if(["1m","3m","5m","15m","30m","1h","2h","4h","1d"].includes(requested))timeframe=requested;analysisProfile=String(decision?.profile||chart?.profile||(timeframe==="1d"?"swing":"intraday"));buildWatch();syncControls();await mountCharts();if(decision)applyDecision(chartSlots[0],decision);await scanSelected();return true;
 }
 
 async function sendCommand(){
@@ -622,7 +624,7 @@ async function sendCommand(){
       window.open(`http://127.0.0.1:8797/?workspace=chat&command=${encodeURIComponent(handoff)}`,"_blank","noopener");
     }
     else if(result.chart){await openSignalChart(result.chart,result.decision)}
-    else if(result.action==="set_layout"&&Number(result.layout)){layout=[1,2,4,6,8].includes(Number(result.layout))?Number(result.layout):layout;selectedSlot=0;syncControls();await mountCharts()}
+    else if(result.action==="set_layout"&&Number(result.layout)){layout=chartCount(result.layout||layout);selectedSlot=0;syncControls();await mountCharts()}
     else if(result.action==="open_quant"&&result.symbol){await openSignalChart({symbol:result.symbol,timeframe,layout:1},result.decision)}
   }catch(error){$("commandReply").textContent=error.message}
 }
