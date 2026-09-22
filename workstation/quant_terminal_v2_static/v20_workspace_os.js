@@ -84,7 +84,7 @@ async function loadOptions(){
  $("v20OptState").textContent="Loading isolated FYERS chain for "+u+"…";
  try{
   const q=new URLSearchParams({workspace:"OPTIONS",symbol:u,module:"option-chain"});if(e)q.set("expiry",e);
-  const c=new AbortController();const timer=setTimeout(()=>c.abort(),12000);const r=await fetch("/api/v17/options/chain?"+q,{cache:"no-store",signal:c.signal});clearTimeout(timer);const p=await r.json().catch(()=>({}));
+  const c=optionAbort;const timer=setTimeout(()=>c.abort(),12000);const r=await fetch("/api/v17/options/chain?"+q,{cache:"no-store",signal:c.signal});clearTimeout(timer);const p=await r.json().catch(()=>({}));
   if(id!==optionSeq)return;if(!r.ok||p.success!==true)throw new Error(p.message||p.reason||"Options chain request failed");
   state.option.rows=Array.isArray(p.chain)?p.chain:[];state.option.spot=Number.isFinite(Number(p.spot))?Number(p.spot):null;state.option.pcr=Number.isFinite(Number(p.pcr_oi))?Number(p.pcr_oi):null;state.option.analytics=p.chain_analytics||{};state.option.expiries=Array.isArray(p.available_expiries)?p.available_expiries:[];
   const sel=$("v20OptExpiry");sel.innerHTML='<option value="">NEAREST EXPIRY</option>'+state.option.expiries.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join("");sel.value=state.option.expiry;
