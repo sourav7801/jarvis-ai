@@ -394,7 +394,7 @@ def build_handler(base, runtime):
 
             html = (STATIC / "index.html").read_text(encoding="utf-8")
             html = html.replace('<script src="/paper_desk_runtime.js"></script>', "")
-            html = html.replace('<link rel="stylesheet" href="/style.css">',"'<link rel=\"stylesheet\" href=\"/style.css?v=170404\">'")
+            html = html.replace('<link rel="stylesheet" href="/style.css">', '<link rel="stylesheet" href="/style.css?v=170404">')
             html = html.replace('<script src="/app.js"></script>', '<script src="/app.js?v=170404"></script>')
 
             # V17 owns the professional Options surface. Do not load the old
