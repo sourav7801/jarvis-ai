@@ -394,7 +394,8 @@ def build_handler(base, runtime):
 
             html = (STATIC / "index.html").read_text(encoding="utf-8")
             html = html.replace('<script src="/paper_desk_runtime.js"></script>', "")
-            html = html.replace('<script src="/app.js"></script>', '<script src="/app.js?v=170403"></script>')
+            html = html.replace('<link rel="stylesheet" href="/style.css">',"'<link rel=\"stylesheet\" href=\"/style.css?v=170404\">'")
+            html = html.replace('<script src="/app.js"></script>', '<script src="/app.js?v=170404"></script>')
 
             # V17 owns the professional Options surface. Do not load the old
             # V12-V16 browser overlay runtimes alongside it: several of those
@@ -434,7 +435,7 @@ def build_handler(base, runtime):
                 '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V17_SINGLE_OPTION_CONTROLLER=true;</script>'
                 '<script src="/v17_live_fetch_scheduler.js?v=170403"></script>'
                 '<script defer src="/v17_runtime.js?v=170403"></script>'
-                '<script defer src="/v17_options_runtime.js?v=170403"></script>'
+                '<script defer src="/v17_options_runtime.js?v=170404"></script>'
                 '<script defer src="/v17_crypto_paper_runtime.js?v=170301"></script>'
             )
             content = html.replace("</head>", injection + "</head>").encode("utf-8")
