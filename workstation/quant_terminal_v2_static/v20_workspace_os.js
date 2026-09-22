@@ -1,7 +1,7 @@
 /* JARVIS V20 — Full Workspace Operating System */
 (()=>{"use strict";
 if(window.__JARVIS_V20_OS__)return;window.__JARVIS_V20_OS__=true;
-const $=id=>document.getElementById(id), esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;","'":"&#39;"}[c]));
+const $=id=>document.getElementById(id), esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const num=(v,d=2)=>{const n=Number(v);return Number.isFinite(n)?n.toLocaleString("en-IN",{maximumFractionDigits:d,minimumFractionDigits:d}):"—"};
 const state={workspace:"INTRADAY",option:{underlying:"NIFTY",expiry:"",range:12,view:"PRICE",rows:[],spot:null,pcr:null,analytics:{},expiries:[],legs:[],loading:false}};
 const U=[["NIFTY","NIFTY 50"],["BANKNIFTY","BANK NIFTY"],["SENSEX","SENSEX"]];
