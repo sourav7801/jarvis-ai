@@ -1689,6 +1689,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_file(STATIC / "adaptive_brain_runtime.js", "application/javascript; charset=utf-8")
         if path == "/style.css":
             return self.send_file(STATIC / "style.css", "text/css; charset=utf-8")
+        if path == "/v19_workspace_cockpit.css":
+            return self.send_file(STATIC / "v19_workspace_cockpit.css", "text/css; charset=utf-8")
+        if path == "/v19_workspace_cockpit.js":
+            return self.send_file(STATIC / "v19_workspace_cockpit.js", "application/javascript; charset=utf-8")
         if path == "/api/health":
             provider = provider_payload()
             provider_ready, provider_error = provider_health_state(provider)
