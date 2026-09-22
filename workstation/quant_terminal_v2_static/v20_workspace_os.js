@@ -194,7 +194,9 @@ function render(){
  telemetry()
 }
 function wire(){
- document.querySelectorAll(".workspace-modes [data-workspace]").forEach(b=>b.addEventListener("click",()=>setTimeout(render,40)));
+ // app.js is the single workspace controller. V20 observes its committed
+ // workspace transition instead of binding a competing click controller.
+ window.addEventListener("jarvis:workspace",()=>render());
  document.addEventListener("click",e=>{
    const b=e.target.closest("[data-v20]");
    if(b){const a=b.dataset.v20;if(a==="refresh")telemetry();if(a==="scan")$("scanButton")?.click();if(a==="reset"){state.option.legs=[];state.option.rows=[];render()}}
@@ -202,6 +204,6 @@ function wire(){
    if(c){const a=c.dataset.v20Canonical;if(a==="fit")$("fitButton")?.click();if(a==="reload")$("reloadCharts")?.click();if(a==="layout")document.querySelector('[data-layout="'+c.dataset.layout+'"]')?.click();if(a==="tf")document.querySelector('[data-timeframe="'+c.dataset.timeframe+'"]')?.click();}
  });
 }
-function boot(){render();wire();setInterval(()=>{if(!document.hidden){const w=activeWorkspace();if(w!==state.workspace)render();else telemetry()}},10000)}
+function boot(){wire();render();setInterval(()=>{if(!document.hidden){const w=activeWorkspace();if(w!==state.workspace)render();else telemetry()}},10000)}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});else boot();
 })();
