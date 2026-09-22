@@ -147,14 +147,14 @@ function renderLegs(){
  var host=$("v18Legs"),pay=$("v18Payoff");if(!host||!pay)return;
  host.innerHTML=S.legs.length?S.legs.map(function(l,i){return '<div class="leg"><span class="'+(l.type==="CE"?"ce":"pe")+'">'+l.type+'</span><span>'+l.action+' '+n(l.strike,0)+' @ '+n(l.premium)+'</span><button data-leg="'+i+'">×</button></div>';}).join(""):'<div class="note">No paper legs. Add the ATM leg to begin scenario analysis.</div>';
  host.querySelectorAll("[data-leg]").forEach(function(b){b.onclick=function(){S.legs.splice(Number(this.dataset.leg),1);renderLegs();};});
- if(!S.legs.length){pay.textContent="Strategy lab idle.";return;}
+ if(!S.legs.length){pay.textContent="Strategy lab idle.";updateWorkspaceRail();return;}
  var net=S.legs.reduce(function(x,l){return x+(l.action==="BUY"?-1:1)*(l.premium||0);},0),spot=S.spot||S.legs[0].strike;
  function payoff(x){return S.legs.reduce(function(v,l){var iv=l.type==="CE"?Math.max(0,x-l.strike):Math.max(0,l.strike-x);return v+(l.action==="BUY"?iv-(l.premium||0):(l.premium||0)-iv);},0);}
  pay.innerHTML="Net premium/unit: <b>"+n(net)+"</b><br>Spot P/L: <b>"+n(payoff(spot))+"</b><br>±2% P/L: "+n(payoff(spot*.98))+" / "+n(payoff(spot*1.02))+"<br><span class='note'>Research approximation per unit; lot size, fees and slippage excluded.</span>";
 }
 
 async function load(){
- mount();var ticket=++seq;if(aborter)aborter.abort();aborter=new AbortController();S.loading=true;
+ mount();var ticket=++seq;if(aborter)aborter.abort();renderWorkspaceRail();aborter=new AbortController();S.loading=true;
  $("v18Status").className="status";$("v18Status").textContent="Loading verified "+S.underlying+" option chain…";$("v18Refresh").disabled=true;
  try{
   var q=new URLSearchParams({workspace:"OPTIONS",symbol:S.underlying,module:"option-chain"});if(S.expiry)q.set("expiry",S.expiry);
