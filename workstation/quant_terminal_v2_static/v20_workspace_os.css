@@ -19,7 +19,7 @@ body.v20-options-active #chartGrid,body.v20-options-active .workspace-toolbar,bo
 body.v20-investment-active .v19-shellbar,body.v20-investment-active .v19-contextbar{display:none!important}
 body.v20-active .v19Rail,body.v20-active #v19Rail{display:none!important}
 body.v20-active .workspace{min-width:0}
-body.v20-active #v16AutonomyPrimary,body.v20-active #v17CryptoPaperCard{display:none!important}
+body.v20-active #v16AutonomyPrimary,body.v20-active #v17CryptoPaperCard,body.v20-active #v17RuntimeBanner{display:none!important}
 @media(max-width:1200px){#v20WorkspaceOS .v20-options{grid-template-columns:170px minmax(0,1fr) 240px}#v20WorkspaceOS .v20-body{grid-template-columns:minmax(0,1fr) 240px}}
 @media(max-width:900px){#v20WorkspaceOS .v20-body,#v20WorkspaceOS .v20-options,#v20WorkspaceOS .v20-invest{grid-template-columns:1fr}.v20-rail{max-height:280px}.v20-research-grid{grid-template-columns:1fr 1fr}.v20-grid4{grid-template-columns:1fr 1fr}}
 @media(max-width:650px){.v20-research-grid{grid-template-columns:1fr}.v20-grid4{grid-template-columns:1fr 1fr}.v20-actions{display:none!important}}
