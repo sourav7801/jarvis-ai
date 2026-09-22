@@ -25,18 +25,18 @@ body.v20-active #v16AutonomyPrimary,body.v20-active #v17CryptoPaperCard,body.v20
 @media(max-width:650px){.v20-research-grid{grid-template-columns:1fr}.v20-grid4{grid-template-columns:1fr 1fr}.v20-actions{display:none!important}}
 
 /* V20 root shell: no legacy terminal chrome surrounds the workspace OS. */
-html,body.v20-root-body{width:100%;height:100%;margin:0;overflow:hidden}
-body.v20-root-body{display:flex;flex-direction:column;background:#03090d;color:#d9f4fb;font-family:Arial,sans-serif}
-.v20-root-modes{flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:7px 9px;border-bottom:1px solid #174354;background:#06131a;box-sizing:border-box;min-height:42px}
-.v20-root-modes button{background:#071720;border:1px solid #173e4f;color:#8db4c0;border-radius:4px;padding:7px 12px;font-size:8px;font-weight:800;letter-spacing:.05em;cursor:pointer}
-.v20-root-modes button.active{border-color:#4bc8ea;color:#effcff;background:#0b2833}
-.v20-root-brand{display:flex;align-items:baseline;gap:7px;margin-right:5px;min-width:190px}
-.v20-root-brand b{font-size:14px;color:#ecfcff;letter-spacing:.08em}.v20-root-brand span{font-size:7px;color:#58d9ff;letter-spacing:.14em;font-weight:900}
-.v20-root-safety{margin-left:auto;font-size:7px;font-weight:900;letter-spacing:.08em;color:#74efaa;padding:7px 9px;border:1px solid #24563e;border-radius:4px;background:#061a12}
-.v20-root-workspace{display:flex!important;flex:1!important;min-height:0!important;min-width:0!important;padding:7px 9px 9px;box-sizing:border-box}
-.v20-root-workspace #v20WorkspaceOS{width:100%;height:100%}
+html,
+
+
+
+
+
+
+
+
+
 body.v20-root-body #v20WorkspaceOS .v20-head{flex:0 0 auto}
-@media(max-width:650px){.v20-root-brand{min-width:0}.v20-root-brand span{display:none}.v20-root-modes{overflow:auto}.v20-root-safety{display:none}}
+@media(max-width:650px){}
 
 
 /* V20 chart surface: the trading workspaces own their chart grid. */
@@ -70,3 +70,16 @@ body.v20-root-body #v20WorkspaceOS .v20-head{flex:0 0 auto}
  #v20WorkspaceOS .v20-chart-grid,#v20WorkspaceOS .v20-chart-grid.layout-3,#v20WorkspaceOS .v20-chart-grid.layout-4,#v20WorkspaceOS .v20-chart-grid.layout-5,#v20WorkspaceOS .v20-chart-grid.layout-6,#v20WorkspaceOS .v20-chart-grid.layout-7,#v20WorkspaceOS .v20-chart-grid.layout-8{grid-template-columns:1fr;grid-template-rows:none;overflow:auto}
  #v20WorkspaceOS .v20-chart-card{min-height:260px}
 }
+
+
+/* V20 orchestration layer: compact by design so canonical V16/V17 surfaces retain the viewport. */
+#v20WorkspaceOS{flex:0 0 auto!important;width:100%;box-sizing:border-box}
+#v20WorkspaceOS .v20-body{flex:0 0 auto!important;min-height:0}
+#v20WorkspaceOS .v20-canonical-controls{padding:7px}
+#v20WorkspaceOS .v20-canonical-layout{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:6px}
+#v20WorkspaceOS .v20-canonical-layout span{font-size:7px;color:#668e9d;letter-spacing:.08em;margin:0 2px}
+#v20WorkspaceOS .v20-canonical-layout button,
+#v20WorkspaceOS .v20-canonical-controls .v20-actions button{background:#071720;border:1px solid #173e4f;color:#8db4c0;border-radius:4px;padding:5px 7px;font-size:7px;font-weight:800;cursor:pointer}
+#v20WorkspaceOS .v20-canonical-layout button:hover,
+#v20WorkspaceOS .v20-canonical-controls .v20-actions button:hover{border-color:#4bc8ea;color:#effcff;background:#0b2833}
+body:not(.v20-root-body) #v20WorkspaceOS .v20-head{margin-top:0}
