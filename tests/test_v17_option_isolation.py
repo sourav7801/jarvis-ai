@@ -61,15 +61,27 @@ class V17OptionIsolationTests(unittest.TestCase):
         self.assertIn("from agents.fyers_auth_manager import FyersSettings, create_client, load_token", text)
         self.assertIn('"/options-chain-v3"', text)
 
-    def test_v18_workbench_is_served_and_mounted_once(self):
+    def test_v20_workspace_os_replaces_legacy_browser_workspace(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[1]
+        text = (root / "workstation" / "v17_terminal_http.py").read_text(encoding="utf-8")
+        js = (root / "workstation" / "quant_terminal_v2_static" / "v20_workspace_os.js").read_text(encoding="utf-8")
+        css = (root / "workstation" / "quant_terminal_v2_static" / "v20_workspace_os.css").read_text(encoding="utf-8")
+        self.assertIn("v20_workspace_os.js", text)
+        self.assertIn("v20_workspace_os.css", text)
+        self.assertIn("V20_WORKSPACE_OS", text)
+        self.assertIn("V20_DEDICATED_OPTIONS_DESK", text)
+        self.assertIn("v20-options", js)
+        self.assertIn("v20-invest", js)
+        self.assertIn("v20-options-active", css)
+
+    def test_v18_workbench_is_not_injected_into_v20_page(self):
         from pathlib import Path
         root = Path(__file__).resolve().parents[1]
         text = (root / "workstation" / "v17_terminal_http.py").read_text(encoding="utf-8")
         js = (root / "workstation" / "quant_terminal_v2_static" / "v18_options_workbench.js").read_text(encoding="utf-8")
-        self.assertIn("v18_options_workbench.js", text)
-        self.assertIn('"/v18_options_workbench.js"', text)
-        self.assertIn("JARVIS_V18_OPTIONS_WORKBENCH", js)
-        self.assertIn("/api/v17/options/chain?", js)
+        self.assertNotIn('<script defer src="/v18_options_workbench.js', text)
+        self.assertIn('JARVIS_V18_OPTIONS_WORKBENCH=false', text)
 
     def test_v17_http_contains_isolated_option_routes(self):
         from pathlib import Path
