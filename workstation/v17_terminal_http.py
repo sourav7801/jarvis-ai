@@ -387,7 +387,7 @@ def build_handler(base, runtime):
     V16Handler = build_v16_handler(base, runtime)
 
     class V17TerminalHandler(V16Handler):
-        server_version = "JarvisQuantV19/1.0"
+        server_version = "JarvisQuantV20/1.0"
 
         def _serve_v17_root(self):
             from workstation.quant_terminal_v2 import STATIC
@@ -432,10 +432,10 @@ def build_handler(base, runtime):
             html = html.replace("JARVIS Quant V15 ·", "JARVIS Quant V19 · workspace OS ·")
             html = html.replace("JARVIS V15 reasons across verified market state", "JARVIS V17 uses the verified V15 reasoning core across market state")
             injection = (
-                '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V18_OPTIONS_WORKBENCH=true;window.JARVIS_V19_WORKSPACE_OS=true;</script>'
+                '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V18_OPTIONS_WORKBENCH=false;window.JARVIS_V19_WORKSPACE_OS=false;window.JARVIS_V20_WORKSPACE_OS=true;</script>'
                 '<script src="/v17_live_fetch_scheduler.js?v=170403"></script>'
                 '<script defer src="/v17_runtime.js?v=170403"></script>'
-                '<link rel="stylesheet" href="/v19_workspace_cockpit.css?v=190101"><script defer src="/v18_options_workbench.js?v=180102"></script><script defer src="/v19_workspace_cockpit.js?v=190101"></script>'
+                '<link rel="stylesheet" href="/v20_workspace_os.css?v=200101"><script defer src="/v20_workspace_os.js?v=200101"></script>'
                 '<script defer src="/v17_crypto_paper_runtime.js?v=170301"></script>'
             )
             content = html.replace("</head>", injection + "</head>").encode("utf-8")
@@ -525,7 +525,7 @@ def build_handler(base, runtime):
             if parsed.path == "/" and self._local():
                 return self._serve_v17_root()
 
-            if parsed.path in {"/v17_runtime.js", "/v17_live_fetch_scheduler.js", "/v17_crypto_paper_runtime.js", "/v17_options_runtime.js", "/v18_options_workbench.js"} and self._local():
+            if parsed.path in {"/v17_runtime.js", "/v17_live_fetch_scheduler.js", "/v17_crypto_paper_runtime.js", "/v17_options_runtime.js", "/v18_options_workbench.js", "/v20_workspace_os.js"} and self._local():
                 from workstation.quant_terminal_v2 import STATIC
                 return self.send_file(STATIC / parsed.path.lstrip("/"), "application/javascript; charset=utf-8")
 
