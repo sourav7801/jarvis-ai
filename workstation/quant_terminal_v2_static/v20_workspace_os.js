@@ -30,12 +30,90 @@ function contexts(w){
  const map={INTRADAY:["Signals","Market Structure","Risk","Execution"],SWING:["Setups","Trend","Catalysts","Risk"],INVESTMENT:["Portfolio","Fundamentals","Valuation","Watchlist"],OPTIONS:["Chain","Greeks","OI / IV","Strategy"]};
  return '<div class="v20-context"><span class="v20-muted">DESK</span>'+map[w].map((x,i)=>'<button class="'+(i===0?"active":"")+'">'+x+'</button>').join("")+'</div>'
 }
+
+const V20_MARKETS=[
+ ["NIFTY","NIFTY 50"],["BANKNIFTY","BANK NIFTY"],["SENSEX","SENSEX"],
+ ["CRUDEOIL","CRUDE OIL"],["GOLD","GOLD"],["SILVER","SILVER"],
+ ["NATURALGAS","NAT GAS"],["BTC","BITCOIN"],["ETH","ETHEREUM"],["SOL","SOLANA"]
+];
+const V20_TFS=["1m","3m","5m","15m","30m","1h","2h","4h","1d"];
+const v20ChartState={layout:4,slots:[],generation:0,active:false,loading:false};
+function v20ChartCount(v){return Math.max(1,Math.min(8,Math.trunc(Number(v)||4)))}
+function v20ChartDefaults(workspace){
+ const tf=workspace==="SWING"?"1h":workspace==="INVESTMENT"?"1d":"5m";
+ return ["NIFTY","BANKNIFTY","SENSEX","CRUDEOIL","GOLD","BTC","ETH","SILVER"].map((symbol,i)=>({symbol,timeframe:tf}));
+}
+function v20ChartGrid(){
+ const slots=v20ChartDefaults(state.workspace);
+ while(v20ChartState.slots.length<v20ChartState.layout)v20ChartState.slots.push({...slots[v20ChartState.slots.length]});
+ v20ChartState.slots=v20ChartState.slots.slice(0,v20ChartState.layout);
+ return '<div class="v20-chart-toolbar"><div class="v20-chart-toolbar-group"><span>CHARTS</span>'+[1,2,3,4,5,6,7,8].map(n=>'<button class="v20-chart-layout '+(n===v20ChartState.layout?"active":"")+'" data-v20-layout="'+n+'">'+n+'</button>').join('')+'</div><div class="v20-chart-toolbar-group"><span>TIMEFRAME</span>'+["1m","5m","15m","1h","4h","1d"].map(tf=>'<button class="v20-chart-tf" data-v20-tf="'+tf+'">'+tf+'</button>').join('')+'</div><button class="v20-btn v20-chart-refresh" data-v20="charts-refresh">RELOAD DATA</button></div>'+
+ '<div id="v20ChartGrid" class="v20-chart-grid layout-'+v20ChartState.layout+'">'+v20ChartState.slots.map((s,i)=>'<div class="v20-chart-card" data-v20-chart="'+i+'"><div class="v20-chart-head"><div><b>'+esc((V20_MARKETS.find(x=>x[0]===s.symbol)||["",s.symbol])[1])+'</b><span>'+s.timeframe+' · QUEUED</span></div><select data-v20-chart-symbol="'+i+'">'+V20_MARKETS.map(x=>'<option value="'+x[0]+'" '+(x[0]===s.symbol?"selected":"")+'>'+x[1]+'</option>').join('')+'</select></div><div class="v20-chart-host" id="v20ChartHost'+i+'"></div><div class="v20-chart-foot"><span data-v20-chart-status="'+i+'">Waiting for verified candles…</span><span>ENTRY · STOP · TARGET · PAPER</span></div></div>').join('')+'</div>';
+}
+function v20ChartOptions(){
+ return {autoSize:true,layout:{background:{type:"solid",color:"#040b10"},textColor:"#8eabb7",fontFamily:"Arial"},grid:{vertLines:{color:"rgba(75,140,166,.08)"},horzLines:{color:"rgba(75,140,166,.08)"}},rightPriceScale:{borderColor:"#173849"},timeScale:{borderColor:"#173849",timeVisible:true,secondsVisible:false,rightOffset:5,barSpacing:7},crosshair:{mode:LightweightCharts.CrosshairMode.Normal}};
+}
+function v20ApplyRiskLines(chart,series){
+ try{
+  const data=series.data?series.data():null;
+ }catch{}
+}
+async function v20FetchCandles(slot,index,generation){
+ const status=document.querySelector('[data-v20-chart-status="'+index+'"]'),host=document.getElementById("v20ChartHost"+index);
+ if(!host)return;
+ if(generation!==v20ChartState.generation)return;
+ if(typeof LightweightCharts==="undefined"){if(status)status.textContent="Chart library unavailable";return}
+ if(status)status.textContent="Loading "+slot.symbol+" "+slot.timeframe+"…";
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),22000);
+ try{
+  const q=new URLSearchParams({symbol:slot.symbol,timeframe:slot.timeframe,bars:"500",display:"1"});
+  const r=await fetch("/api/candles?"+q,{cache:"no-store",signal:controller.signal});
+  const p=await r.json().catch(()=>({}));
+  if(generation!==v20ChartState.generation)return;
+  if(!r.ok||p.success!==true||!Array.isArray(p.candles)||!p.candles.length)throw new Error(p.message||p.reason||"Verified candles unavailable");
+  host.innerHTML="";
+  const chart=LightweightCharts.createChart(host,v20ChartOptions());
+  const candles=chart.addSeries(LightweightCharts.CandlestickSeries,{upColor:"#61e69a",downColor:"#ff667d",wickUpColor:"#61e69a",wickDownColor:"#ff667d",borderVisible:false});
+  const rows=p.candles.map(x=>({time:Number(x.time??x.timestamp),open:Number(x.open),high:Number(x.high),low:Number(x.low),close:Number(x.close)})).filter(x=>[x.time,x.open,x.high,x.low,x.close].every(Number.isFinite)).sort((a,b)=>a.time-b.time);
+  candles.setData(rows);
+  const ema=chart.addSeries(LightweightCharts.LineSeries,{color:"#5cdbff",lineWidth:1,priceLineVisible:false,lastValueVisible:false});
+  const period=20,alpha=2/(period+1);let value=rows.slice(0,period).reduce((a,x)=>a+x.close,0)/period;const emaRows=rows.length>=period?[{time:rows[period-1].time,value}]:[];
+  for(let j=period;j<rows.length;j++){value=alpha*rows[j].close+(1-alpha)*value;emaRows.push({time:rows[j].time,value})}
+  ema.setData(emaRows);
+  chart.timeScale().fitContent();
+  v20ChartState.slots[index]={...slot,chart,candles,rows};
+  if(status)status.textContent=(p.source||"FYERS")+" · "+rows.length+" bars · "+(p.data_quality||"VERIFIED");
+  setTimeout(()=>{try{chart.resize(host.clientWidth,host.clientHeight);chart.timeScale().fitContent()}catch{}},0);
+ }catch(e){
+  if(status)status.textContent=(e.name==="AbortError"?"Timed out":(e.message||"Market data unavailable"))+" · existing workspace remains usable";
+ }finally{clearTimeout(timer)}
+}
+async function v20LoadCharts(){
+ const grid=document.getElementById("v20ChartGrid");if(!grid)return;
+ v20ChartState.generation+=1;const generation=v20ChartState.generation;
+ for(const slot of v20ChartState.slots){if(slot.chart){try{slot.chart.remove()}catch{};delete slot.chart}}
+ v20ChartState.active=true;
+ const order=v20ChartState.slots.map((_,i)=>i);
+ for(let i=0;i<order.length;i+=2){
+  if(generation!==v20ChartState.generation)return;
+  await Promise.allSettled(order.slice(i,i+2).map(idx=>v20FetchCandles(v20ChartState.slots[idx],idx,generation)));
+ }
+}
+function v20BindCharts(){
+ document.querySelectorAll("[data-v20-layout]").forEach(b=>b.onclick=()=>{v20ChartState.layout=v20ChartCount(b.dataset.v20Layout);render()});
+ document.querySelectorAll("[data-v20-tf]").forEach(b=>b.onclick=()=>{const tf=b.dataset.v20Tf;const idx=Math.max(0,Number(document.querySelector(".v20-chart-card.active")?.dataset.v20Chart||0));if(v20ChartState.slots[idx])v20ChartState.slots[idx].timeframe=tf;render()});
+ document.querySelectorAll("[data-v20-chart-symbol]").forEach(s=>s.onchange=()=>{const i=Number(s.dataset.v20ChartSymbol);if(v20ChartState.slots[i])v20ChartState.slots[i].symbol=s.value;render()});
+}
+
 function intraday(){
- return '<div class="v20-body"><div class="v20-main"><div class="v20-panel"><div class="v20-panel-head"><div><div class="v20-panel-title">SESSION CONTROL</div><div class="v20-muted">Charts are independent slots; data hydration is bounded and cancellable.</div></div><button class="v20-btn" style="width:auto" data-v20="scan">SCAN SELECTED</button></div><div class="v20-grid4" style="margin-top:6px"><div class="v20-metric"><small>REGIME</small><b id="v20Regime">WAIT</b></div><div class="v20-metric"><small>SIGNAL</small><b id="v20Signal">WAIT</b></div><div class="v20-metric"><small>SCORE</small><b id="v20Score">—</b></div><div class="v20-metric"><small>RISK GATE</small><b>PAPER LOCKED</b></div></div></div></div><aside class="v20-rail"><div class="v20-panel"><div class="v20-panel-title">INTRADAY INTELLIGENCE</div><div class="v20-note">VWAP · opening range · momentum · multi-timeframe confirmation · entry/stop/target geometry.</div></div><div class="v20-panel"><div class="v20-panel-title">EXECUTION GUARD</div><div class="v20-list"><div><span>Broker</span><b>LOCKED</b></div><div><span>Mode</span><b>PAPER</b></div><div><span>New entries</span><b>AUTHORITY GATED</b></div><div><span>Provider</span><b id="v20RailProvider">CHECKING</b></div></div></div></aside></div>'
+ return '<div class="v20-body v20-trading-body"><div class="v20-main"><div class="v20-panel v20-session-panel"><div class="v20-panel-head"><div><div class="v20-panel-title">INTRADAY COMMAND CENTER</div><div class="v20-muted">Bounded multi-chart market surface · VWAP · opening range · momentum · paper risk.</div></div><button class="v20-btn" style="width:auto" data-v20="scan">SCAN SELECTED</button></div><div class="v20-grid4" style="margin-top:6px"><div class="v20-metric"><small>REGIME</small><b id="v20Regime">WAIT</b></div><div class="v20-metric"><small>SIGNAL</small><b id="v20Signal">WAIT</b></div><div class="v20-metric"><small>SCORE</small><b id="v20Score">—</b></div><div class="v20-metric"><small>RISK GATE</small><b>PAPER LOCKED</b></div></div></div>'+v20ChartGrid()+'</div><aside class="v20-rail"><div class="v20-panel"><div class="v20-panel-title">MARKET UNIVERSE</div><div class="v20-list">'+V20_MARKETS.slice(0,10).map(x=>'<div><span>'+x[1]+'</span><b>READY</b></div>').join('')+'</div></div><div class="v20-panel"><div class="v20-panel-title">EXECUTION GUARD</div><div class="v20-list"><div><span>Broker</span><b>LOCKED</b></div><div><span>Mode</span><b>PAPER</b></div><div><span>New entries</span><b>AUTHORITY GATED</b></div><div><span>Provider</span><b id="v20RailProvider">CHECKING</b></div></div></div><div class="v20-panel"><div class="v20-panel-title">RISK GEOMETRY</div><div class="v20-note">Every chart is research/display only. Entry, stop and target remain paper references until a verified decision exists.</div></div></aside></div>'
 }
+
+
 function swing(){
- return '<div class="v20-body"><div class="v20-main"><div class="v20-panel"><div class="v20-panel-title">SWING SETUP ENGINE</div><div class="v20-grid4" style="margin-top:6px"><div class="v20-metric"><small>TREND</small><b>WAIT</b></div><div class="v20-metric"><small>BREAKOUT</small><b>WAIT</b></div><div class="v20-metric"><small>VOLUME</small><b>WAIT</b></div><div class="v20-metric"><small>R:R</small><b>—</b></div></div></div><div class="v20-research-grid"><div class="v20-research-card"><b>Trend Structure</b><p>1h / 4h / 1d structure is kept separate from session-only signals.</p></div><div class="v20-research-card"><b>Breakout Engine</b><p>Waits for verified level, volume and confirmation evidence.</p></div><div class="v20-research-card"><b>Catalyst Monitor</b><p>News and event context can be attached to a setup without changing its signal.</p></div></div></div><aside class="v20-rail"><div class="v20-panel"><div class="v20-panel-title">POSITION PLAN</div><div class="v20-list"><div><span>Entry</span><b>—</b></div><div><span>Stop</span><b>—</b></div><div><span>Target</span><b>—</b></div><div><span>R:R</span><b>—</b></div></div></div><div class="v20-panel"><div class="v20-panel-title">WORKSPACE RULE</div><div class="v20-note">Swing research does not inherit Intraday entry decisions.</div></div></aside></div>'
+ return '<div class="v20-body v20-trading-body"><div class="v20-main"><div class="v20-panel"><div class="v20-panel-title">SWING COMMAND CENTER</div><div class="v20-grid4" style="margin-top:6px"><div class="v20-metric"><small>TREND</small><b>WAIT</b></div><div class="v20-metric"><small>BREAKOUT</small><b>WAIT</b></div><div class="v20-metric"><small>VOLUME</small><b>WAIT</b></div><div class="v20-metric"><small>R:R</small><b>—</b></div></div></div>'+v20ChartGrid()+'</div><aside class="v20-rail"><div class="v20-panel"><div class="v20-panel-title">POSITION PLAN</div><div class="v20-list"><div><span>Entry</span><b>—</b></div><div><span>Stop</span><b>—</b></div><div><span>Target</span><b>—</b></div><div><span>R:R</span><b>—</b></div></div></div><div class="v20-panel"><div class="v20-panel-title">WORKSPACE RULE</div><div class="v20-note">Swing uses its own 1h/4h/1d research surface and does not inherit Intraday entry decisions.</div></div></aside></div>'
 }
+
 function investment(){
  return '<div class="v20-invest"><div class="v20-invest-main"><div class="v20-panel"><div class="v20-panel-head"><div><div class="v20-panel-title">PORTFOLIO CONTROL</div><div class="v20-muted">Investment workspace is independent from Intraday and Options execution logic.</div></div><button class="v20-btn" style="width:auto" data-v20="research">RESEARCH</button></div><div class="v20-grid4" style="margin-top:6px"><div class="v20-metric"><small>INVESTED</small><b>—</b></div><div class="v20-metric"><small>PORTFOLIO P&amp;L</small><b>—</b></div><div class="v20-metric"><small>EXPOSURE</small><b>—</b></div><div class="v20-metric"><small>WATCHLIST</small><b>—</b></div></div></div><div class="v20-research-grid"><div class="v20-research-card"><b>Fundamentals</b><p>Revenue · EBITDA · EPS · ROE · ROCE · debt · FCF · growth.</p></div><div class="v20-research-card"><b>Valuation</b><p>P/E · EV/EBITDA · P/B · PEG · FCF yield · historical ranges.</p></div><div class="v20-research-card"><b>Thesis</b><p>Bull · base · bear · catalysts · invalidation · time horizon.</p></div><div class="v20-research-card"><b>Allocation</b><p>Position sizing · concentration · sector exposure · cash buffer.</p></div><div class="v20-research-card"><b>Watchlist</b><p>Candidate → researching → thesis ready → monitored.</p></div><div class="v20-research-card"><b>Risk</b><p>Drawdown · concentration · correlation · thesis-break monitoring.</p></div></div></div><aside class="v20-invest-side"><div class="v20-panel"><div class="v20-panel-title">RESEARCH GATES</div><div class="v20-list"><div><span>Fundamentals</span><b>READY WHEN DATA CONNECTS</b></div><div><span>Valuation</span><b>READY WHEN DATA CONNECTS</b></div><div><span>Thesis</span><b>RESEARCH</b></div><div><span>Execution</span><b>PAPER / LOCKED</b></div></div></div><div class="v20-panel"><div class="v20-panel-title">NO SIGNAL BLEED</div><div class="v20-note">Intraday signals, option-chain legs and short-horizon triggers do not automatically become Investment decisions.</div></div></aside></div>'
 }
@@ -107,7 +185,9 @@ async function telemetry(){
 function render(){
  const root=ensure();if(!root)return;const w=activeWorkspace();state.workspace=w;document.body.classList.toggle("v20-active",true);document.body.classList.toggle("v20-options-active",w==="OPTIONS");document.body.classList.toggle("v20-investment-active",w==="INVESTMENT");
  root.innerHTML=header(w)+contexts(w)+(w==="OPTIONS"?optionShell():w==="INVESTMENT"?investment():w==="SWING"?swing():intraday());
- if(w==="OPTIONS")bindOptions();telemetry()
+ if(w==="OPTIONS")bindOptions();
+ if(w==="INTRADAY"||w==="SWING"){v20BindCharts();void v20LoadCharts();}
+ telemetry()
 }
 function wire(){
  document.querySelectorAll(".workspace-modes [data-workspace]").forEach(b=>b.addEventListener("click",()=>setTimeout(render,40)));
