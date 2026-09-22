@@ -119,6 +119,7 @@ async function switchWorkspace(name){
   persistCharts();
   stashWorkspaceRuntime();
   activeWorkspace=name;
+  document.querySelectorAll(".workspace-modes [data-workspace]").forEach(button=>button.classList.toggle("active",String(button.dataset.workspace||"").toUpperCase()===name));
   analysisProfile=name==="OPTIONS"?"intraday":name.toLowerCase();
   const generation=beginWorkspaceTransition(name);
   const view=workspaceView();
