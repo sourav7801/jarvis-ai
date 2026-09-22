@@ -17,16 +17,17 @@ function style(){
  if($("v18OptionsStyle"))return;
  var s=document.createElement("style");s.id="v18OptionsStyle";
  s.textContent=[
- "#v18OptionsWorkbench{display:none;flex:1;min-height:0;overflow:auto;background:#041017;border:1px solid #174457;border-radius:6px;padding:9px;color:#cfeaf2}",
+ "#v18OptionsWorkbench{display:none;flex:1;min-height:0;min-width:0;overflow:hidden;flex-direction:column;background:#041017;border:1px solid #174457;border-radius:8px;padding:8px;color:#cfeaf2}"+
+ "#v18OptionsWorkbench .h{flex:0 0 auto}",
  "#v18OptionsWorkbench .h{display:flex;justify-content:space-between;gap:8px}#v18OptionsWorkbench .t{font-size:12px;letter-spacing:.12em;color:#e7fbff;font-weight:700}#v18OptionsWorkbench .sub{font-size:7px;color:#6d9baa;margin-top:3px}",
  "#v18OptionsWorkbench .controls{display:grid;grid-template-columns:145px 145px 105px 120px 1fr;gap:5px;margin:8px 0}",
  "#v18OptionsWorkbench select,#v18OptionsWorkbench button{min-height:29px;background:#061821;border:1px solid #24566a;color:#d9f4fa;border-radius:4px;padding:5px 7px;font-size:8px}",
  "#v18OptionsWorkbench button{cursor:pointer}#v18OptionsWorkbench .active{border-color:#4fc5e8!important;background:#0a2a36!important}#v18OptionsWorkbench .primary{border-color:#37a66f!important;color:#8af0b4!important}",
  "#v18OptionsWorkbench .tabs{display:flex;gap:4px}#v18OptionsWorkbench .status{padding:6px 8px;border-left:2px solid #e2b84d;background:#08171e;color:#d8bd75;font-size:8px;margin-bottom:6px}#v18OptionsWorkbench .status.ok{border-color:#43d58e;color:#8feeb9}#v18OptionsWorkbench .status.err{border-color:#ff667d;color:#ff9aa9}",
  "#v18OptionsWorkbench .summary{display:grid;grid-template-columns:repeat(7,minmax(70px,1fr));gap:4px;margin-bottom:7px}#v18OptionsWorkbench .card{border:1px solid #153b49;background:#06141b;padding:6px}#v18OptionsWorkbench .card small{display:block;color:#628b99;font-size:6px}#v18OptionsWorkbench .card b{display:block;margin-top:3px;color:#e2f7fb;font-size:10px}",
- "#v18OptionsWorkbench .main{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:7px;min-height:420px}#v18OptionsWorkbench .chain{border:1px solid #153d4b;overflow:auto}#v18OptionsWorkbench .chain table{width:100%;border-collapse:collapse;font-size:7px}#v18OptionsWorkbench .chain th{position:sticky;top:0;background:#0a1c25;color:#7fb8ca;padding:7px 5px;text-align:right}#v18OptionsWorkbench .chain th:first-child,#v18OptionsWorkbench .chain td:first-child{text-align:left}#v18OptionsWorkbench .chain td{padding:6px 5px;border-top:1px solid #0e2b36;text-align:right;white-space:nowrap}#v18OptionsWorkbench .chain tr:hover{background:#0b222c}#v18OptionsWorkbench .chain tr.atm{background:#102b30;box-shadow:inset 2px 0 #45d39a}#v18OptionsWorkbench .ce{color:#8cecb6}#v18OptionsWorkbench .pe{color:#ff9baa}#v18OptionsWorkbench .strike{font-weight:700;color:#f0f8fa}",
- "#v18OptionsWorkbench .side{display:flex;flex-direction:column;gap:6px}#v18OptionsWorkbench .box{border:1px solid #153d4b;background:#06141b;padding:7px}#v18OptionsWorkbench .bt{font-size:7px;color:#77a8b7;letter-spacing:.1em;margin-bottom:6px}#v18OptionsWorkbench .leg{display:grid;grid-template-columns:35px 1fr auto;gap:4px;align-items:center;margin:3px 0;font-size:7px}#v18OptionsWorkbench .leg button{min-height:22px;padding:2px 6px}#v18OptionsWorkbench .note{font-size:6px;color:#5f8998;line-height:1.5}",
- "@media(max-width:1100px){#v18OptionsWorkbench .main{grid-template-columns:1fr}#v18OptionsWorkbench .side{display:grid!important;grid-template-columns:1fr 1fr}#v18OptionsWorkbench .summary{grid-template-columns:repeat(4,1fr)!important}}",
+ "#v18OptionsWorkbench .main{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:7px;flex:1;min-height:0}#v18OptionsWorkbench .chain{min-width:0;min-height:0;border:1px solid #153d4b;overflow:auto}#v18OptionsWorkbench .chain table{width:100%;border-collapse:collapse;font-size:7px}#v18OptionsWorkbench .chain th{position:sticky;top:0;background:#0a1c25;color:#7fb8ca;padding:7px 5px;text-align:right}#v18OptionsWorkbench .chain th:first-child,#v18OptionsWorkbench .chain td:first-child{text-align:left}#v18OptionsWorkbench .chain td{padding:6px 5px;border-top:1px solid #0e2b36;text-align:right;white-space:nowrap}#v18OptionsWorkbench .chain tr:hover{background:#0b222c}#v18OptionsWorkbench .chain tr.atm{background:#102b30;box-shadow:inset 2px 0 #45d39a}#v18OptionsWorkbench .ce{color:#8cecb6}#v18OptionsWorkbench .pe{color:#ff9baa}#v18OptionsWorkbench .strike{font-weight:700;color:#f0f8fa}",
+ "#v18OptionsWorkbench .side{display:flex;flex-direction:column;gap:6px;min-width:0;min-height:0;overflow:auto}#v18OptionsWorkbench .empty{padding:28px;text-align:center;color:#6f96a5;font-size:9px;line-height:1.6}#v18OptionsWorkbench .empty b{display:block;color:#d8eef5;font-size:11px;margin-bottom:5px}#v18OptionsWorkbench .box{border:1px solid #153d4b;background:#06141b;padding:7px}#v18OptionsWorkbench .bt{font-size:7px;color:#77a8b7;letter-spacing:.1em;margin-bottom:6px}#v18OptionsWorkbench .leg{display:grid;grid-template-columns:35px 1fr auto;gap:4px;align-items:center;margin:3px 0;font-size:7px}#v18OptionsWorkbench .leg button{min-height:22px;padding:2px 6px}#v18OptionsWorkbench .note{font-size:6px;color:#5f8998;line-height:1.5}",
+ "@media(max-width:1100px){#v18OptionsWorkbench .main{grid-template-columns:1fr;overflow:auto}#v18OptionsWorkbench .side{display:grid!important;grid-template-columns:1fr 1fr}#v18OptionsWorkbench .summary{grid-template-columns:repeat(4,1fr)!important}}",
  "@media(max-width:800px){#v18OptionsWorkbench .controls{grid-template-columns:1fr 1fr}#v18OptionsWorkbench .summary{grid-template-columns:repeat(2,1fr)!important}#v18OptionsWorkbench .side{display:block!important}}"
  ].join("");
  document.head.appendChild(s);
@@ -47,6 +48,10 @@ function mount(){
  '<div class="box"><div class="bt">DATA / SAFETY</div><div class="note">Read-only FYERS data. Paper/research only. No broker order endpoint is called by this workbench. A provider timeout degrades only this pane.</div></div>',
  '</div></div>'].join("");
  w.insertBefore(host,g);
+ var intel=document.querySelector(".intel-panel");
+ if(intel&&!$("v18WorkspaceRail")){
+   var rail=document.createElement("section");rail.id="v18WorkspaceRail";rail.className="intel-card";intel.insertBefore(rail,intel.firstChild);
+ }
  U.forEach(function(x){var o=document.createElement("option");o.value=x[0];o.textContent=x[1];$("v18Underlying").appendChild(o);});
  $("v18Underlying").onchange=function(){S.underlying=this.value;S.expiry="";S.legs=[];load();};
  $("v18Expiry").onchange=function(){S.expiry=this.value;load();};
@@ -68,23 +73,67 @@ function pairs(){
 
 function render(){
  var ps=pairs(),h=$("v18Head"),body=$("v18Rows");if(!h||!body)return;
+ if(!ps.length){
+   h.innerHTML="<tr><th>CE</th><th>BID</th><th>ASK</th><th>OI</th><th>ΔOI</th><th>STRIKE</th><th>ΔOI</th><th>OI</th><th>BID</th><th>ASK</th><th>PE</th></tr>";
+   body.innerHTML="<tr><td colspan=\"11\"><div class=\"empty\"><b>OPTION CHAIN DATA UNAVAILABLE</b>Waiting for a verified FYERS chain. The Options workspace remains isolated; chart hydration is not blocked.</div></td></tr>";
+ }
  var a=S.analytics||{},atm=null;
  if(ps.length&&S.spot!=null)atm=ps.reduce(function(x,y){return Math.abs(y.strike-S.spot)<Math.abs(x.strike-S.spot)?y:x;},ps[0]).strike;
  if(S.view==="GREEKS")h.innerHTML="<tr><th>CE IV</th><th>CE Δ</th><th>CE Γ</th><th>CE Θ</th><th>STRIKE</th><th>PE Θ</th><th>PE Γ</th><th>PE Δ</th><th>PE IV</th></tr>";
  else if(S.view==="STRADDLE")h.innerHTML="<tr><th>CE OI</th><th>CE LTP</th><th>CE IV</th><th>STRIKE</th><th>PE IV</th><th>PE LTP</th><th>PE OI</th><th>STRADDLE</th></tr>";
  else h.innerHTML="<tr><th>CE LTP</th><th>CE BID</th><th>CE ASK</th><th>CE OI</th><th>CE ΔOI</th><th>STRIKE</th><th>PE ΔOI</th><th>PE OI</th><th>PE BID</th><th>PE ASK</th><th>PE LTP</th></tr>";
- body.innerHTML=ps.map(function(p){
+ if(ps.length) body.innerHTML=ps.map(function(p){
    var ce=p.CE||{},pe=p.PE||{},c=px(ce),q=px(pe),cls=p.strike===atm?"atm":"";
    if(S.view==="GREEKS")return '<tr class="'+cls+'"><td>'+n(ce.iv)+'</td><td>'+n(ce.delta,3)+'</td><td>'+n(ce.gamma,4)+'</td><td>'+n(ce.theta,3)+'</td><td class="strike">'+n(p.strike,0)+'</td><td>'+n(pe.theta,3)+'</td><td>'+n(pe.gamma,4)+'</td><td>'+n(pe.delta,3)+'</td><td>'+n(pe.iv)+'</td></tr>';
    if(S.view==="STRADDLE")return '<tr class="'+cls+'"><td>'+n(ce.open_interest,0)+'</td><td>'+n(c)+'</td><td>'+n(ce.iv)+'</td><td class="strike">'+n(p.strike,0)+'</td><td>'+n(pe.iv)+'</td><td>'+n(q)+'</td><td>'+n(pe.open_interest,0)+'</td><td>'+n((c||0)+(q||0))+'</td></tr>';
    return '<tr class="'+cls+'"><td class="ce">'+n(ce.ltp)+'</td><td>'+n(ce.bid)+'</td><td>'+n(ce.ask)+'</td><td>'+n(ce.open_interest,0)+'</td><td>'+n(ce.change_in_oi,0)+'</td><td class="strike">'+n(p.strike,0)+'</td><td>'+n(pe.change_in_oi,0)+'</td><td>'+n(pe.open_interest,0)+'</td><td>'+n(pe.bid)+'</td><td>'+n(pe.ask)+'</td><td class="pe">'+n(pe.ltp)+'</td></tr>';
  }).join("");
+ if(!ps.length) body.innerHTML="<tr><td colspan=\"11\"><div class=\"empty\"><b>NO VERIFIED STRIKES</b>Select an expiry or refresh the chain after FYERS data becomes ready.</div></td></tr>";
  $("v18Summary").innerHTML=[["SPOT",n(S.spot)],["PCR OI",n(S.pcr)],["CALL WALL",n(a&&a.call_oi_wall&&a.call_oi_wall.strike,0)],["PUT WALL",n(a&&a.put_oi_wall&&a.put_oi_wall.strike,0)],["MAX PAIN",n(a&&a.max_pain&&a.max_pain.strike,0)],["EXPIRY",S.expiry||"NEAREST"],["STRIKES",ps.length]].map(function(x){return '<div class="card"><small>'+x[0]+'</small><b>'+esc(x[1])+'</b></div>';}).join("");
  var call=ps.slice().sort(function(x,y){return (rn(y.CE&&y.CE.open_interest)||0)-(rn(x.CE&&x.CE.open_interest)||0);})[0],put=ps.slice().sort(function(x,y){return (rn(y.PE&&y.PE.open_interest)||0)-(rn(x.PE&&x.PE.open_interest)||0);})[0];
  $("v18Structure").innerHTML="Call wall: <b>"+n(a&&a.call_oi_wall&&a.call_oi_wall.strike,0)+"</b><br>Put wall: <b>"+n(a&&a.put_oi_wall&&a.put_oi_wall.strike,0)+"</b><br>Max pain: <b>"+n(a&&a.max_pain&&a.max_pain.strike,0)+"</b><br>Highest CE OI: "+n(call&&call.strike,0)+"<br>Highest PE OI: "+n(put&&put.strike,0);
  renderLegs();
+ updateWorkspaceRail();
 }
 
+function renderWorkspaceRail(){
+ var host=$("v18WorkspaceRail");if(!host)return;
+ var active=String(document.querySelector(".workspace-modes button.active")?.dataset.workspace||"INTRADAY").toUpperCase();
+ var intel=document.querySelector(".intel-panel");
+ if(active==="INTRADAY"){
+   host.style.display="none";
+   if(intel)intel.classList.remove("v18-rail-mode");
+   return;
+ }
+   if(intel)intel.classList.add("v18-rail-mode");
+   host.style.display="block";
+   if(active==="OPTIONS"){
+     var a=S.analytics||{};
+     host.innerHTML="<div class='eyebrow'>OPTIONS INTELLIGENCE</div>"+
+       "<div class='v18-rail-title'>"+esc(S.underlying||"NIFTY")+"</div>"+
+       "<div class='v18-rail-sub'>Dedicated option decision rail · paper / research only</div>"+
+       "<div class='v18-rail-status "+(S.loading?"wait":(S.rows.length?"ok":"bad"))+"'>"+(S.loading?"LOADING CHAIN":(S.rows.length?"FYERS VERIFIED":"FYERS DEGRADED"))+"</div>"+
+       "<div class='v18-rail-grid'>"+
+       "<div><small>SPOT</small><b>"+n(S.spot)+"</b></div><div><small>PCR OI</small><b>"+n(S.pcr,2)+"</b></div>"+
+       "<div><small>CALL WALL</small><b>"+n(a.call_oi_wall&&a.call_oi_wall.strike,0)+"</b></div><div><small>PUT WALL</small><b>"+n(a.put_oi_wall&&a.put_oi_wall.strike,0)+"</b></div>"+
+       "<div><small>MAX PAIN</small><b>"+n(a.max_pain&&a.max_pain.strike,0)+"</b></div><div><small>EXPIRY</small><b>"+esc(S.expiry||"NEAREST")+"</b></div>"+
+       "</div>"+
+       "<div class='bt'>PAPER STRATEGY</div><div class='v18-rail-note'>"+(S.legs.length?S.legs.map(function(l){return esc(l.action+" "+l.type+" "+n(l.strike,0));}).join("<br>"):"No active paper legs.")+"</div>"+
+       "<div class='bt'>CHAIN STATE</div><div class='v18-rail-note'>"+(S.rows.length?(S.rows.length+" contracts loaded · "+(pairs().length)+" strikes in view."):"No verified chain loaded.")+"</div>"+
+       "<div class='bt'>SAFETY</div><div class='v18-rail-note'>Provider failures stay inside the Options lane. No broker order endpoint is used here.</div>";
+   }else if(active==="SWING"){
+     host.innerHTML="<div class='eyebrow'>SWING INTELLIGENCE</div><div class='v18-rail-title'>SETUP CONTROL</div><div class='v18-rail-sub'>Medium-horizon market structure and position planning</div>"+
+       "<div class='bt'>FOCUS</div><div class='v18-rail-note'>Trend · breakout · volume · relative strength · catalyst awareness</div>"+
+       "<div class='bt'>RISK GEOMETRY</div><div class='v18-rail-grid'><div><small>ENTRY</small><b>—</b></div><div><small>STOP</small><b>—</b></div><div><small>TARGET</small><b>—</b></div><div><small>R:R</small><b>—</b></div></div>"+
+       "<div class='bt'>WORKSPACE RULE</div><div class='v18-rail-note'>Swing evidence is kept separate from intraday execution signals.</div>";
+   }else{
+     host.innerHTML="<div class='eyebrow'>INVESTMENT INTELLIGENCE</div><div class='v18-rail-title'>PORTFOLIO CONTROL</div><div class='v18-rail-sub'>Long-horizon allocation and fundamental research</div>"+
+       "<div class='bt'>FOCUS</div><div class='v18-rail-note'>Allocation · valuation · growth · quality · concentration · catalysts</div>"+
+       "<div class='bt'>PORTFOLIO STATE</div><div class='v18-rail-grid'><div><small>INVESTED</small><b>—</b></div><div><small>P&L</small><b>—</b></div><div><small>EXPOSURE</small><b>—</b></div><div><small>WATCHLIST</small><b>—</b></div></div>"+
+       "<div class='bt'>WORKSPACE RULE</div><div class='v18-rail-note'>Investment research does not inherit intraday entry or option-chain signals.</div>";
+   }
+}
+function updateWorkspaceRail(){renderWorkspaceRail();}
 function addATM(){
  var ps=pairs();if(!ps.length)return;
  var p=ps.reduce(function(x,y){return Math.abs(y.strike-(S.spot||y.strike))<Math.abs(x.strike-(S.spot||x.strike))?y:x;},ps[0]);
@@ -126,6 +175,6 @@ function visible(){
  var old=$("v17OptionsWorkspace");if(old)old.style.display="none";
  if(active&&!S.rows.length&&!S.loading)load();
 }
-function boot(){mount();visible();document.addEventListener("jarvis:workspace",visible);document.querySelector(".workspace-modes")?.addEventListener("click",function(){setTimeout(visible,0);});timer=setInterval(function(){var a=String(document.querySelector(".workspace-modes button.active")?.dataset.workspace||"").toUpperCase()==="OPTIONS";if(a&&!document.hidden&&!S.loading)load();},45000);window.addEventListener("beforeunload",function(){clearInterval(timer);if(aborter)aborter.abort();},{once:true});}
+function boot(){mount();visible();document.addEventListener("jarvis:workspace",function(){visible();renderWorkspaceRail();});document.querySelector(".workspace-modes")?.addEventListener("click",function(){setTimeout(visible,0);});timer=setInterval(function(){var a=String(document.querySelector(".workspace-modes button.active")?.dataset.workspace||"").toUpperCase()==="OPTIONS";if(a&&!document.hidden&&!S.loading)load();},45000);window.addEventListener("beforeunload",function(){clearInterval(timer);if(aborter)aborter.abort();},{once:true});}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});else boot();
 })();
