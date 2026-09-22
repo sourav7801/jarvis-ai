@@ -13,7 +13,7 @@ async function getJSON(url,timeout=8000){
  catch(e){return {ok:false,p:{success:false,message:e.name==="AbortError"?"Request timed out":e.message}}}finally{clearTimeout(t)}
 }
 function activeWorkspace(){return String(document.querySelector(".workspace-modes button.active")?.dataset.workspace||state.workspace||"INTRADAY").toUpperCase()}
-function hideLegacy(){document.querySelectorAll(".v19-shellbar,.v19-contextbar,#v19Bottom,#v19Rail,#v18OptionsWorkbench").forEach(n=>n.style.display="none");document.querySelectorAll("#v16AutonomyPrimary,#v17CryptoPaperCard").forEach(n=>n.style.display="none");document.querySelectorAll(".intel-panel>.intel-card").forEach(n=>{if(!n.id.startsWith("v20"))n.style.display="none"})}
+function hideLegacy(){document.querySelectorAll(".v19-shellbar,.v19-contextbar,#v19Bottom,#v19Rail,#v18OptionsWorkbench").forEach(n=>n.style.display="none");document.querySelectorAll(".intel-panel>.intel-card").forEach(n=>{if(n.id.startsWith("v19"))n.style.display="none"})}
 function ensure(){
  const w=document.querySelector(".workspace");if(!w)return null;
  let root=$("v20WorkspaceOS");
@@ -105,13 +105,14 @@ function v20BindCharts(){
  document.querySelectorAll("[data-v20-chart-symbol]").forEach(s=>s.onchange=()=>{const i=Number(s.dataset.v20ChartSymbol);if(v20ChartState.slots[i])v20ChartState.slots[i].symbol=s.value;render()});
 }
 
-function intraday(){
- return '<div class="v20-body v20-trading-body"><div class="v20-main"><div class="v20-panel v20-session-panel"><div class="v20-panel-head"><div><div class="v20-panel-title">INTRADAY COMMAND CENTER</div><div class="v20-muted">Bounded multi-chart market surface · VWAP · opening range · momentum · paper risk.</div></div><button class="v20-btn" style="width:auto" data-v20="scan">SCAN SELECTED</button></div><div class="v20-grid4" style="margin-top:6px"><div class="v20-metric"><small>REGIME</small><b id="v20Regime">WAIT</b></div><div class="v20-metric"><small>SIGNAL</small><b id="v20Signal">WAIT</b></div><div class="v20-metric"><small>SCORE</small><b id="v20Score">—</b></div><div class="v20-metric"><small>RISK GATE</small><b>PAPER LOCKED</b></div></div></div>'+v20ChartGrid()+'</div><aside class="v20-rail"><div class="v20-panel"><div class="v20-panel-title">MARKET UNIVERSE</div><div class="v20-list">'+V20_MARKETS.slice(0,10).map(x=>'<div><span>'+x[1]+'</span><b>READY</b></div>').join('')+'</div></div><div class="v20-panel"><div class="v20-panel-title">EXECUTION GUARD</div><div class="v20-list"><div><span>Broker</span><b>LOCKED</b></div><div><span>Mode</span><b>PAPER</b></div><div><span>New entries</span><b>AUTHORITY GATED</b></div><div><span>Provider</span><b id="v20RailProvider">CHECKING</b></div></div></div><div class="v20-panel"><div class="v20-panel-title">RISK GEOMETRY</div><div class="v20-note">Every chart is research/display only. Entry, stop and target remain paper references until a verified decision exists.</div></div></aside></div>'
+function canonicalControls(){
+ return '<div class="v20-panel v20-canonical-controls"><div class="v20-panel-head"><div><div class="v20-panel-title">CANONICAL V16 / V17 TRADING SURFACE</div><div class="v20-muted">V20 orchestrates the proven chart, intelligence, paper-desk and risk engines below. No duplicate trading engine is created here.</div></div><div class="v20-actions"><button data-v20-canonical="fit">FIT</button><button data-v20-canonical="reload">RELOAD</button></div></div><div class="v20-canonical-layout"><span>CHARTS</span>\${[1,2,3,4,5,6,7,8].map(n=>'<button data-v20-canonical="layout" data-layout="'+n+'">'+n+'</button>').join('')}<span>TF</span>\${["1m","5m","15m","1h","1d"].map(tf=>'<button data-v20-canonical="tf" data-timeframe="'+tf+'">'+tf+'</button>').join('')}</div></div>';
 }
-
-
+function intraday(){
+ return '<div class="v20-body"><div class="v20-main">'+canonicalControls()+'</div><aside class="v20-rail"><div class="v20-panel"><div class="v20-panel-title">V20 INTEGRATION</div><div class="v20-list"><div><span>Chart engine</span><b>V16 CANONICAL</b></div><div><span>Intelligence</span><b>V17 RUNTIME</b></div><div><span>Paper Desk</span><b>AUTHORITATIVE</b></div><div><span>Execution</span><b>LOCKED</b></div></div></div><div class="v20-panel"><div class="v20-panel-title">MARKETS</div><div class="v20-list">\${V20_MARKETS.slice(0,10).map(x=>'<div><span>'+x[1]+'</span><b>ROUTED</b></div>').join('')}</div></div></aside></div>'
+}
 function swing(){
- return '<div class="v20-body v20-trading-body"><div class="v20-main"><div class="v20-panel"><div class="v20-panel-title">SWING COMMAND CENTER</div><div class="v20-grid4" style="margin-top:6px"><div class="v20-metric"><small>TREND</small><b>WAIT</b></div><div class="v20-metric"><small>BREAKOUT</small><b>WAIT</b></div><div class="v20-metric"><small>VOLUME</small><b>WAIT</b></div><div class="v20-metric"><small>R:R</small><b>—</b></div></div></div>'+v20ChartGrid()+'</div><aside class="v20-rail"><div class="v20-panel"><div class="v20-panel-title">POSITION PLAN</div><div class="v20-list"><div><span>Entry</span><b>—</b></div><div><span>Stop</span><b>—</b></div><div><span>Target</span><b>—</b></div><div><span>R:R</span><b>—</b></div></div></div><div class="v20-panel"><div class="v20-panel-title">WORKSPACE RULE</div><div class="v20-note">Swing uses its own 1h/4h/1d research surface and does not inherit Intraday entry decisions.</div></div></aside></div>'
+ return '<div class="v20-body"><div class="v20-main">'+canonicalControls()+'</div><aside class="v20-rail"><div class="v20-panel"><div class="v20-panel-title">SWING ROUTING</div><div class="v20-list"><div><span>Trend engine</span><b>V17 / CANONICAL</b></div><div><span>Setups</span><b>CANONICAL</b></div><div><span>Risk geometry</span><b>CANONICAL</b></div><div><span>Execution</span><b>PAPER LOCKED</b></div></div></div></aside></div>'
 }
 
 function investment(){
@@ -186,12 +187,17 @@ function render(){
  const root=ensure();if(!root)return;const w=activeWorkspace();state.workspace=w;document.body.classList.toggle("v20-active",true);document.body.classList.toggle("v20-options-active",w==="OPTIONS");document.body.classList.toggle("v20-investment-active",w==="INVESTMENT");
  root.innerHTML=header(w)+contexts(w)+(w==="OPTIONS"?optionShell():w==="INVESTMENT"?investment():w==="SWING"?swing():intraday());
  if(w==="OPTIONS")bindOptions();
- if(w==="INTRADAY"||w==="SWING"){v20BindCharts();void v20LoadCharts();}
+ 
  telemetry()
 }
 function wire(){
  document.querySelectorAll(".workspace-modes [data-workspace]").forEach(b=>b.addEventListener("click",()=>setTimeout(render,40)));
- document.addEventListener("click",e=>{const b=e.target.closest("[data-v20]");if(!b)return;const a=b.dataset.v20;if(a==="refresh")telemetry();if(a==="scan")$("scanButton")?.click();if(a==="reset"){state.option.legs=[];state.option.rows=[];render()}});
+ document.addEventListener("click",e=>{
+   const b=e.target.closest("[data-v20]");
+   if(b){const a=b.dataset.v20;if(a==="refresh")telemetry();if(a==="scan")$("scanButton")?.click();if(a==="reset"){state.option.legs=[];state.option.rows=[];render()}}
+   const c=e.target.closest("[data-v20-canonical]");
+   if(c){const a=c.dataset.v20Canonical;if(a==="fit")$("fitButton")?.click();if(a==="reload")$("reloadCharts")?.click();if(a==="layout")document.querySelector('[data-layout="'+c.dataset.layout+'"]')?.click();if(a==="tf")document.querySelector('[data-timeframe="'+c.dataset.timeframe+'"]')?.click();}
+ });
 }
 function boot(){render();wire();setInterval(()=>{if(!document.hidden){const w=activeWorkspace();if(w!==state.workspace)render();else telemetry()}},10000)}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});else boot();
