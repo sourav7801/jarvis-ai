@@ -471,7 +471,8 @@ def build_handler(base, runtime):
 <title>JARVIS Quant V20 · Workspace OS</title>
 <script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=false;window.JARVIS_V18_OPTIONS_WORKBENCH=false;window.JARVIS_V19_WORKSPACE_OS=false;window.JARVIS_V20_WORKSPACE_OS=true;</script>
 <link rel="stylesheet" href="/v20_workspace_os.css?v=200101">
-<script defer src="/v20_workspace_os.js?v=200101"></script>
+<script defer src="/lightweight-charts.standalone.production.js"></script>
+<script defer src="/v20_workspace_os.js?v=200102"></script>
 </head>"""
                 html = html[:head_start] + v20_head + html[head_end + len("</head>"):]
 
