@@ -54,15 +54,16 @@ function paint(){
  $("v19Rail").innerHTML=railHTML(w);
  const active=window.JARVIS_V17_DATA_PLANE?.state?.workspace||w;
  $("v19Engine").textContent=w==="OPTIONS"?"OPTIONS DATA PLANE":w+" WORKSPACE";
- $("v19DataPlane").textContent=state.provider?.status||"CHECKING";
- $("v19RiskGate").textContent="PAPER / LIVE LOCKED";
+ $("v19DataPlane").textContent=(state.provider?.status||"CHECKING")+" · "+(state.health?.status||"UNKNOWN");
+ $("v19RiskGate").textContent=state.paper?.running?"PAPER ENGINE RUNNING":"PAPER / LIVE LOCKED";
  $("v19Contextbar").querySelectorAll("[data-v19-focus]").forEach(b=>b.onclick=()=>{state.focus=b.dataset.v19Focus;save();paint()});
 
 }
 async function refresh(){
  const w=workspace();
- const [provider,health,paper,options]=await Promise.all([json("/api/provider"),json("/api/health"),json("/api/paper/autonomy"),w==="OPTIONS"?json("/api/options/readiness"):Promise.resolve(null)]);
- state.provider=provider;state.health=health;state.paper=paper;state.options=options;
+ const snapshot=await json("/api/v19/workspace/state?workspace="+encodeURIComponent(w));
+ state.provider=snapshot?.provider||null;state.health=snapshot?.health||null;state.paper=snapshot?.paper||null;state.options=snapshot?.options||null;
+ const provider=state.provider,health=state.health,paper=state.paper,options=state.options;
  const p=provider?.status||provider?.state||"UNKNOWN";
  const h=health?.status||"UNKNOWN";
  const chips=$("v19Statebar");if(chips)chips.innerHTML=chip("WORKSPACE",w)+chip("FYERS",p,String(p).toUpperCase().includes("READY")?"ok":String(p).toUpperCase().includes("DEGRADED")?"warn":"bad")+chip("HEALTH",h,String(h).toUpperCase()==="READY"?"ok":"warn")+chip("EXECUTION","PAPER LOCKED","ok");
