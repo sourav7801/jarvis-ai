@@ -17,7 +17,7 @@ function hideLegacy(){document.querySelectorAll(".v19-shellbar,.v19-contextbar,#
 function ensure(){
  const w=document.querySelector(".workspace");if(!w)return null;
  let root=$("v20WorkspaceOS");
- if(!root){root=document.createElement("section");root.id="v20WorkspaceOS";const modes=w.querySelector(".workspace-modes");modes?.after(root)}
+ if(!root){root=document.createElement("section");root.id="v20WorkspaceOS";const modes=w.querySelector(".workspace-modes");if(modes)modes.after(root);else w.appendChild(root)}
  hideLegacy();return root
 }
 function chip(label,value,kind=""){return '<div class="v20-chip '+kind+'"><small>'+label+'</small><b>'+esc(value)+'</b></div>'}
