@@ -455,6 +455,19 @@ def build_handler(base, runtime):
             # Option-chain analysis is isolated from the generic research pool.
             # A slow FYERS call can therefore never consume the workers used by
             # workspace state, chart hydration, or unrelated intelligence.
+            if parsed.path == "/api/v20/identity" and self._local():
+                return self.send_json({
+                    "success": True,
+                    "version": "20.0",
+                    "service": "JARVIS_V20_WORKSPACE_OS",
+                    "server_version": self.server_version,
+                    "pid": os.getpid(),
+                    "paper_only": True,
+                    "live_execution": False,
+                    "options_surface": "V20_DEDICATED_OPTIONS_DESK",
+                    "chart_surface": "V17_BOUNDED_MULTI_SLOT",
+                })
+
             if parsed.path == "/api/v19/workspace/state" and self._local():
                 params = urllib.parse.parse_qs(parsed.query)
                 workspace = str(params.get("workspace", ["INTRADAY"])[0]).upper()
