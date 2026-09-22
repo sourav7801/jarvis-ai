@@ -429,13 +429,13 @@ def build_handler(base, runtime):
                 if inline_end >= 0:
                     html = html[:inline_start] + html[inline_end + len("</script>"):]
             html = html.replace("V15 AUTONOMOUS MARKET REASONING · PAPER / RESEARCH", "V18 OPTIONS INTELLIGENCE WORKBENCH · PAPER / RESEARCH")
-            html = html.replace("JARVIS Quant V15 ·", "JARVIS Quant V18 · options intelligence ·")
+            html = html.replace("JARVIS Quant V15 ·", "JARVIS Quant V19 · workspace OS ·")
             html = html.replace("JARVIS V15 reasons across verified market state", "JARVIS V17 uses the verified V15 reasoning core across market state")
             injection = (
-                '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V18_OPTIONS_WORKBENCH=true;</script>'
+                '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V18_OPTIONS_WORKBENCH=true;window.JARVIS_V19_WORKSPACE_OS=true;</script>'
                 '<script src="/v17_live_fetch_scheduler.js?v=170403"></script>'
                 '<script defer src="/v17_runtime.js?v=170403"></script>'
-                '<script defer src="/v18_options_workbench.js?v=180102"></script>'
+                '<link rel="stylesheet" href="/v19_workspace_cockpit.css?v=190101"><script defer src="/v18_options_workbench.js?v=180102"></script><script defer src="/v19_workspace_cockpit.js?v=190101"></script>'
                 '<script defer src="/v17_crypto_paper_runtime.js?v=170301"></script>'
             )
             content = html.replace("</head>", injection + "</head>").encode("utf-8")
