@@ -436,6 +436,7 @@ def build_handler(base, runtime):
                 '<script src="/v17_live_fetch_scheduler.js?v=170403"></script>'
                 '<script defer src="/v17_runtime.js?v=170403"></script>'
                 '<script defer src="/v17_options_runtime.js?v=170404"></script>'
+                '<script defer src="/v18_options_workbench.js?v=180101"></script>'
                 '<script defer src="/v17_crypto_paper_runtime.js?v=170301"></script>'
             )
             content = html.replace("</head>", injection + "</head>").encode("utf-8")
@@ -489,7 +490,7 @@ def build_handler(base, runtime):
             if parsed.path == "/" and self._local():
                 return self._serve_v17_root()
 
-            if parsed.path in {"/v17_runtime.js", "/v17_live_fetch_scheduler.js", "/v17_crypto_paper_runtime.js"} and self._local():
+            if parsed.path in {"/v17_runtime.js", "/v17_live_fetch_scheduler.js", "/v17_crypto_paper_runtime.js", "/v17_options_runtime.js", "/v18_options_workbench.js"} and self._local():
                 from workstation.quant_terminal_v2 import STATIC
                 return self.send_file(STATIC / parsed.path.lstrip("/"), "application/javascript; charset=utf-8")
 
