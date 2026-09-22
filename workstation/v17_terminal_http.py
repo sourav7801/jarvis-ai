@@ -438,6 +438,25 @@ def build_handler(base, runtime):
             html = html.replace("V15 AUTONOMOUS MARKET REASONING · PAPER / RESEARCH", "V20 WORKSPACE OS · PAPER / RESEARCH")
             html = html.replace("JARVIS Quant V15 ·", "JARVIS Quant V20 · workspace OS ·")
             html = html.replace("JARVIS V15 reasons across verified market state", "JARVIS V17 uses the verified V15 reasoning core across market state")
+            # V20 is the visible terminal root. The legacy V15/V16 document shell is
+            # backend infrastructure only and must not remain around the V20 desk.
+            # Keep only the workspace selector required by v20_workspace_os.js.
+            body_start = html.find("<body>")
+            body_end = html.rfind("</body>")
+            if body_start >= 0 and body_end > body_start:
+                v20_body = """<body class="v20-root-body">
+<nav class="workspace-modes v20-root-modes" aria-label="JARVIS V20 Workspaces">
+  <div class="v20-root-brand"><b>JARVIS</b><span>V20 WORKSPACE OS</span></div>
+  <button data-workspace="INTRADAY" class="active">INTRADAY</button>
+  <button data-workspace="SWING">SWING</button>
+  <button data-workspace="INVESTMENT">INVESTMENT</button>
+  <button data-workspace="OPTIONS">OPTIONS</button>
+  <span class="v20-root-safety">PAPER ONLY · LIVE LOCKED</span>
+</nav>
+<main class="workspace v20-root-workspace"></main>
+</body>"""
+                html = html[:body_start] + v20_body + html[body_end + len("</body>"):]
+
             injection = (
                 '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V18_OPTIONS_WORKBENCH=false;window.JARVIS_V19_WORKSPACE_OS=false;window.JARVIS_V20_WORKSPACE_OS=true;</script>'
                 '<script src="/v17_live_fetch_scheduler.js?v=170403"></script>'
