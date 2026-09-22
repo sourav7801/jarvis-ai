@@ -435,7 +435,7 @@ def build_handler(base, runtime):
                 '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V18_OPTIONS_WORKBENCH=true;</script>'
                 '<script src="/v17_live_fetch_scheduler.js?v=170403"></script>'
                 '<script defer src="/v17_runtime.js?v=170403"></script>'
-                '<script defer src="/v18_options_workbench.js?v=180101"></script>'
+                '<script defer src="/v18_options_workbench.js?v=180102"></script>'
                 '<script defer src="/v17_crypto_paper_runtime.js?v=170301"></script>'
             )
             content = html.replace("</head>", injection + "</head>").encode("utf-8")
