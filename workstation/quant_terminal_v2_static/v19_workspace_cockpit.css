@@ -1,0 +1,47 @@
+/* JARVIS V19 — Workspace Architecture */
+:root{--v19-bg:#050d13;--v19-panel:#07151d;--v19-panel2:#091b25;--v19-line:#174354;--v19-cyan:#58d9ff;--v19-muted:#6f95a4;--v19-text:#d9f4fb;--v19-green:#74efaa;--v19-red:#ff7188;--v19-amber:#e6c36b}
+.v19-shellbar{display:flex;align-items:stretch;gap:8px;margin:7px 0 6px;min-height:55px;border:1px solid var(--v19-line);border-radius:7px;background:linear-gradient(90deg,#071821,#061119);overflow:hidden}
+.v19-titleblock{min-width:210px;padding:9px 12px;border-right:1px solid #143744}
+.v19-kicker{font-size:8px;letter-spacing:.16em;color:var(--v19-cyan);font-weight:800}
+.v19-title{font-size:17px;font-weight:900;color:#e8fbff;margin-top:3px}
+.v19-sub{font-size:8px;color:var(--v19-muted);margin-top:3px}
+.v19-statebar{display:flex;align-items:center;gap:6px;padding:8px;flex:1;min-width:0}
+.v19-chip{border:1px solid #1d4858;background:#07131a;border-radius:5px;padding:7px 9px;min-width:86px}
+.v19-chip small{display:block;font-size:7px;color:#638897;letter-spacing:.08em}
+.v19-chip b{display:block;font-size:10px;color:var(--v19-text);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v19-chip.ok b{color:var(--v19-green)}.v19-chip.warn b{color:var(--v19-amber)}.v19-chip.bad b{color:var(--v19-red)}
+.v19-actions{display:flex;align-items:center;gap:5px;margin-left:auto;padding:8px}
+.v19-actions button{border:1px solid #24596b;background:#081923;color:#a9dce9;border-radius:5px;padding:7px 9px;font:700 8px inherit;cursor:pointer}
+.v19-actions button:hover{border-color:var(--v19-cyan);color:#fff}
+.v19-contextbar{display:flex;align-items:center;gap:6px;border:1px solid #143b4a;background:#06131a;padding:5px 7px;border-radius:6px;margin-bottom:6px;overflow:auto;white-space:nowrap}
+.v19-context-label{font-size:7px;letter-spacing:.12em;color:#648e9d;margin-right:3px}
+.v19-context-btn{border:1px solid #173f50;background:#07151d;color:#84aebb;border-radius:4px;padding:5px 8px;font-size:8px;cursor:pointer}
+.v19-context-btn.active{border-color:#3dbbdc;color:#e8fbff;background:#0b2631}
+.v19-workspace-grid{display:grid;grid-template-columns:minmax(0,1fr) 252px;gap:6px;min-height:0;flex:1}
+.v19-main-frame{min-width:0;min-height:0;display:flex;flex-direction:column}
+.v19-main-frame .chart-grid{flex:1;min-height:0}
+.v19-rail{min-width:0;min-height:0;display:flex;flex-direction:column;gap:6px;overflow:auto}
+.v19-rail-card{border:1px solid #174354;background:linear-gradient(180deg,#081821,#061118);border-radius:6px;padding:8px}
+.v19-rail-card .eyebrow{margin-bottom:4px}
+.v19-rail-title{font-size:13px;font-weight:900;color:#e7fbff}
+.v19-rail-note{font-size:8px;line-height:1.45;color:#86a9b6;margin-top:4px}
+.v19-metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}
+.v19-metric{border:1px solid #153a49;background:#06131a;border-radius:4px;padding:6px}
+.v19-metric small{display:block;font-size:6px;color:#638895}.v19-metric b{display:block;font-size:10px;color:#d9f4fb;margin-top:2px}
+.v19-status{font-size:7px;padding:5px;border:1px solid #725c2c;border-radius:4px;color:var(--v19-amber);margin-top:6px}
+.v19-status.ok{border-color:#236747;color:var(--v19-green)}.v19-status.bad{border-color:#713143;color:var(--v19-red)}
+.v19-list{margin-top:6px;display:flex;flex-direction:column;gap:4px}.v19-list div{display:flex;justify-content:space-between;gap:6px;font-size:8px;color:#8daeb9;border-bottom:1px solid #102c38;padding-bottom:4px}.v19-list b{color:#d9f4fb}
+.v19-bottom{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:6px;margin-top:6px}
+.v19-bottom-card{border:1px solid #143a49;background:#06131a;border-radius:5px;padding:7px;min-height:42px}
+.v19-bottom-card small{font-size:6px;color:#648c9b;display:block}.v19-bottom-card b{font-size:9px;color:#cfeaf2}
+body.v19-active .intel-panel{padding-top:0}
+body.v19-active .intel-panel>.intel-card{display:none!important}
+body.v19-active .intel-panel>.v19-rail{display:flex!important}
+body.v19-active .workspace{min-width:0}
+body.v19-options .v19-shellbar,body.v19-options .v19-contextbar{display:none}
+body.v19-options .v19-main-frame{display:block}
+body.v19-options .v19-workspace-grid{display:block}
+body.v19-options .v19-rail{display:none!important}
+body.v19-options #v18OptionsWorkbench{height:100%;min-height:0}
+@media(max-width:1200px){.v19-workspace-grid{grid-template-columns:minmax(0,1fr) 220px}.v19-chip{min-width:70px}.v19-titleblock{min-width:170px}}
+@media(max-width:900px){.v19-workspace-grid{display:block}.v19-rail{max-height:320px;margin-top:6px}.v19-shellbar{flex-wrap:wrap}.v19-titleblock{flex:1}.v19-statebar{overflow:auto}.v19-bottom{grid-template-columns:1fr}}
