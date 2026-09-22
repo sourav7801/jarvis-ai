@@ -387,7 +387,7 @@ def build_handler(base, runtime):
     V16Handler = build_v16_handler(base, runtime)
 
     class V17TerminalHandler(V16Handler):
-        server_version = "JarvisQuantV17/1.7"
+        server_version = "JarvisQuantV18/1.0"
 
         def _serve_v17_root(self):
             from workstation.quant_terminal_v2 import STATIC
@@ -428,8 +428,8 @@ def build_handler(base, runtime):
                 inline_end = html.find("</script>", inline_start)
                 if inline_end >= 0:
                     html = html[:inline_start] + html[inline_end + len("</script>"):]
-            html = html.replace("V15 AUTONOMOUS MARKET REASONING · PAPER / RESEARCH", "V17 AUTONOMOUS OPTIONS RUNTIME · PAPER / RESEARCH")
-            html = html.replace("JARVIS Quant V15 ·", "JARVIS Quant V17 · autonomous options ·")
+            html = html.replace("V15 AUTONOMOUS MARKET REASONING · PAPER / RESEARCH", "V18 OPTIONS INTELLIGENCE WORKBENCH · PAPER / RESEARCH")
+            html = html.replace("JARVIS Quant V15 ·", "JARVIS Quant V18 · options intelligence ·")
             html = html.replace("JARVIS V15 reasons across verified market state", "JARVIS V17 uses the verified V15 reasoning core across market state")
             injection = (
                 '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V17_SINGLE_OPTION_CONTROLLER=true;</script>'
