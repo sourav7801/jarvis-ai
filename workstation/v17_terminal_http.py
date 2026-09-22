@@ -455,6 +455,42 @@ def build_handler(base, runtime):
             # Option-chain analysis is isolated from the generic research pool.
             # A slow FYERS call can therefore never consume the workers used by
             # workspace state, chart hydration, or unrelated intelligence.
+            if parsed.path == "/api/v19/workspace/state" and self._local():
+                params = urllib.parse.parse_qs(parsed.query)
+                workspace = str(params.get("workspace", ["INTRADAY"])[0]).upper()
+                if workspace not in {"INTRADAY", "SWING", "INVESTMENT", "OPTIONS"}:
+                    workspace = "INTRADAY"
+                provider = provider_payload()
+                provider_ready, provider_error = provider_health_state(provider)
+                if provider_ready:
+                    HEALTH.mark_success()
+                else:
+                    HEALTH.mark_error(provider_error or "FYERS_BRIDGE_DEGRADED")
+                payload = {
+                    "success": True,
+                    "workspace": workspace,
+                    "server": {"version": self.server_version, "live_execution": False, "paper_only": True},
+                    "provider": provider,
+                    "health": HEALTH.payload(
+                        status="READY" if provider_ready else "DEGRADED",
+                        healthy=True,
+                        dependencies={"fyers_bridge": "READY" if provider_ready else "DEGRADED"},
+                        engine_ready=True,
+                    ),
+                }
+                try:
+                    from workstation.paper_autonomy_engine import paper_autonomy
+                    payload["paper"] = paper_autonomy.status()
+                except Exception as exc:
+                    payload["paper"] = {"status": "UNAVAILABLE", "message": _safe_message(exc)}
+                if workspace == "OPTIONS":
+                    try:
+                        from workstation.options_readiness import options_readiness_payload
+                        payload["options"] = options_readiness_payload()
+                    except Exception as exc:
+                        payload["options"] = {"success": False, "status": "DEGRADED", "message": _safe_message(exc)}
+                return self.send_json(payload)
+
             if parsed.path == "/api/v17/options/chain" and self._local():
                 params = urllib.parse.parse_qs(parsed.query)
                 workspace = str(params.get("workspace", ["OPTIONS"])[0]).upper()
