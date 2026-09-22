@@ -23,3 +23,17 @@ body.v20-active #v16AutonomyPrimary,body.v20-active #v17CryptoPaperCard,body.v20
 @media(max-width:1200px){#v20WorkspaceOS .v20-options{grid-template-columns:170px minmax(0,1fr) 240px}#v20WorkspaceOS .v20-body{grid-template-columns:minmax(0,1fr) 240px}}
 @media(max-width:900px){#v20WorkspaceOS .v20-body,#v20WorkspaceOS .v20-options,#v20WorkspaceOS .v20-invest{grid-template-columns:1fr}.v20-rail{max-height:280px}.v20-research-grid{grid-template-columns:1fr 1fr}.v20-grid4{grid-template-columns:1fr 1fr}}
 @media(max-width:650px){.v20-research-grid{grid-template-columns:1fr}.v20-grid4{grid-template-columns:1fr 1fr}.v20-actions{display:none!important}}
+
+/* V20 root shell: no legacy terminal chrome surrounds the workspace OS. */
+html,body.v20-root-body{width:100%;height:100%;margin:0;overflow:hidden}
+body.v20-root-body{display:flex;flex-direction:column;background:#03090d;color:#d9f4fb;font-family:Arial,sans-serif}
+.v20-root-modes{flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:7px 9px;border-bottom:1px solid #174354;background:#06131a;box-sizing:border-box;min-height:42px}
+.v20-root-modes button{background:#071720;border:1px solid #173e4f;color:#8db4c0;border-radius:4px;padding:7px 12px;font-size:8px;font-weight:800;letter-spacing:.05em;cursor:pointer}
+.v20-root-modes button.active{border-color:#4bc8ea;color:#effcff;background:#0b2833}
+.v20-root-brand{display:flex;align-items:baseline;gap:7px;margin-right:5px;min-width:190px}
+.v20-root-brand b{font-size:14px;color:#ecfcff;letter-spacing:.08em}.v20-root-brand span{font-size:7px;color:#58d9ff;letter-spacing:.14em;font-weight:900}
+.v20-root-safety{margin-left:auto;font-size:7px;font-weight:900;letter-spacing:.08em;color:#74efaa;padding:7px 9px;border:1px solid #24563e;border-radius:4px;background:#061a12}
+.v20-root-workspace{display:flex!important;flex:1!important;min-height:0!important;min-width:0!important;padding:7px 9px 9px;box-sizing:border-box}
+.v20-root-workspace #v20WorkspaceOS{width:100%;height:100%}
+body.v20-root-body #v20WorkspaceOS .v20-head{flex:0 0 auto}
+@media(max-width:650px){.v20-root-brand{min-width:0}.v20-root-brand span{display:none}.v20-root-modes{overflow:auto}.v20-root-safety{display:none}}
