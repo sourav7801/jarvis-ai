@@ -457,14 +457,25 @@ def build_handler(base, runtime):
 </body>"""
                 html = html[:body_start] + v20_body + html[body_end + len("</body>"):]
 
-            injection = (
-                '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V18_OPTIONS_WORKBENCH=false;window.JARVIS_V19_WORKSPACE_OS=false;window.JARVIS_V20_WORKSPACE_OS=true;</script>'
-                '<script src="/v17_live_fetch_scheduler.js?v=170403"></script>'
-                '<script defer src="/v17_runtime.js?v=170403"></script>'
-                '<link rel="stylesheet" href="/v20_workspace_os.css?v=200101"><script defer src="/v20_workspace_os.js?v=200101"></script>'
-                '<script defer src="/v17_crypto_paper_runtime.js?v=170301"></script>'
-            )
-            content = html.replace("</head>", injection + "</head>").encode("utf-8")
+            # V20 is a standalone browser surface. V17 remains backend infrastructure;
+            # none of the legacy browser runtimes should execute on the V20 root.
+            # Rebuild the head instead of incrementally stripping scripts from the
+            # legacy index.html, because app.js/option_chart_runtime.js and inline
+            # V16 blocks can otherwise mutate or poll the V20-only DOM.
+            head_start = html.find("<head>")
+            head_end = html.find("</head>", head_start)
+            if head_start >= 0 and head_end > head_start:
+                v20_head = """<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JARVIS Quant V20 · Workspace OS</title>
+<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=false;window.JARVIS_V18_OPTIONS_WORKBENCH=false;window.JARVIS_V19_WORKSPACE_OS=false;window.JARVIS_V20_WORKSPACE_OS=true;</script>
+<link rel="stylesheet" href="/v20_workspace_os.css?v=200101">
+<script defer src="/v20_workspace_os.js?v=200101"></script>
+</head>"""
+                html = html[:head_start] + v20_head + html[head_end + len("</head>"):]
+
+            content = html.encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(content)))
