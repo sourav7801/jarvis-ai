@@ -401,13 +401,13 @@ def build_handler(base, runtime):
 
             html = (STATIC / "index.html").read_text(encoding="utf-8")
             html = html.replace('<script src="/paper_desk_runtime.js"></script>', "")
-            html = html.replace('<link rel="stylesheet" href="/style.css">', '<link rel="stylesheet" href="/style.css?v=170404">')
-            html = html.replace('<script src="/app.js"></script>', '<script src="/app.js?v=170405"></script>')
+            html = html.replace('<link rel="stylesheet" href="/style.css">', '<link rel="stylesheet" href="/style.css?v=170405">')
+            html = html.replace('<script src="/app.js"></script>', '<script src="/app.js?v=170406"></script>')
 
-            # V17 owns the professional Options surface. Do not load the old
-            # V12-V16 browser overlay runtimes alongside it: several of those
-            # start their own polling/observation loops and assume the legacy
-            # manual option-ticket DOM.
+            # V20 is the workspace OS layer; V16/V17 remain the canonical
+            # intelligence, chart, paper-desk and options surfaces underneath it.
+            # Do not strip the proven terminal DOM or its runtimes: V20 orchestrates
+            # them instead of replacing them with a reduced reimplementation.
             legacy_scripts = (
                 "session_hotfix.js",
                 "v12_paper_intelligence.js",
@@ -427,56 +427,16 @@ def build_handler(base, runtime):
             for asset in legacy_scripts:
                 html = html.replace(f'<script src="/{asset}"></script>', "")
 
-            # Remove the legacy inline V16 option/readiness/pinning block. It
-            # contains its own timers and targets DOM elements that V17 no
-            # longer mounts.
-            inline_start = html.find('<script>\n(() => {\n  "use strict";\n  const $ = id => document.getElementById(id);')
-            if inline_start >= 0 and 'function refreshTruthfulOptionGates()' in html[inline_start:inline_start + 6000]:
-                inline_end = html.find("</script>", inline_start)
-                if inline_end >= 0:
-                    html = html[:inline_start] + html[inline_end + len("</script>"):]
-            html = html.replace("V15 AUTONOMOUS MARKET REASONING · PAPER / RESEARCH", "V20 WORKSPACE OS · PAPER / RESEARCH")
-            html = html.replace("JARVIS Quant V15 ·", "JARVIS Quant V20 · workspace OS ·")
-            html = html.replace("JARVIS V15 reasons across verified market state", "JARVIS V17 uses the verified V15 reasoning core across market state")
-            # V20 is the visible terminal root. The legacy V15/V16 document shell is
-            # backend infrastructure only and must not remain around the V20 desk.
-            # Keep only the workspace selector required by v20_workspace_os.js.
-            body_start = html.find("<body>")
-            body_end = html.rfind("</body>")
-            if body_start >= 0 and body_end > body_start:
-                v20_body = """<body class="v20-root-body">
-<nav class="workspace-modes v20-root-modes" aria-label="JARVIS V20 Workspaces">
-  <div class="v20-root-brand"><b>JARVIS</b><span>V20 WORKSPACE OS</span></div>
-  <button data-workspace="INTRADAY" class="active">INTRADAY</button>
-  <button data-workspace="SWING">SWING</button>
-  <button data-workspace="INVESTMENT">INVESTMENT</button>
-  <button data-workspace="OPTIONS">OPTIONS</button>
-  <span class="v20-root-safety">PAPER ONLY · LIVE LOCKED</span>
-</nav>
-<main class="workspace v20-root-workspace"></main>
-</body>"""
-                html = html[:body_start] + v20_body + html[body_end + len("</body>"):]
-
-            # V20 is a standalone browser surface. V17 remains backend infrastructure;
-            # none of the legacy browser runtimes should execute on the V20 root.
-            # Rebuild the head instead of incrementally stripping scripts from the
-            # legacy index.html, because app.js/option_chart_runtime.js and inline
-            # V16 blocks can otherwise mutate or poll the V20-only DOM.
-            head_start = html.find("<head>")
-            head_end = html.find("</head>", head_start)
-            if head_start >= 0 and head_end > head_start:
-                v20_head = """<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>JARVIS Quant V20 · Workspace OS</title>
-<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=false;window.JARVIS_V18_OPTIONS_WORKBENCH=false;window.JARVIS_V19_WORKSPACE_OS=false;window.JARVIS_V20_WORKSPACE_OS=true;</script>
-<link rel="stylesheet" href="/v20_workspace_os.css?v=200102">
-<script defer src="/lightweight-charts.standalone.production.js"></script>
-<script defer src="/v20_workspace_os.js?v=200102"></script>
-</head>"""
-                html = html[:head_start] + v20_head + html[head_end + len("</head>"):]
-
-            content = html.encode("utf-8")
+            # Keep the canonical V17 runtime and its bounded live-fetch scheduler.
+            injection = (
+                '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V18_OPTIONS_WORKBENCH=false;window.JARVIS_V19_WORKSPACE_OS=false;window.JARVIS_V20_WORKSPACE_OS=true;</script>'
+                '<script src="/v17_live_fetch_scheduler.js?v=170404"></script>'
+                '<script defer src="/v17_runtime.js?v=170404"></script>'
+                '<link rel="stylesheet" href="/v20_workspace_os.css?v=200103">'
+                '<script defer src="/v20_workspace_os.js?v=200103"></script>'
+                '<script defer src="/v17_crypto_paper_runtime.js?v=170302"></script>'
+            )
+            content = html.replace("</head>", injection + "</head>").encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(content)))
