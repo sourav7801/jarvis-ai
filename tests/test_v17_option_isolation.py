@@ -61,6 +61,13 @@ class V17OptionIsolationTests(unittest.TestCase):
         self.assertIn("from agents.fyers_auth_manager import FyersSettings, create_client, load_token", text)
         self.assertIn('"/options-chain-v3"', text)
 
+    def test_v20_identity_endpoint_has_required_os_import(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[1]
+        text = (root / "workstation" / "v17_terminal_http.py").read_text(encoding="utf-8")
+        self.assertIn("import os", text)
+        self.assertIn('"pid": os.getpid(),', text)
+
     def test_v20_workspace_os_replaces_legacy_browser_workspace(self):
         from pathlib import Path
         root = Path(__file__).resolve().parents[1]
