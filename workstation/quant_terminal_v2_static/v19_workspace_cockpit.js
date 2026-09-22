@@ -20,7 +20,8 @@ function ensure(){
  const ws=document.querySelector(".workspace"),intel=document.querySelector(".intel-panel");if(!ws||!intel)return false;
  if(!$("v19Shellbar")){const bar=document.createElement("section");bar.id="v19Shellbar";bar.className="v19-shellbar";bar.innerHTML='<div class="v19-titleblock"><div class="v19-kicker">JARVIS V19 · WORKSPACE OS</div><div class="v19-title" id="v19Title">INTRADAY COMMAND</div><div class="v19-sub" id="v19Sub"></div></div><div class="v19-statebar" id="v19Statebar"></div><div class="v19-actions"><button data-v19-action="scan">SCAN</button><button data-v19-action="reload">RELOAD</button><button data-v19-action="reset">RESET VIEW</button></div>';ws.querySelector(".workspace-modes")?.after(bar)}
  if(!$("v19Contextbar")){const bar=document.createElement("div");bar.id="v19Contextbar";bar.className="v19-contextbar";ws.querySelector(".v19-shellbar")?.after(bar)}
- if(!$("v19WorkspaceGrid")){const host=document.createElement("div");host.id="v19WorkspaceGrid";host.className="v19-workspace-grid";const grid=$("chartGrid");if(grid){grid.parentNode.insertBefore(host,grid);host.appendChild(grid);const rail=document.createElement("aside");rail.id="v19Rail";rail.className="v19-rail";host.appendChild(rail)}}
+ if(!$("v19WorkspaceGrid")){const host=document.createElement("div");host.id="v19WorkspaceGrid";host.className="v19-workspace-grid";const grid=$("chartGrid");if(grid){grid.parentNode.insertBefore(host,grid);host.appendChild(grid)}}
+ if(!$("v19Rail")){const rail=document.createElement("aside");rail.id="v19Rail";rail.className="v19-rail";intel.insertBefore(rail,intel.firstChild)}
  if(!$("v19Bottom")){const b=document.createElement("div");b.id="v19Bottom";b.className="v19-bottom";b.innerHTML='<div class="v19-bottom-card"><small>WORKSPACE ENGINE</small><b id="v19Engine">BOOTING</b></div><div class="v19-bottom-card"><small>DATA PLANE</small><b id="v19DataPlane">CHECKING</b></div><div class="v19-bottom-card"><small>RISK GATE</small><b id="v19RiskGate">LOCKED</b></div>';const dock=ws.querySelector(".command-dock");dock?.before(b)}
  intel.querySelectorAll(".intel-card").forEach(n=>{if(!n.id.startsWith("v18"))n.style.display="none"});
  return true;
@@ -56,7 +57,7 @@ function paint(){
  $("v19DataPlane").textContent=state.provider?.status||"CHECKING";
  $("v19RiskGate").textContent="PAPER / LIVE LOCKED";
  $("v19Contextbar").querySelectorAll("[data-v19-focus]").forEach(b=>b.onclick=()=>{state.focus=b.dataset.v19Focus;save();paint()});
- $("v19-actions")?.remove?.();
+
 }
 async function refresh(){
  const w=workspace();
