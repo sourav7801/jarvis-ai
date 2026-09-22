@@ -97,9 +97,10 @@ function render(){
  updateWorkspaceRail();
 }
 
+function currentWorkspace(){return String(window.JARVIS_V17_WORKSPACE_RUNTIME?.workspace||document.querySelector(".workspace-modes button.active")?.dataset.workspace||"INTRADAY").toUpperCase();}
 function renderWorkspaceRail(){
  var host=$("v18WorkspaceRail");if(!host)return;
- var active=String(document.querySelector(".workspace-modes button.active")?.dataset.workspace||"INTRADAY").toUpperCase();
+ var active=currentWorkspace();
  var intel=document.querySelector(".intel-panel");
  if(active==="INTRADAY"){
    host.style.display="none";
@@ -170,12 +171,12 @@ async function load(){
 }
 
 function visible(){
- var h=mount();if(!h)return;var active=String(document.querySelector(".workspace-modes button.active")?.dataset.workspace||"").toUpperCase()==="OPTIONS";
+ var h=mount();if(!h)return;var active=currentWorkspace()==="OPTIONS";
  h.style.display=active?"flex":"none";var g=$("chartGrid");if(g)g.style.display=active?"none":"grid";
  var tb=document.querySelector(".workspace-toolbar");if(tb)tb.style.display=active?"none":"flex";
  var old=$("v17OptionsWorkspace");if(old)old.style.display="none";
  if(active&&!S.rows.length&&!S.loading)load();
 }
-function boot(){mount();visible();document.addEventListener("jarvis:workspace",function(){visible();renderWorkspaceRail();});document.querySelector(".workspace-modes")?.addEventListener("click",function(){setTimeout(visible,0);});timer=setInterval(function(){var a=String(document.querySelector(".workspace-modes button.active")?.dataset.workspace||"").toUpperCase()==="OPTIONS";if(a&&!document.hidden&&!S.loading)load();},45000);window.addEventListener("beforeunload",function(){clearInterval(timer);if(aborter)aborter.abort();},{once:true});}
+function boot(){mount();visible();document.addEventListener("jarvis:workspace",function(){visible();renderWorkspaceRail();});document.querySelector(".workspace-modes")?.addEventListener("click",function(){setTimeout(visible,0);});timer=setInterval(function(){var a=currentWorkspace()==="OPTIONS";if(a&&!document.hidden&&!S.loading)load();},45000);window.addEventListener("beforeunload",function(){clearInterval(timer);if(aborter)aborter.abort();},{once:true});}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});else boot();
 })();
