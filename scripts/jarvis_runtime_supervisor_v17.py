@@ -189,6 +189,22 @@ def v17_services(root: Path = ROOT) -> tuple[ManagedService, ...]:
             )
             for service in services
         ]
+    # V20 control-plane mesh: specialized lanes run concurrently and are
+    # supervised independently from the browser/trading surfaces.
+    services.append(
+        ManagedService(
+            name="agent_mesh",
+            argv=(python, str(root / "start_jarvis_v20_agent_mesh.py")),
+            health_url="http://127.0.0.1:8795/health",
+            expected_service="JARVIS_V20_MULTI_AGENT_MESH",
+            port=8795,
+            health_markers=(),
+            environment=(
+                ("JARVIS_LIVE_EXECUTION", "0"),
+                ("JARVIS_V20_WORKSPACE_OS", "1"),
+            ),
+        )
+    )
     return tuple(services)
 
 
@@ -208,7 +224,7 @@ def status() -> dict[str, Any]:
         "live_execution": False,
         "automatic_broker_order": False,
         "manual_option_selection_required": False,
-        "forced_trade_quota": False,
+        "forced_trade_quota": False,\n        "multi_agent_mesh": True,\n        "agent_mesh_port": 8795,\n        "agent_mesh_max_workers": 6,
     }
 
 
