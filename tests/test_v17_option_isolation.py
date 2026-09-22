@@ -54,6 +54,23 @@ class V17OptionIsolationTests(unittest.TestCase):
         self.assertIn('v17_options_runtime.js', text)
         self.assertNotIn('v16_workspace_router.js?v=170403', text)
 
+    def test_options_backend_uses_canonical_fyers_client(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[1]
+        text = (root / "workstation" / "india_options_intelligence.py").read_text(encoding="utf-8")
+        self.assertIn("from agents.fyers_auth_manager import FyersSettings, create_client, load_token", text)
+        self.assertIn('"/options-chain-v3"', text)
+
+    def test_v18_workbench_is_served_and_mounted_once(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[1]
+        text = (root / "workstation" / "v17_terminal_http.py").read_text(encoding="utf-8")
+        js = (root / "workstation" / "quant_terminal_v2_static" / "v18_options_workbench.js").read_text(encoding="utf-8")
+        self.assertIn("v18_options_workbench.js", text)
+        self.assertIn('"/v18_options_workbench.js"', text)
+        self.assertIn("JARVIS_V18_OPTIONS_WORKBENCH", js)
+        self.assertIn("/api/v17/options/chain?", js)
+
     def test_v17_http_contains_isolated_option_routes(self):
         from pathlib import Path
 
