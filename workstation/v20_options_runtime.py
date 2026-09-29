@@ -118,12 +118,13 @@ def _contract_score(contract: dict[str, Any], side: str, max_volume: float, max_
     oi = max(0.0, _num(contract.get("open_interest")) or 0.0)
     oich = _num(contract.get("change_in_oi")) or 0.0
     delta_fit = max(0.0, 1.0 - abs(delta - 0.50) / 0.50)
-    liquidity = max(0.0, 1.0 - min(1.0, spread_ratio / 0.08))
+    # Rank quote quality continuously. The 8% spread limit is an entry
+    # eligibility rule below; it should not make every wider quote equally
+    # attractive during contract selection.
+    liquidity = max(0.0, 1.0 - min(1.0, spread_ratio))
     volume_score = min(1.0, volume / max_volume) if max_volume > 0 else 0.0
     oi_score = min(1.0, oi / max_oi) if max_oi > 0 else 0.0
     flow = 1.0 if (oich > 0) else 0.35
-    if spread_ratio > 0.08:
-        liquidity *= 0.25
     return round(100.0 * (0.35 * delta_fit + 0.30 * liquidity + 0.15 * volume_score + 0.10 * oi_score + 0.10 * flow), 2)
 
 
