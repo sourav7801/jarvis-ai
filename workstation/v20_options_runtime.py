@@ -127,6 +127,15 @@ def _contract_score(contract: dict[str, Any], side: str, max_volume: float, max_
     return round(100.0 * (0.35 * delta_fit + 0.30 * liquidity + 0.15 * volume_score + 0.10 * oi_score + 0.10 * flow), 2)
 
 
+def _spread_ratio(contract: dict[str, Any]) -> float | None:
+    ltp = _num(contract.get("ltp"))
+    bid = _num(contract.get("bid"))
+    ask = _num(contract.get("ask"))
+    if ltp is None or ltp <= 0 or bid is None or ask is None or ask < bid:
+        return None
+    return (ask - bid) / ltp
+
+
 def _choose_contract(chain: list[dict[str, Any]], side: str) -> dict[str, Any] | None:
     option_type = "CE" if side == "CALL" else "PE"
     candidates = [
@@ -137,12 +146,23 @@ def _choose_contract(chain: list[dict[str, Any]], side: str) -> dict[str, Any] |
     ]
     if not candidates:
         return None
-    max_volume = max((_num(x.get("volume")) or 0.0) for x in candidates) or 1.0
-    max_oi = max((_num(x.get("open_interest")) or 0.0) for x in candidates) or 1.0
-    for row in candidates:
+
+    # When at least one contract has a verified executable spread, rank only
+    # those contracts. A wide quote must not win merely because it has larger
+    # raw volume/OI; if every quote is wide or lacks bid/ask, fall back to the
+    # full candidate set so the caller can surface its normal spread blocker.
+    executable = [
+        row for row in candidates
+        if (_spread_ratio(row) is not None and _spread_ratio(row) <= 0.08)
+    ]
+    ranking_pool = executable or candidates
+
+    max_volume = max((_num(x.get("volume")) or 0.0) for x in ranking_pool) or 1.0
+    max_oi = max((_num(x.get("open_interest")) or 0.0) for x in ranking_pool) or 1.0
+    for row in ranking_pool:
         row["selection_score"] = _contract_score(row, side, max_volume, max_oi)
-    candidates.sort(key=lambda x: x["selection_score"], reverse=True)
-    return candidates[0]
+    ranking_pool.sort(key=lambda x: x["selection_score"], reverse=True)
+    return ranking_pool[0]
 
 
 class V20OptionsAgent:
