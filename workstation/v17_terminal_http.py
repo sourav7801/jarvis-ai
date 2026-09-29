@@ -492,7 +492,6 @@ def build_handler(base, runtime):
                 '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V18_OPTIONS_WORKBENCH=false;window.JARVIS_V19_WORKSPACE_OS=false;window.JARVIS_V20_WORKSPACE_OS=true;</script>'
                 '<script src="/v17_live_fetch_scheduler.js?v=170404"></script>'
                 '<script defer src="/v17_runtime.js?v=170404"></script>'
-                '<link rel="stylesheet" href="/v18_options_workbench.css?v=180102">'
                 '<script defer src="/v18_options_workbench.js?v=180102"></script>'
                 '<link rel="stylesheet" href="/v19_workspace_cockpit.css?v=190102">'
                 '<script defer src="/v19_workspace_cockpit.js?v=190102"></script>'
@@ -621,7 +620,7 @@ def build_handler(base, runtime):
             if parsed.path == "/" and self._local():
                 return self._serve_v17_root()
 
-            if parsed.path in {"/v17_runtime.js", "/v17_live_fetch_scheduler.js", "/v17_crypto_paper_runtime.js", "/v17_options_runtime.js", "/v18_options_workbench.js", "/v19_workspace_cockpit.js", "/v19_workspace_cockpit.css", "/v18_options_workbench.css", "/v20_workspace_os.js", "/v20_workspace_os.css"} and self._local():
+            if parsed.path in {"/v17_runtime.js", "/v17_live_fetch_scheduler.js", "/v17_crypto_paper_runtime.js", "/v17_options_runtime.js", "/v18_options_workbench.js", "/v19_workspace_cockpit.js", "/v19_workspace_cockpit.css", "/v20_workspace_os.js", "/v20_workspace_os.css"} and self._local():
                 from workstation.quant_terminal_v2 import STATIC
                 return self.send_file(STATIC / parsed.path.lstrip("/"), "text/css; charset=utf-8" if parsed.path.endswith(".css") else "application/javascript; charset=utf-8")
 
