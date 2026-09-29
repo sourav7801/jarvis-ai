@@ -18,6 +18,37 @@ def test_underlying_signal_identifies_direction_from_trend():
     assert result["score"] > 0
 
 
+def test_contract_selector_uses_near_atm_proxy_when_delta_missing():
+    chain = [
+        {
+            "symbol": "NSE:TEST-ATM",
+            "option_type": "CE",
+            "strike": 100,
+            "ltp": 10,
+            "bid": 9.9,
+            "ask": 10.1,
+            "volume": 1000,
+            "open_interest": 10000,
+            "change_in_oi": 500,
+        },
+        {
+            "symbol": "NSE:TEST-WIDE_OTM",
+            "option_type": "CE",
+            "strike": 110,
+            "ltp": 5,
+            "bid": 4.0,
+            "ask": 6.0,
+            "volume": 5000,
+            "open_interest": 50000,
+            "change_in_oi": 1000,
+        },
+    ]
+    selected = _choose_contract(chain, "CALL", 100)
+    assert selected is not None
+    assert selected["symbol"] == "NSE:TEST-ATM"
+    assert selected["selection_score"] > 0
+
+
 def test_contract_selector_prefers_liquid_mid_delta_contract():
     chain = [
         {
