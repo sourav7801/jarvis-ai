@@ -362,6 +362,6 @@ function wire(){
    }
  });
 }
-function boot(){wire();render();setInterval(()=>{if(!document.hidden){const w=activeWorkspace();if(w!==state.workspace)render();else telemetry()}},10000)}
+function boot(){wire();render();setInterval(()=>{if(!document.hidden){const w=activeWorkspace();if(w!==state.workspace)render();else refreshGlobal()}},5000)}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});else boot();
 })();
