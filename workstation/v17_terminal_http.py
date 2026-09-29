@@ -426,10 +426,10 @@ def build_handler(base, runtime):
             html = html.replace('<link rel="stylesheet" href="/style.css">', '<link rel="stylesheet" href="/style.css?v=170405">')
             html = html.replace('<script src="/app.js"></script>', '<script src="/app.js?v=170406"></script>')
 
-            # V20 is the workspace OS layer; V16/V17 remain the canonical
-            # intelligence, chart, paper-desk and options surfaces underneath it.
-            # Do not strip the proven terminal DOM or its runtimes: V20 orchestrates
-            # them instead of replacing them with a reduced reimplementation.
+            # V17 owns the professional Options surface underneath V20's workspace OS.
+            # V20 composes the canonical V16/V17 intelligence, chart and paper-desk
+            # capabilities rather than replacing them with a reduced reimplementation.
+            # Do not strip the proven terminal DOM or its runtimes.
             legacy_scripts = (
                 "session_hotfix.js",
                 "v12_paper_intelligence.js",
