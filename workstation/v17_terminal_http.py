@@ -656,7 +656,28 @@ def build_handler(base, runtime):
                         raise ValueError("V20 global control accepts start or stop.")
                     control = _autopilot_control(runtime, body)
                     options = _v20_options_agent_control(action)
-                    return self.send_json(_safety({"success": bool(control.get("success")) and bool(options.get("success", True)), "service": "JARVIS_V20_GLOBAL_CONTROL", "version": "20.3", "action": action.upper(), "workspaces": control.get("results") or {}, "options_agent": options, "preferences": control.get("preferences") or load_preferences(), "message": ("JARVIS global PAPER trading started across Intraday, Swing, Investment and the Options Agent. Existing positions remain under management and new entries use current workspace capital only." if action == "start" else "JARVIS global PAPER new entries paused. Existing Swing and Investment positions remain monitored and managed.")}))
+                    from workstation.multi_market_scanner import MULTI_MARKET_SCANNER
+                    global_scanner = MULTI_MARKET_SCANNER.start(
+                        universes=("NIFTY50", "BANKNIFTY", "SENSEX30", "INDIA_INDICES", "MCX_MAJOR", "CRYPTO_MAJOR", "GLOBAL_MAJOR"),
+                        force=action == "start",
+                        auto_enroll=False,
+                        profile="intraday",
+                    )
+                    return self.send_json(_safety({
+                        "success": bool(control.get("success")) and bool(options.get("success", True)),
+                        "service": "JARVIS_V20_GLOBAL_CONTROL",
+                        "version": "20.3",
+                        "action": action.upper(),
+                        "workspaces": control.get("results") or {},
+                        "options_agent": options,
+                        "global_scanner": global_scanner,
+                        "preferences": control.get("preferences") or load_preferences(),
+                        "message": (
+                            "JARVIS global PAPER trading started across Intraday, Swing, Investment and the Options Agent. The overall scanner is also running across configured market universes. Existing positions remain under management and new entries use current workspace capital only."
+                            if action == "start"
+                            else "JARVIS global PAPER new entries paused. Existing Swing and Investment positions remain monitored and managed; the global discovery scanner remains research-only."
+                        ),
+                    }))
                 except (ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
                     return self.send_json(_safety({"success": False, "message": str(exc)}), 400)
             if parsed.path not in {V17_PREFERENCES_PATH, V17_CONTROL_PATH}:
