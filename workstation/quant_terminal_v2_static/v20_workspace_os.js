@@ -5,7 +5,8 @@ const $=id=>document.getElementById(id), esc=v=>String(v??"").replace(/[&<>"']/g
 const num=(v,d=2)=>{const n=Number(v);return Number.isFinite(n)?n.toLocaleString("en-IN",{maximumFractionDigits:d,minimumFractionDigits:d}):"—"};
 const state={workspace:"INTRADAY",option:{underlying:"NIFTY",expiry:"",range:12,view:"PRICE",rows:[],spot:null,pcr:null,analytics:{},expiries:[],legs:[],loading:false}};
 const U=[["NIFTY","NIFTY 50"],["BANKNIFTY","BANK NIFTY"],["SENSEX","SENSEX"]];
-let optionSeq=0,optionAbort=null;
+let optionSeq=0,optionAbort=null,optionRuntimeTimer=null,optionChartTimer=null;
+const optionCharts={underlying:null,contract:null};
 
 async function getJSON(url,timeout=8000){
  const c=new AbortController(),t=setTimeout(()=>c.abort(),timeout);
@@ -122,7 +123,73 @@ function investment(){
  return '<div class="v20-invest"><div class="v20-invest-main"><div class="v20-panel"><div class="v20-panel-head"><div><div class="v20-panel-title">PORTFOLIO CONTROL</div><div class="v20-muted">Investment workspace is independent from Intraday and Options execution logic.</div></div><button class="v20-btn" style="width:auto" data-v20="research">RESEARCH</button></div><div class="v20-grid4" style="margin-top:6px"><div class="v20-metric"><small>INVESTED</small><b>—</b></div><div class="v20-metric"><small>PORTFOLIO P&amp;L</small><b>—</b></div><div class="v20-metric"><small>EXPOSURE</small><b>—</b></div><div class="v20-metric"><small>WATCHLIST</small><b>—</b></div></div></div><div class="v20-research-grid"><div class="v20-research-card"><b>Fundamentals</b><p>Revenue · EBITDA · EPS · ROE · ROCE · debt · FCF · growth.</p></div><div class="v20-research-card"><b>Valuation</b><p>P/E · EV/EBITDA · P/B · PEG · FCF yield · historical ranges.</p></div><div class="v20-research-card"><b>Thesis</b><p>Bull · base · bear · catalysts · invalidation · time horizon.</p></div><div class="v20-research-card"><b>Allocation</b><p>Position sizing · concentration · sector exposure · cash buffer.</p></div><div class="v20-research-card"><b>Watchlist</b><p>Candidate → researching → thesis ready → monitored.</p></div><div class="v20-research-card"><b>Risk</b><p>Drawdown · concentration · correlation · thesis-break monitoring.</p></div></div></div><aside class="v20-invest-side"><div class="v20-panel"><div class="v20-panel-title">RESEARCH GATES</div><div class="v20-list"><div><span>Fundamentals</span><b>READY WHEN DATA CONNECTS</b></div><div><span>Valuation</span><b>READY WHEN DATA CONNECTS</b></div><div><span>Thesis</span><b>RESEARCH</b></div><div><span>Execution</span><b>PAPER / LOCKED</b></div></div></div><div class="v20-panel"><div class="v20-panel-title">NO SIGNAL BLEED</div><div class="v20-note">Intraday signals, option-chain legs and short-horizon triggers do not automatically become Investment decisions.</div></div></aside></div>'
 }
 function optionShell(){
- return '<div class="v20-options"><aside class="v20-options-left"><div class="v20-panel"><div class="v20-panel-title">UNDERLYING</div><select id="v20OptUnderlying" class="v20-select">'+U.map(x=>'<option value="'+x[0]+'">'+x[1]+'</option>').join("")+'</select><div class="v20-panel-title" style="margin-top:9px">EXPIRY</div><select id="v20OptExpiry" class="v20-select"><option value="">NEAREST EXPIRY</option></select><div class="v20-panel-title" style="margin-top:9px">STRIKE WINDOW</div><select id="v20OptRange" class="v20-select"><option value="8">±8 STRIKES</option><option value="12" selected>±12 STRIKES</option><option value="20">±20 STRIKES</option></select><button class="v20-btn primary" id="v20OptRefresh" style="margin-top:7px">REFRESH CHAIN</button></div><div class="v20-panel"><div class="v20-panel-title">CHAIN ANALYTICS</div><div class="v20-list"><div><span>Spot</span><b id="v20Spot">—</b></div><div><span>PCR OI</span><b id="v20PCR">—</b></div><div><span>Call wall</span><b id="v20CallWall">—</b></div><div><span>Put wall</span><b id="v20PutWall">—</b></div><div><span>Max pain</span><b id="v20MaxPain">—</b></div></div></div><div class="v20-panel"><div class="v20-panel-title">DATA LANE</div><div id="v20OptState" class="v20-note">Waiting for isolated Options data lane.</div></div></aside><main class="v20-options-center"><div class="v20-panel"><div class="v20-panel-head"><div><div class="v20-panel-title">OPTION CHAIN · V20</div><div class="v20-muted">Calls / strikes / puts with OI, IV and Greeks. This is not the legacy chart panel.</div></div><div class="v20-tabs">'+["PRICE","GREEKS","STRADDLE"].map(x=>'<button class="v20-btn '+(x==="PRICE"?"active":"")+'" data-v20-opt-view="'+x+'">'+x+'</button>').join("")+'</div></div></div><div id="v20OptSummary" class="v20-grid4"></div><div class="v20-chain"><table><thead id="v20OptHead"></thead><tbody id="v20OptRows"></tbody></table></div></main><aside class="v20-options-right"><div class="v20-panel"><div class="v20-panel-title">PAPER STRATEGY LAB</div><div class="v20-note">Research/simulation only. No broker order is sent.</div><div id="v20Legs" class="v20-legs" style="margin-top:6px"></div><button class="v20-btn primary" id="v20AddLeg" style="margin-top:6px">ADD ATM LEG</button><div id="v20Payoff" class="v20-note" style="margin-top:7px"></div></div><div class="v20-panel"><div class="v20-panel-title">POSITION INTELLIGENCE</div><div class="v20-list"><div><span>Expiry</span><b id="v20RightExpiry">—</b></div><div><span>Strikes loaded</span><b id="v20RightStrikes">—</b></div><div><span>Provider</span><b id="v20RightProvider">CHECKING</b></div><div><span>Execution</span><b>PAPER LOCKED</b></div></div></div><div class="v20-panel"><div class="v20-panel-title">ISOLATION</div><div class="v20-note">Option requests have their own backend lane. Chart hydration is independent and can continue when the chain provider is degraded.</div></div></aside></div>'
+ return '<div class="v20-options"><aside class="v20-options-left"><div class="v20-panel"><div class="v20-panel-title">UNDERLYING</div><select id="v20OptUnderlying" class="v20-select">'+U.map(x=>'<option value="'+x[0]+'">'+x[1]+'</option>').join("")+'</select><div class="v20-panel-title" style="margin-top:9px">EXPIRY</div><select id="v20OptExpiry" class="v20-select"><option value="">NEAREST EXPIRY</option></select><div class="v20-panel-title" style="margin-top:9px">STRIKE WINDOW</div><select id="v20OptRange" class="v20-select"><option value="8">±8 STRIKES</option><option value="12" selected>±12 STRIKES</option><option value="20">±20 STRIKES</option></select><button class="v20-btn primary" id="v20OptRefresh" style="margin-top:7px">REFRESH ENGINE</button></div><div class="v20-panel"><div class="v20-panel-title">LIVE DECISION</div><div id="v20DecisionState" class="v20-auto-state">WAITING FOR VERIFIED MARKET DATA…</div><div id="v20DecisionReason" class="v20-note" style="margin-top:6px">The Options Agent evaluates the underlying, chain, liquidity and risk gates independently.</div></div><div class="v20-panel"><div class="v20-panel-title">CHAIN ANALYTICS</div><div class="v20-list"><div><span>Spot</span><b id="v20Spot">—</b></div><div><span>PCR OI</span><b id="v20PCR">—</b></div><div><span>Call wall</span><b id="v20CallWall">—</b></div><div><span>Put wall</span><b id="v20PutWall">—</b></div><div><span>Max pain</span><b id="v20MaxPain">—</b></div></div></div><div class="v20-panel"><div class="v20-panel-title">DATA LANE</div><div id="v20OptState" class="v20-note">Dedicated Options Agent · port 8796 · paper only.</div></div></aside><main class="v20-options-center"><div class="v20-panel v20-options-command"><div class="v20-panel-head"><div><div class="v20-panel-title">AUTONOMOUS OPTIONS COMMAND</div><div class="v20-muted">Live underlying structure + selected contract price action. The agent chooses the contract; JARVIS records only synthetic paper positions.</div></div><div class="v20-auto-badge">AUTO PAPER · LIVE ORDERS LOCKED</div></div><div class="v20-grid4" id="v20DecisionMetrics"></div></div><div class="v20-options-charts"><div class="v20-panel v20-option-chart-panel"><div class="v20-panel-head"><div><div class="v20-panel-title">UNDERLYING · LIVE 5M</div><div class="v20-muted" id="v20UnderlyingChartMeta">Waiting…</div></div></div><div id="v20OptionUnderlyingChart" class="v20-option-chart"></div></div><div class="v20-panel v20-option-chart-panel"><div class="v20-panel-head"><div><div class="v20-panel-title">SELECTED OPTION · LIVE 5M</div><div class="v20-muted" id="v20ContractChartMeta">Agent has not selected a contract.</div></div></div><div id="v20OptionContractChart" class="v20-option-chart"></div></div></div><div class="v20-panel"><div class="v20-panel-head"><div><div class="v20-panel-title">OPTION CHAIN · V20</div><div class="v20-muted">Calls / strikes / puts with OI, IV and Greeks. ATM and the agent-selected contract are highlighted.</div></div><div class="v20-tabs">'+["PRICE","GREEKS","STRADDLE"].map(x=>'<button class="v20-btn '+(x==="PRICE"?"active":"")+'" data-v20-opt-view="'+x+'">'+x+'</button>').join("")+'</div></div></div><div id="v20OptSummary" class="v20-grid4"></div><div class="v20-chain"><table><thead id="v20OptHead"></thead><tbody id="v20OptRows"></tbody></table></div></main><aside class="v20-options-right"><div class="v20-panel"><div class="v20-panel-title">AUTONOMOUS CONTRACT</div><div id="v20SelectedContract" class="v20-selected-contract"><b>WAITING</b><span>No verified contract selected.</span></div></div><div class="v20-panel"><div class="v20-panel-title">PAPER POSITION</div><div id="v20PaperPosition" class="v20-note">No autonomous paper position is currently reported.</div></div><div class="v20-panel"><div class="v20-panel-title">DECISION GATES</div><div id="v20DecisionGates" class="v20-gates"></div></div><div class="v20-panel"><div class="v20-panel-title">STRATEGY LAB</div><div class="v20-note">The existing strategy lab, Greeks, OI/IV, journal and learning surfaces remain available. This desk adds a continuous contract-selection lane rather than replacing them.</div><div id="v20Legs" class="v20-legs" style="margin-top:6px"></div><button class="v20-btn primary" id="v20AddLeg" style="margin-top:6px">ADD ATM LEG</button><div id="v20Payoff" class="v20-note" style="margin-top:7px"></div></div></aside></div>'
+}
+function stopOptionRuntime(){
+ if(optionRuntimeTimer){clearInterval(optionRuntimeTimer);optionRuntimeTimer=null}
+ if(optionChartTimer){clearInterval(optionChartTimer);optionChartTimer=null}
+ optionSeq+=1;if(optionAbort){try{optionAbort.abort()}catch{};optionAbort=null}
+ for(const key of ["underlying","contract"]){if(optionCharts[key]){try{optionCharts[key].remove()}catch{};optionCharts[key]=null}}
+}
+function chartOptions(){
+ return {autoSize:true,layout:{background:{type:"solid",color:"#040b10"},textColor:"#8eabb7",fontFamily:"Arial"},grid:{vertLines:{color:"rgba(75,140,166,.08)"},horzLines:{color:"rgba(75,140,166,.08)"}},rightPriceScale:{borderColor:"#173849"},timeScale:{borderColor:"#173849",timeVisible:true,secondsVisible:false,rightOffset:6,barSpacing:7},crosshair:{mode:LightweightCharts.CrosshairMode.Normal}};
+}
+function renderLiveChart(hostId,key,candles,title){
+ const host=$(hostId);if(!host||typeof LightweightCharts==="undefined")return;
+ const rows=(candles||[]).map(x=>({time:Number(x.time??x.timestamp),open:Number(x.open),high:Number(x.high),low:Number(x.low),close:Number(x.close)})).filter(x=>[x.time,x.open,x.high,x.low,x.close].every(Number.isFinite)).sort((a,b)=>a.time-b.time);
+ if(rows.length<2)return;
+ if(optionCharts[key]){try{optionCharts[key].remove()}catch{}}
+ host.innerHTML="";
+ const chart=LightweightCharts.createChart(host,chartOptions());
+ const series=chart.addSeries(LightweightCharts.CandlestickSeries,{upColor:"#61e69a",downColor:"#ff667d",wickUpColor:"#61e69a",wickDownColor:"#ff667d",borderVisible:false});
+ series.setData(rows);
+ const ema=chart.addSeries(LightweightCharts.LineSeries,{color:"#5cdbff",lineWidth:1,priceLineVisible:false,lastValueVisible:false});
+ const period=20,alpha=2/(period+1);let value=rows.slice(0,period).reduce((a,x)=>a+x.close,0)/Math.max(1,Math.min(period,rows.length));const emaRows=rows.length>=period?[{time:rows[period-1].time,value}]:[];
+ for(let j=period;j<rows.length;j++){value=alpha*rows[j].close+(1-alpha)*value;emaRows.push({time:rows[j].time,value})}
+ if(emaRows.length)ema.setData(emaRows);
+ chart.timeScale().fitContent();optionCharts[key]=chart;
+ setTimeout(()=>{try{chart.resize(host.clientWidth,host.clientHeight);chart.timeScale().fitContent()}catch{}},0);
+}
+async function refreshSelectedOptionChart(){
+ const selected=state.option.runtime?.selected_contract;if(!selected?.symbol)return;
+ const q=new URLSearchParams({provider:"FYERS",instrument:selected.symbol,timeframe:"5m",bars:"180"});
+ try{
+  const r=await getJSON("/api/option-candles?"+q,9000);if(!r.ok||r.p?.success!==true)return;
+  renderLiveChart("v20OptionContractChart","contract",r.p.candles||[],"Selected option");
+  const meta=$("v20ContractChartMeta");if(meta)meta.textContent=selected.symbol+" · "+(selected.option_type||"OPTION")+" · "+(r.p.data_quality||"VERIFIED");
+ }catch{}
+}
+async function loadOptionRuntime(){
+ const id=++optionSeq;state.option.loading=true;
+ const u=state.option.underlying,e=state.option.expiry;
+ const q=new URLSearchParams({symbol:u,timeframe:"5m"});if(e)q.set("expiry",e);
+ const box=$("v20OptState");if(box)box.textContent="Options Agent evaluating "+u+"…";
+ try{
+  const r=await getJSON("/api/v20/options/runtime?"+q,6500);
+  if(id!==optionSeq)return;
+  const p=r.p||{};
+  if(!r.ok||p.success!==true)throw new Error(p.message||"Options Agent unavailable");
+  state.option.runtime=p;
+  state.option.rows=Array.isArray(p.chain)?p.chain:[];state.option.spot=Number.isFinite(Number(p.spot))?Number(p.spot):null;state.option.pcr=Number.isFinite(Number(p.chain_analytics?.pcr_oi))?Number(p.chain_analytics.pcr_oi):Number.isFinite(Number(p.pcr_oi))?Number(p.pcr_oi):null;state.option.analytics=p.chain_analytics||{};state.option.expiries=Array.isArray(p.available_expiries)?p.available_expiries:[];
+  const sel=$("v20OptExpiry");if(sel){const expiryValue=typeof p.expiry==="string"?p.expiry:(p.expiry?.date||e||"");sel.innerHTML='<option value="">NEAREST EXPIRY</option>'+state.option.expiries.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join("");sel.value=state.option.expiry||expiryValue}
+  if(box)box.textContent="OPTIONS AGENT · "+(p.state||"RUNNING")+" · "+(p.data_quality?.chain||"FYERS") ;
+  const sig=p.underlying_signal||{},contract=p.selected_contract||{};
+  const decision=$("v20DecisionState");if(decision)decision.textContent=(sig.side||"WAIT")+" · "+num(p.composite_score,1)+" / 100";
+  const reason=$("v20DecisionReason");if(reason)reason.textContent=(p.blockers||[]).length?"BLOCKED · "+p.blockers.join(" · "):"All configured entry gates passed. Paper engine may open a synthetic position.";
+  const metrics=$("v20DecisionMetrics");if(metrics)metrics.innerHTML=[["UNDERLYING",sig.side||"WAIT"],["TREND SCORE",num(sig.score,2)],["RSI",num(sig.rsi,1)],["CONTRACT SCORE",num(contract.selection_score,1)]].map(x=>'<div class="v20-metric"><small>'+x[0]+'</small><b>'+esc(x[1])+'</b></div>').join("");
+  const sc=$("v20SelectedContract");if(sc)sc.innerHTML=contract.symbol?'<b>'+esc(contract.option_type||"OPTION")+" "+num(contract.strike,0)+'</b><span>'+esc(contract.symbol)+' · Δ '+num(contract.delta,3)+' · IV '+num(contract.iv,1)+' · OI '+num(contract.open_interest,0)+'</span>':'<b>WAITING</b><span>No verified contract selected.</span>';
+  const pp=$("v20PaperPosition");const positions=Array.isArray(p.positions)?p.positions:[];if(pp)pp.innerHTML=p.paper_trade?.success?'<b>PAPER ENTRY OPENED</b><br>'+esc(p.paper_trade.symbol||contract.symbol||"OPTION")+" · entry "+num(p.paper_trade.entry)+" · stop "+num(p.paper_trade.stop)+" · target "+num(p.paper_trade.target):positions.length?positions.map(x=>esc(x.symbol)+" · "+esc(x.side)+" · mark "+num(x.mark)).join("<br>"):"No autonomous paper position is currently reported.";
+  const gates=$("v20DecisionGates");if(gates)gates.innerHTML=(p.blockers||[]).length?(p.blockers||[]).map(x=>'<span class="v20-gate bad">'+esc(x)+'</span>').join(""):'<span class="v20-gate ok">VERIFIED DATA</span><span class="v20-gate ok">DIRECTIONAL EDGE</span><span class="v20-gate ok">LIQUID CONTRACT</span><span class="v20-gate ok">RISK ADMISSION</span>';
+  renderOptions();
+  renderLiveChart("v20OptionUnderlyingChart","underlying",p.underlying_candles||[],"Underlying");
+  const um=$("v20UnderlyingChartMeta");if(um)um.textContent=u+" · "+(p.timeframe||"5m")+" · "+((p.underlying_candles||[]).length)+" bars";
+  await refreshSelectedOptionChart();
+ }catch(err){
+  if(id!==optionSeq)return;
+  if(box)box.textContent="OPTIONS AGENT DEGRADED · "+(err.message||"request failed");
+  const decision=$("v20DecisionState");if(decision)decision.textContent="WAIT · DATA LANE";
+  const reason=$("v20DecisionReason");if(reason)reason.textContent="No synthetic trade is opened without verified chain and candle evidence.";
+ }finally{if(id===optionSeq)state.option.loading=false}
 }
 function pairRows(){
  const m=new Map();for(const r of state.option.rows||[]){const k=Number(r.strike),t=String(r.option_type||"").toUpperCase();if(!Number.isFinite(k)||!["CE","PE"].includes(t))continue;if(!m.has(k))m.set(k,{strike:k,CE:null,PE:null});m.get(k)[t]=r}
@@ -160,25 +227,18 @@ function addLeg(){
  const raw=window.prompt("BUY CE, SELL CE, BUY PE or SELL PE","BUY CE");if(!raw)return;const m=String(raw).toUpperCase().match(/^(BUY|SELL)\s+(CE|PE)$/);if(!m||!p[m[2]])return;
  state.option.legs.push({action:m[1],type:m[2],strike:p.strike,premium:Number(p[m[2]].ltp)||0});renderLegs()
 }
-async function loadOptions(){
- const id=++optionSeq;if(optionAbort)optionAbort.abort();optionAbort=new AbortController();state.option.loading=true;
- const u=state.option.underlying,e=state.option.expiry;
- $("v20OptState").textContent="Loading isolated FYERS chain for "+u+"…";
- try{
-  const q=new URLSearchParams({workspace:"OPTIONS",symbol:u,module:"option-chain"});if(e)q.set("expiry",e);
-  const c=optionAbort;const timer=setTimeout(()=>c.abort(),12000);const r=await fetch("/api/v17/options/chain?"+q,{cache:"no-store",signal:c.signal});clearTimeout(timer);const p=await r.json().catch(()=>({}));
-  if(id!==optionSeq)return;if(!r.ok||p.success!==true)throw new Error(p.message||p.reason||"Options chain request failed");
-  state.option.rows=Array.isArray(p.chain)?p.chain:[];state.option.spot=Number.isFinite(Number(p.spot))?Number(p.spot):null;state.option.pcr=Number.isFinite(Number(p.pcr_oi))?Number(p.pcr_oi):null;state.option.analytics=p.chain_analytics||{};state.option.expiries=Array.isArray(p.available_expiries)?p.available_expiries:[];
-  const sel=$("v20OptExpiry");sel.innerHTML='<option value="">NEAREST EXPIRY</option>'+state.option.expiries.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join("");sel.value=state.option.expiry;
-  $("v20OptState").textContent="FYERS VERIFIED · "+state.option.rows.length+" contracts · "+(state.option.expiry||"nearest expiry");renderOptions()
- }catch(err){if(id!==optionSeq)return;if(err.name==="AbortError")return;state.option.rows=[];state.option.analytics={};$("v20OptState").textContent="OPTIONS DEGRADED · "+(err.message||"request failed");renderOptions()
- }finally{if(id===optionSeq){state.option.loading=false}}
-}
 function bindOptions(){
- $("v20OptUnderlying").value=state.option.underlying;$("v20OptUnderlying").onchange=e=>{state.option.underlying=e.target.value;state.option.expiry="";state.option.legs=[];loadOptions()};
- $("v20OptExpiry").onchange=e=>{state.option.expiry=e.target.value;loadOptions()};$("v20OptRange").onchange=e=>{state.option.range=Number(e.target.value)||12;renderOptions()};$("v20OptRefresh").onclick=loadOptions;$("v20AddLeg").onclick=addLeg;
+ $("v20OptUnderlying").value=state.option.underlying;
+ $("v20OptUnderlying").onchange=e=>{state.option.underlying=e.target.value;state.option.expiry="";state.option.legs=[];loadOptionRuntime()};
+ $("v20OptExpiry").onchange=e=>{state.option.expiry=e.target.value;loadOptionRuntime()};
+ $("v20OptRange").onchange=e=>{state.option.range=Number(e.target.value)||12;renderOptions()};
+ $("v20OptRefresh").onclick=loadOptionRuntime;
+ $("v20AddLeg").onclick=addLeg;
  document.querySelectorAll("[data-v20-opt-view]").forEach(b=>b.onclick=()=>{state.option.view=b.dataset.v20OptView;document.querySelectorAll("[data-v20-opt-view]").forEach(x=>x.classList.toggle("active",x===b));renderOptions()});
- loadOptions()
+ stopOptionRuntime();
+ loadOptionRuntime();
+ optionRuntimeTimer=setInterval(()=>{if(!document.hidden&&activeWorkspace()==="OPTIONS")loadOptionRuntime()},5000);
+ optionChartTimer=setInterval(()=>{if(!document.hidden&&activeWorkspace()==="OPTIONS")refreshSelectedOptionChart()},5000);
 }
 async function telemetry(){
  const w=activeWorkspace(),a=await getJSON("/api/v19/workspace/state?workspace="+encodeURIComponent(w),5000),b=await getJSON("/api/provider",5000);
@@ -187,7 +247,8 @@ async function telemetry(){
  $("v20RailProvider")&&($("v20RailProvider").textContent=fy);$("v20RightProvider")&&($("v20RightProvider").textContent=fy)
 }
 function render(){
- const root=ensure();if(!root)return;const w=activeWorkspace();state.workspace=w;document.body.classList.toggle("v20-active",true);document.body.classList.toggle("v20-options-active",w==="OPTIONS");document.body.classList.toggle("v20-investment-active",w==="INVESTMENT");
+ const root=ensure();if(!root)return;const w=activeWorkspace();
+ if(w!=="OPTIONS")stopOptionRuntime();state.workspace=w;document.body.classList.toggle("v20-active",true);document.body.classList.toggle("v20-options-active",w==="OPTIONS");document.body.classList.toggle("v20-investment-active",w==="INVESTMENT");
  root.innerHTML=header(w)+contexts(w)+(w==="OPTIONS"?optionShell():w==="INVESTMENT"?investment():w==="SWING"?swing():intraday());
  if(w==="OPTIONS")bindOptions();
  
