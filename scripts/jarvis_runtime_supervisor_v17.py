@@ -205,6 +205,22 @@ def v17_services(root: Path = ROOT) -> tuple[ManagedService, ...]:
             ),
         )
     )
+    # Dedicated Options Agent: continuous option selection and paper-position
+    # management run independently from the UI and the generic agent mesh.
+    services.append(
+        ManagedService(
+            name="options_agent",
+            argv=(python, str(root / "start_jarvis_v20_options_agent.py")),
+            health_url="http://127.0.0.1:8796/health",
+            expected_service="JARVIS_V20_OPTIONS_AGENT",
+            port=8796,
+            health_markers=(),
+            environment=(
+                ("JARVIS_LIVE_EXECUTION", "0"),
+                ("JARVIS_V20_WORKSPACE_OS", "1"),
+            ),
+        )
+    )
     return tuple(services)
 
 
@@ -225,6 +241,8 @@ def status() -> dict[str, Any]:
         "automatic_broker_order": False,
         "manual_option_selection_required": False,
         "forced_trade_quota": False,\n        "multi_agent_mesh": True,\n        "agent_mesh_port": 8795,\n        "agent_mesh_max_workers": 6,
+        "options_agent": True,
+        "options_agent_port": 8796,
     }
 
 
