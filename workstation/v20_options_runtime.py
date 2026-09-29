@@ -112,6 +112,8 @@ def _contract_score(contract: dict[str, Any], side: str, max_volume: float, max_
     ask = _num(contract.get("ask"))
     spread = (ask - bid) if bid is not None and ask is not None and ask >= bid else None
     spread_ratio = (spread / ltp) if spread is not None and ltp > 0 else 1.0
+    # Execution liquidity is a hard preference: a narrow, executable market
+    # should outrank raw volume/OI when directional delta fit is equal.
     volume = max(0.0, _num(contract.get("volume")) or 0.0)
     oi = max(0.0, _num(contract.get("open_interest")) or 0.0)
     oich = _num(contract.get("change_in_oi")) or 0.0
@@ -120,6 +122,8 @@ def _contract_score(contract: dict[str, Any], side: str, max_volume: float, max_
     volume_score = min(1.0, volume / max_volume) if max_volume > 0 else 0.0
     oi_score = min(1.0, oi / max_oi) if max_oi > 0 else 0.0
     flow = 1.0 if (oich > 0) else 0.35
+    if spread_ratio > 0.08:
+        liquidity *= 0.25
     return round(100.0 * (0.35 * delta_fit + 0.30 * liquidity + 0.15 * volume_score + 0.10 * oi_score + 0.10 * flow), 2)
 
 
