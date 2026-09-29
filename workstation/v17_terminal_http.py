@@ -412,6 +412,44 @@ def _v20_options_agent_proxy(query: str) -> dict[str, Any]:
         })
 
 
+def _v20_options_agent_control(action: str) -> dict[str, Any]:
+    normalized = str(action or "").strip().lower()
+    if normalized not in {"start", "stop"}:
+        raise ValueError("V20 Options Agent control accepts start or stop.")
+    request = urllib.request.Request(
+        "http://127.0.0.1:8796/api/v20/options/control",
+        data=json.dumps({"action": normalized}).encode("utf-8"),
+        headers={"Content-Type": "application/json", "Cache-Control": "no-cache"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=2.5) as response:
+            return dict(json.loads(response.read().decode("utf-8")) or {})
+    except Exception as exc:
+        return _safety({
+            "success": False,
+            "reason": "OPTIONS_AGENT_CONTROL_UNAVAILABLE",
+            "message": f"{type(exc).__name__}: {exc}"[:400],
+        })
+
+
+def _v20_journal_payload(limit: int = 100, workspace: str | None = None) -> dict[str, Any]:
+    from workstation.paper_trading_desk import paper_desk
+    from omni.trading_intelligence.trade_learning_engine import learning_engine
+
+    rows = paper_desk.trade_journal(workspace=workspace, limit=limit)
+    return _safety({
+        "success": True,
+        "service": "JARVIS_V20_TRADE_JOURNAL",
+        "version": "20.3",
+        "rows": rows,
+        "count": len(rows),
+        "learning": {
+            "status": learning_engine.status(),
+            "mistakes": learning_engine.mistake_report(),
+        },
+    })
+
 def build_handler(base, runtime):
     V16Handler = build_v16_handler(base, runtime)
 
@@ -454,8 +492,12 @@ def build_handler(base, runtime):
                 '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V18_OPTIONS_WORKBENCH=false;window.JARVIS_V19_WORKSPACE_OS=false;window.JARVIS_V20_WORKSPACE_OS=true;</script>'
                 '<script src="/v17_live_fetch_scheduler.js?v=170404"></script>'
                 '<script defer src="/v17_runtime.js?v=170404"></script>'
-                '<link rel="stylesheet" href="/v20_workspace_os.css?v=200103">'
-                '<script defer src="/v20_workspace_os.js?v=200103"></script>'
+                '<link rel="stylesheet" href="/v18_options_workbench.css?v=180102">'
+                '<script defer src="/v18_options_workbench.js?v=180102"></script>'
+                '<link rel="stylesheet" href="/v19_workspace_cockpit.css?v=190102">'
+                '<script defer src="/v19_workspace_cockpit.js?v=190102"></script>'
+                '<link rel="stylesheet" href="/v20_workspace_os.css?v=200104">'
+                '<script defer src="/v20_workspace_os.js?v=200104"></script>'
                 '<script defer src="/v17_crypto_paper_runtime.js?v=170302"></script>'
             )
             content = html.replace("</head>", injection + "</head>").encode("utf-8")
@@ -528,6 +570,23 @@ def build_handler(base, runtime):
                 query = urllib.parse.urlparse(self.path).query
                 return self.send_json(_v20_options_agent_proxy(query))
 
+            if parsed.path == "/api/v20/options/health" and self._local():
+                request = urllib.request.Request("http://127.0.0.1:8796/health", headers={"Cache-Control": "no-cache"})
+                try:
+                    with urllib.request.urlopen(request, timeout=1.5) as response:
+                        return self.send_json(_safety(dict(json.loads(response.read().decode("utf-8")) or {})))
+                except Exception as exc:
+                    return self.send_json(_safety({"success": False, "state": "OFFLINE", "reason": "OPTIONS_AGENT_UNAVAILABLE", "message": f"{type(exc).__name__}: {exc}"[:300]}), 503)
+
+            if parsed.path == "/api/v20/journal" and self._local():
+                params = urllib.parse.parse_qs(parsed.query)
+                try:
+                    limit = max(1, min(int(params.get("limit", ["100"])[0]), 250))
+                except (TypeError, ValueError):
+                    limit = 100
+                workspace = params.get("workspace", [None])[0]
+                return self.send_json(_v20_journal_payload(limit=limit, workspace=workspace))
+
             if parsed.path == "/api/v17/options/chain" and self._local():
                 params = urllib.parse.parse_qs(parsed.query)
                 workspace = str(params.get("workspace", ["OPTIONS"])[0]).upper()
@@ -562,7 +621,7 @@ def build_handler(base, runtime):
             if parsed.path == "/" and self._local():
                 return self._serve_v17_root()
 
-            if parsed.path in {"/v17_runtime.js", "/v17_live_fetch_scheduler.js", "/v17_crypto_paper_runtime.js", "/v17_options_runtime.js", "/v18_options_workbench.js", "/v20_workspace_os.js", "/v20_workspace_os.css"} and self._local():
+            if parsed.path in {"/v17_runtime.js", "/v17_live_fetch_scheduler.js", "/v17_crypto_paper_runtime.js", "/v17_options_runtime.js", "/v18_options_workbench.js", "/v19_workspace_cockpit.js", "/v19_workspace_cockpit.css", "/v18_options_workbench.css", "/v20_workspace_os.js", "/v20_workspace_os.css"} and self._local():
                 from workstation.quant_terminal_v2 import STATIC
                 return self.send_file(STATIC / parsed.path.lstrip("/"), "text/css; charset=utf-8" if parsed.path.endswith(".css") else "application/javascript; charset=utf-8")
 
@@ -587,6 +646,20 @@ def build_handler(base, runtime):
 
         def do_POST(self):
             parsed = urllib.parse.urlparse(self.path)
+            if parsed.path == "/api/v20/control":
+                if not self._authorized_v16_write():
+                    return self.send_json(_safety({"success": False, "reason": "LOCAL_SESSION_TOKEN_REQUIRED", "message": "Refresh this local terminal before changing V20 PAPER state."}), 403)
+                try:
+                    body = self._v16_body()
+                    action = str(body.get("action") or "").strip().lower()
+                    action = "start" if action in {"start", "resume", "run"} else "stop" if action in {"stop", "pause", "stop_new_entries", "stop_for_day"} else action
+                    if action not in {"start", "stop"}:
+                        raise ValueError("V20 global control accepts start or stop.")
+                    control = _autopilot_control(runtime, body)
+                    options = _v20_options_agent_control(action)
+                    return self.send_json(_safety({"success": bool(control.get("success")) and bool(options.get("success", True)), "service": "JARVIS_V20_GLOBAL_CONTROL", "version": "20.3", "action": action.upper(), "workspaces": control.get("results") or {}, "options_agent": options, "preferences": control.get("preferences") or load_preferences(), "message": ("JARVIS global PAPER trading started across Intraday, Swing, Investment and the Options Agent. Existing positions remain under management and new entries use current workspace capital only." if action == "start" else "JARVIS global PAPER new entries paused. Existing Swing and Investment positions remain monitored and managed.")}))
+                except (ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+                    return self.send_json(_safety({"success": False, "message": str(exc)}), 400)
             if parsed.path not in {V17_PREFERENCES_PATH, V17_CONTROL_PATH}:
                 return super().do_POST()
             if not self._authorized_v16_write():
