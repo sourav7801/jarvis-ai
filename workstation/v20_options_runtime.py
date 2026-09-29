@@ -241,13 +241,34 @@ class V20OptionsAgent:
         signal = _underlying_signal(candles)
 
         chain = list(chain_payload.get("chain") or [])
-        selected = _choose_contract(chain, signal["side"], _num(chain_payload.get("spot"))) if signal.get("side") in {"CALL", "PUT"} else None
+        directional_side = signal.get("side")
+        selection_attempted = directional_side in {"CALL", "PUT"}
+        selected = (
+            _choose_contract(
+                chain,
+                directional_side,
+                _num(chain_payload.get("spot")),
+            )
+            if selection_attempted
+            else None
+        )
         fresh_chain = not bool(chain_payload.get("stale"))
         score = (float(signal.get("score") or 0.0) + 1.0) * 50.0
         contract_score = float((selected or {}).get("selection_score") or 0.0)
         composite = round(0.60 * score + 0.40 * contract_score, 2)
 
-        session = VENUE_SESSIONS.evaluate("NSE")
+        canonical_upper = canonical.upper()
+        if canonical_upper in {"NIFTY", "BANKNIFTY"}:
+            venue = "NSE"
+        elif canonical_upper == "SENSEX":
+            venue = "BSE"
+        elif canonical_upper in {"CRUDEOIL", "GOLD", "SILVER", "NATURALGAS"}:
+            venue = "MCX"
+        elif canonical_upper in {"BTC", "ETH", "SOL"}:
+            venue = "CRYPTO_24_7"
+        else:
+            venue = "NSE"
+        session = VENUE_SESSIONS.evaluate(venue)
         blockers: list[str] = []
         if not session.entry_eligible:
             blockers.append("NSE_SESSION_NOT_ENTRY_ELIGIBLE")
@@ -257,7 +278,7 @@ class V20OptionsAgent:
             blockers.append("NO_DIRECTIONAL_EDGE")
         if not fresh_chain:
             blockers.append("CHAIN_STALE")
-        if selected is None:
+        if selection_attempted and selected is None:
             blockers.append("NO_LIQUID_CONTRACT")
         if selected is not None:
             bid, ask, ltp = _num(selected.get("bid")), _num(selected.get("ask")), _num(selected.get("ltp"))
@@ -328,6 +349,16 @@ class V20OptionsAgent:
             "underlying_candles": candles,
             "underlying_signal": signal,
             "selected_contract": selected,
+            "selection": {
+                "attempted": selection_attempted,
+                "status": (
+                    "SELECTED"
+                    if selected is not None
+                    else "WAITING_FOR_DIRECTIONAL_EDGE"
+                    if signal.get("side") == "WAIT"
+                    else "NO_LIQUID_CONTRACT"
+                ),
+            },
             "composite_score": composite,
             "eligible": eligible,
             "blockers": blockers,
