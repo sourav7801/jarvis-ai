@@ -240,7 +240,10 @@ def status() -> dict[str, Any]:
         "live_execution": False,
         "automatic_broker_order": False,
         "manual_option_selection_required": False,
-        "forced_trade_quota": False,\n        "multi_agent_mesh": True,\n        "agent_mesh_port": 8795,\n        "agent_mesh_max_workers": 6,
+        "forced_trade_quota": False,
+        "multi_agent_mesh": True,
+        "agent_mesh_port": 8795,
+        "agent_mesh_max_workers": 6,
         "options_agent": True,
         "options_agent_port": 8796,
     }
