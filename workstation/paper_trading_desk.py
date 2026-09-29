@@ -935,6 +935,21 @@ class PaperTradingDesk:
                 "hold_seconds": None,
                 "status": "OPEN",
             }
+            journal_note = {
+                "entry_note": str(
+                    request_metadata.get("journal_note")
+                    or request_metadata.get("thesis")
+                    or request_metadata.get("reason")
+                    or request_metadata.get("message")
+                    or "Paper position opened from a governed strategy decision."
+                )[:1200],
+                "entry_setup": request_metadata.get("setup") or request_metadata.get("strategy_family") or strategy,
+                "entry_context": {
+                    "regime": request_metadata.get("regime"),
+                    "votes": request_metadata.get("votes") or [],
+                    "evidence": request_metadata.get("evidence") or request_metadata.get("timeframe_evidence") or [],
+                },
+            }
             cursor = conn.execute(
                 """
                 INSERT INTO paper_positions(
@@ -979,6 +994,7 @@ class PaperTradingDesk:
                             "execution_cost_config": execution_cost_config,
                             "cost_model_status": cost_status,
                             "journal_lifecycle": journal_lifecycle,
+                            "journal": journal_note,
                         },
                         default=str,
                         sort_keys=True,
@@ -1309,6 +1325,13 @@ class PaperTradingDesk:
                     "banked_scale_out_pnl": banked_pnl,
                 }
             )
+            prior_journal = dict(final_metadata.get("journal") or {})
+            prior_journal.update({
+                "close_note": f"{'WIN' if pnl > 1e-9 else 'LOSS' if pnl < -1e-9 else 'BREAKEVEN'} · {str(reason or 'PAPER_EXIT')}",
+                "hold_seconds": hold_seconds,
+                "realized_pnl": pnl,
+            })
+            final_metadata["journal"] = prior_journal
             conn.execute(
                 "UPDATE paper_positions SET status='CLOSED',closed_at=?,exit_price=?,realized_pnl=?,metadata_json=? WHERE id=?",
                 (
