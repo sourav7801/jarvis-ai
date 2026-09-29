@@ -52,6 +52,47 @@ class PaperTradingDeskTests(unittest.TestCase):
         self.assertEqual(final["open_count"], 0)
         self.assertAlmostEqual(final["realized_pnl"], 30.0)
 
+    def test_trade_journal_persists_lifecycle_and_close_learning_review(self):
+        opened = self.desk.open_position(
+            symbol="NIFTY",
+            side="LONG",
+            entry=100.0,
+            stop=98.0,
+            target=104.0,
+            quantity=10,
+            external_id="journal:test",
+            metadata={
+                "decision_at": "2026-09-30T09:14:00+00:00",
+                "thesis": "Completed-bar momentum setup",
+                "strategy_family": "MOMENTUM",
+            },
+        )
+        self.assertTrue(opened["success"])
+        self.assertIn("position_id", opened)
+
+        closed = self.desk.close_position(
+            position_id=opened["position_id"],
+            exit_price=103.0,
+            reason="TEST_EXIT",
+        )
+        self.assertTrue(closed["success"])
+        self.assertIn(closed["learning_review"]["status"], {"RECORDED", "DEGRADED"})
+
+        rows = self.desk.trade_journal(limit=10)
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row["trade_id"], "journal:test")
+        self.assertEqual(row["status"], "CLOSED")
+        self.assertEqual(row["decision_at"], "2026-09-30T09:14:00+00:00")
+        self.assertTrue(row["execution_at"])
+        self.assertTrue(row["closed_at"])
+        self.assertTrue(row["exit_execution_at"])
+        self.assertIn("hold_seconds", row)
+        self.assertIn("entry_note", row["journal"])
+        self.assertEqual(row["learning_review"]["status"], closed["learning_review"]["status"])
+        self.assertTrue(any(event["type"] == "OPEN" for event in row["events"]))
+        self.assertTrue(any(event["type"] == "CLOSE" for event in row["events"]))
+
     def test_duplicate_external_id_is_idempotent(self):
         kwargs = dict(
             symbol="BTC",
