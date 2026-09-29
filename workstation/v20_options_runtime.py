@@ -105,8 +105,15 @@ def _underlying_signal(candles: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _contract_score(contract: dict[str, Any], side: str, max_volume: float, max_oi: float) -> float:
-    delta = abs(_num(contract.get("delta")) or 0.0)
+def _contract_score(
+    contract: dict[str, Any],
+    side: str,
+    max_volume: float,
+    max_oi: float,
+    spot: float | None = None,
+) -> float:
+    raw_delta = _num(contract.get("delta"))
+    delta = abs(raw_delta) if raw_delta is not None else 0.0
     ltp = _num(contract.get("ltp")) or 0.0
     bid = _num(contract.get("bid"))
     ask = _num(contract.get("ask"))
@@ -117,7 +124,18 @@ def _contract_score(contract: dict[str, Any], side: str, max_volume: float, max_
     volume = max(0.0, _num(contract.get("volume")) or 0.0)
     oi = max(0.0, _num(contract.get("open_interest")) or 0.0)
     oich = _num(contract.get("change_in_oi")) or 0.0
-    delta_fit = max(0.0, 1.0 - abs(delta - 0.50) / 0.50)
+    if raw_delta is not None:
+        delta_fit = max(0.0, 1.0 - abs(delta - 0.50) / 0.50)
+    else:
+        # FYERS may return a verified chain without Greeks. Keep contract
+        # discovery useful by using a clearly-labeled near-ATM moneyness proxy;
+        # entry still requires an actual delta below.
+        strike = _num(contract.get("strike"))
+        if spot is not None and spot > 0 and strike is not None:
+            distance_pct = abs(strike - spot) / spot
+            delta_fit = max(0.0, 1.0 - min(1.0, distance_pct / 0.05))
+        else:
+            delta_fit = 0.0
     # Rank quote quality continuously. The 8% spread limit is an entry
     # eligibility rule below; it should not make every wider quote equally
     # attractive during contract selection.
@@ -137,13 +155,20 @@ def _spread_ratio(contract: dict[str, Any]) -> float | None:
     return (ask - bid) / ltp
 
 
-def _choose_contract(chain: list[dict[str, Any]], side: str) -> dict[str, Any] | None:
+def _choose_contract(
+    chain: list[dict[str, Any]],
+    side: str,
+    spot: float | None = None,
+) -> dict[str, Any] | None:
     option_type = "CE" if side == "CALL" else "PE"
     candidates = [
         dict(row) for row in chain
         if str(row.get("option_type") or "").upper() == option_type
         and (_num(row.get("ltp")) or 0.0) > 0
-        and _num(row.get("delta")) is not None
+        and (
+            _num(row.get("delta")) is not None
+            or _num(row.get("strike")) is not None
+        )
     ]
     if not candidates:
         return None
@@ -161,7 +186,9 @@ def _choose_contract(chain: list[dict[str, Any]], side: str) -> dict[str, Any] |
     max_volume = max((_num(x.get("volume")) or 0.0) for x in ranking_pool) or 1.0
     max_oi = max((_num(x.get("open_interest")) or 0.0) for x in ranking_pool) or 1.0
     for row in ranking_pool:
-        row["selection_score"] = _contract_score(row, side, max_volume, max_oi)
+        row["selection_score"] = _contract_score(
+            row, side, max_volume, max_oi, spot
+        )
     ranking_pool.sort(key=lambda x: x["selection_score"], reverse=True)
     return ranking_pool[0]
 
@@ -214,7 +241,7 @@ class V20OptionsAgent:
         signal = _underlying_signal(candles)
 
         chain = list(chain_payload.get("chain") or [])
-        selected = _choose_contract(chain, signal["side"]) if signal.get("side") in {"CALL", "PUT"} else None
+        selected = _choose_contract(chain, signal["side"], _num(chain_payload.get("spot"))) if signal.get("side") in {"CALL", "PUT"} else None
         fresh_chain = not bool(chain_payload.get("stale"))
         score = (float(signal.get("score") or 0.0) + 1.0) * 50.0
         contract_score = float((selected or {}).get("selection_score") or 0.0)
@@ -236,9 +263,13 @@ class V20OptionsAgent:
             bid, ask, ltp = _num(selected.get("bid")), _num(selected.get("ask")), _num(selected.get("ltp"))
             if bid is not None and ask is not None and ltp and ltp > 0 and (ask - bid) / ltp > 0.08:
                 blockers.append("SPREAD_TOO_WIDE")
-            delta = abs(_num(selected.get("delta")) or 0.0)
-            if delta < 0.30 or delta > 0.70:
-                blockers.append("DELTA_OUTSIDE_ENTRY_BAND")
+            delta = _num(selected.get("delta"))
+            if delta is None:
+                blockers.append("DELTA_UNAVAILABLE")
+            else:
+                delta = abs(delta)
+                if delta < 0.30 or delta > 0.70:
+                    blockers.append("DELTA_OUTSIDE_ENTRY_BAND")
 
         eligible = not blockers and composite >= 72.0
 
