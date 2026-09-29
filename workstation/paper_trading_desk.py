@@ -612,6 +612,88 @@ class PaperTradingDesk:
                           json.dumps({"symbol": request.get("symbol"), "side": request.get("side"), **result}, default=str)))
             return result
 
+    def trade_journal(self, *, workspace: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+        """Return a complete lifecycle journal from the Paper Desk authority."""
+        try:
+            cap = max(1, min(int(limit), 250))
+        except (TypeError, ValueError):
+            cap = 100
+        wanted = str(workspace or "").strip().upper()
+        with self._lock, self._connection() as conn:
+            rows = conn.execute(
+                "SELECT * FROM paper_positions ORDER BY id DESC LIMIT ?",
+                (cap * 2,),
+            ).fetchall()
+            result: list[dict[str, Any]] = []
+            for row in rows:
+                metadata = self._metadata(row)
+                bucket = str(metadata.get("portfolio_bucket") or "INTRADAY").upper()
+                if wanted and bucket != wanted:
+                    continue
+                lifecycle = dict(metadata.get("journal_lifecycle") or {})
+                closed_at = row["closed_at"]
+                opened_at = str(row["opened_at"] or "")
+                hold_seconds = lifecycle.get("hold_seconds")
+                if hold_seconds is None and closed_at and opened_at:
+                    try:
+                        hold_seconds = max(0.0, (
+                            datetime.fromisoformat(str(closed_at)).astimezone(timezone.utc)
+                            - datetime.fromisoformat(opened_at).astimezone(timezone.utc)
+                        ).total_seconds())
+                    except (TypeError, ValueError):
+                        hold_seconds = None
+                events = []
+                for event in conn.execute(
+                    "SELECT id,event_type,created_at,payload_json FROM paper_events WHERE position_id=? ORDER BY id ASC",
+                    (int(row["id"]),),
+                ).fetchall():
+                    try:
+                        payload = json.loads(event["payload_json"] or "{}")
+                    except Exception:
+                        payload = {}
+                    events.append({
+                        "id": int(event["id"]),
+                        "type": str(event["event_type"]),
+                        "at": str(event["created_at"]),
+                        "payload": payload,
+                    })
+                result.append({
+                    "trade_id": lifecycle.get("trade_id") or row["external_id"] or f"JARVIS-PAPER-{int(row['id']):06d}",
+                    "position_id": int(row["id"]),
+                    "workspace": bucket,
+                    "status": str(row["status"]),
+                    "symbol": str(row["symbol"]),
+                    "asset_type": str(row["asset_type"]),
+                    "side": str(row["side"]),
+                    "quantity": _f(row["quantity"]),
+                    "entry": _f(row["entry"]),
+                    "exit_price": _f(row["exit_price"]) if row["exit_price"] is not None else None,
+                    "stop": _f(row["stop"]) if row["stop"] is not None else None,
+                    "target": _f(row["target"]) if row["target"] is not None else None,
+                    "opened_at": opened_at,
+                    "closed_at": str(closed_at) if closed_at else None,
+                    "decision_at": lifecycle.get("decision_at"),
+                    "execution_at": lifecycle.get("execution_at") or opened_at,
+                    "exit_decision_at": lifecycle.get("exit_decision_at"),
+                    "exit_execution_at": lifecycle.get("exit_execution_at") or (str(closed_at) if closed_at else None),
+                    "hold_seconds": hold_seconds,
+                    "strategy": str(row["strategy"]),
+                    "score": _f(row["score"]) if row["score"] is not None else None,
+                    "source": str(row["source"]),
+                    "realized_pnl": _f(row["realized_pnl"]),
+                    "mae_pnl": _f(metadata.get("mae_pnl")),
+                    "mfe_pnl": _f(metadata.get("mfe_pnl")),
+                    "mae_r": _f(metadata.get("mae_r")),
+                    "mfe_r": _f(metadata.get("mfe_r")),
+                    "exit_reason": metadata.get("exit_reason"),
+                    "journal": metadata.get("journal") or {},
+                    "learning_review": metadata.get("learning_review") or {},
+                    "events": events,
+                })
+                if len(result) >= cap:
+                    break
+        return result
+
     def _open_position(
         self,
         *,
@@ -834,6 +916,25 @@ class PaperTradingDesk:
             ):
                 return {"success": False, "reason": "MAX_CORRELATED_EXPOSURE", "paper_only": True, "live_execution": False}
 
+            opened_at = _now()
+            request_metadata = dict(metadata or {})
+            decision_at = str(
+                request_metadata.get("decision_at")
+                or request_metadata.get("signal_at")
+                or request_metadata.get("candidate_at")
+                or opened_at
+            )
+            journal_lifecycle = {
+                "trade_id": str(external_id or ""),
+                "decision_at": decision_at,
+                "execution_at": opened_at,
+                "opened_at": opened_at,
+                "closed_at": None,
+                "exit_decision_at": None,
+                "exit_execution_at": None,
+                "hold_seconds": None,
+                "status": "OPEN",
+            }
             cursor = conn.execute(
                 """
                 INSERT INTO paper_positions(
@@ -855,10 +956,10 @@ class PaperTradingDesk:
                     _f(score) if score is not None else None,
                     str(source or "JARVIS"),
                     "OPEN",
-                    _now(),
+                    opened_at,
                     json.dumps(
                         {
-                            **(metadata or {}),
+                            **request_metadata,
                             "portfolio_bucket": normalized_bucket,
                             "bucket_allocation_fraction": bounded_bucket_fraction,
                             "valuation_multiplier": bounded_valuation_multiplier,
@@ -874,9 +975,10 @@ class PaperTradingDesk:
                             "mae_r": 0.0,
                             "mfe_r": 0.0,
                             "last_mark": entry_value,
-                            "last_mark_at": _now(),
+                            "last_mark_at": opened_at,
                             "execution_cost_config": execution_cost_config,
                             "cost_model_status": cost_status,
+                            "journal_lifecycle": journal_lifecycle,
                         },
                         default=str,
                         sort_keys=True,
@@ -884,6 +986,16 @@ class PaperTradingDesk:
                 ),
             )
             position_id = int(cursor.lastrowid)
+            if not journal_lifecycle["trade_id"]:
+                journal_lifecycle["trade_id"] = f"JARVIS-PAPER-{position_id:06d}"
+                stored = self._metadata(
+                    conn.execute("SELECT * FROM paper_positions WHERE id=?", (position_id,)).fetchone()
+                )
+                stored["journal_lifecycle"] = journal_lifecycle
+                conn.execute(
+                    "UPDATE paper_positions SET metadata_json=? WHERE id=?",
+                    (json.dumps(stored, default=str, sort_keys=True), position_id),
+                )
             self._event(
                 conn,
                 position_id,
@@ -1134,6 +1246,7 @@ class PaperTradingDesk:
             accounting = self._accounting(row_metadata)
             position_multiplier = accounting["position_multiplier"]
             exit_reference = exit_value
+            exit_decision_at = str(row_metadata.get("exit_decision_at") or _now())
             exit_fees = 0.0
             exit_friction_cost = 0.0
             cost_config = row_metadata.get("execution_cost_config")
@@ -1162,6 +1275,29 @@ class PaperTradingDesk:
             pnl = final_leg_pnl + banked_pnl
             closed_at = _now()
             final_metadata = self._excursion_metadata(row, exit_value, observed_at=closed_at)
+            opened_at = str(row["opened_at"] or closed_at)
+            try:
+                hold_seconds = max(0.0, (
+                    datetime.fromisoformat(closed_at).astimezone(timezone.utc)
+                    - datetime.fromisoformat(opened_at).astimezone(timezone.utc)
+                ).total_seconds())
+            except (TypeError, ValueError):
+                hold_seconds = None
+            lifecycle = dict(final_metadata.get("journal_lifecycle") or {})
+            lifecycle.update(
+                {
+                    "trade_id": lifecycle.get("trade_id") or row["external_id"] or f"JARVIS-PAPER-{int(row['id']):06d}",
+                    "decision_at": lifecycle.get("decision_at") or opened_at,
+                    "execution_at": lifecycle.get("execution_at") or opened_at,
+                    "opened_at": opened_at,
+                    "closed_at": closed_at,
+                    "exit_decision_at": exit_decision_at,
+                    "exit_execution_at": closed_at,
+                    "hold_seconds": hold_seconds,
+                    "status": "CLOSED",
+                }
+            )
+            final_metadata["journal_lifecycle"] = lifecycle
             final_metadata.update(
                 {
                     "exit_reference": exit_reference,
@@ -1199,17 +1335,45 @@ class PaperTradingDesk:
                 },
             )
 
+        learning_result: dict[str, Any] = {}
         try:
             from omni.trading_intelligence.trade_learning_engine import learning_engine
 
-            learning_engine.record_closed_row(
-                row,
-                exit_price=exit_value,
-                pnl=pnl,
-                reason=reason,
+            learning_result = dict(
+                learning_engine.record_closed_row(
+                    row,
+                    position_id=int(row["id"]),
+                    exit_price=exit_value,
+                    pnl=pnl,
+                    reason=reason,
+                )
+                or {}
             )
-        except Exception:
+            event = dict(learning_result.get("event") or {})
+            final_metadata["learning_review"] = {
+                "status": "RECORDED",
+                "analyzed_at": event.get("recorded_at") or _now(),
+                "outcome": "WIN" if pnl > 1e-9 else "LOSS" if pnl < -1e-9 else "BREAKEVEN",
+                "r_multiple": event.get("r_multiple"),
+                "mistake_hypotheses": event.get("mistake_hypotheses") or [],
+                "family_weights_after": learning_result.get("family_weights") or {},
+                "strategy": str(row["strategy"]),
+                "reason": str(reason or ""),
+            }
+        except Exception as exc:
             # Learning telemetry must never block a synthetic paper exit.
+            final_metadata["learning_review"] = {
+                "status": "DEGRADED",
+                "analyzed_at": _now(),
+                "error": f"{type(exc).__name__}: {exc}"[:300],
+            }
+        try:
+            with self._lock, self._connection() as conn:
+                conn.execute(
+                    "UPDATE paper_positions SET metadata_json=? WHERE id=?",
+                    (json.dumps(final_metadata, default=str, sort_keys=True), int(row["id"])),
+                )
+        except Exception:
             pass
 
         return {
