@@ -15,6 +15,8 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
+from workstation.market_data_contract import VENUE_SESSIONS
+
 HOST = "127.0.0.1"
 QUANT_PORT = 8787
 
@@ -193,7 +195,10 @@ class V20OptionsAgent:
         contract_score = float((selected or {}).get("selection_score") or 0.0)
         composite = round(0.60 * score + 0.40 * contract_score, 2)
 
+        session = VENUE_SESSIONS.evaluate("NSE")
         blockers: list[str] = []
+        if not session.entry_eligible:
+            blockers.append("NSE_SESSION_NOT_ENTRY_ELIGIBLE")
         if not signal.get("ready"):
             blockers.append("UNDERLYING_NOT_READY")
         if signal.get("side") == "WAIT":
@@ -272,6 +277,7 @@ class V20OptionsAgent:
             "blockers": blockers,
             "paper_trade": paper_trade,
             "positions": positions,
+            "session": session.as_dict(),
             "data_quality": {
                 "chain": chain_payload.get("source") or "FYERS_OPTION_CHAIN_V3",
                 "candles": candles_payload.get("source") or "VERIFIED_CANDLES",
