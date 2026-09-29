@@ -9,6 +9,8 @@ from __future__ import annotations
 import math
 import os
 import urllib.parse
+import urllib.request
+import json
 from typing import Any
 
 from workstation.v16_terminal_http import build_handler as build_v16_handler
@@ -390,6 +392,26 @@ def _option_chart_lane(provider: str, instrument: str, timeframe: str, bars: int
     return payload
 
 
+def _v20_options_agent_proxy(query: str) -> dict[str, Any]:
+    """Same-origin proxy to the dedicated V20 Options Agent on port 8796."""
+    url = "http://127.0.0.1:8796/api/v20/options/runtime"
+    if query:
+        url += "?" + query
+    request = urllib.request.Request(url, headers={"Cache-Control": "no-cache"})
+    try:
+        with urllib.request.urlopen(request, timeout=2.5) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        return _safety(dict(payload or {}))
+    except Exception as exc:
+        return _safety({
+            "success": False,
+            "service": "JARVIS_V20_OPTIONS_AGENT",
+            "state": "OFFLINE",
+            "reason": "OPTIONS_AGENT_UNAVAILABLE",
+            "message": f"{type(exc).__name__}: {exc}"[:500],
+        })
+
+
 def build_handler(base, runtime):
     V16Handler = build_v16_handler(base, runtime)
 
@@ -502,6 +524,10 @@ def build_handler(base, runtime):
                         payload["options"] = {"success": False, "status": "DEGRADED", "message": _safe_message(exc)}
                 return self.send_json(payload)
 
+            if parsed.path == "/api/v20/options/runtime" and self._local():
+                query = urllib.parse.urlparse(self.path).query
+                return self.send_json(_v20_options_agent_proxy(query))
+
             if parsed.path == "/api/v17/options/chain" and self._local():
                 params = urllib.parse.parse_qs(parsed.query)
                 workspace = str(params.get("workspace", ["OPTIONS"])[0]).upper()
@@ -597,6 +623,7 @@ __all__ = [
     "_normalize_capital_fraction",
     "_preference_updates",
     "_performance_payload",
+    "_v20_options_agent_proxy",
     "_route_metadata",
     "_v17_status",
     "build_handler",
