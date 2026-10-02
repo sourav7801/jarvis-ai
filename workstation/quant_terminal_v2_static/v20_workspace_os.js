@@ -14,7 +14,7 @@ async function getJSON(url,timeout=8000){
  catch(e){return {ok:false,p:{success:false,message:e.name==="AbortError"?"Request timed out":e.message}}}finally{clearTimeout(t)}
 }
 function activeWorkspace(){return String(document.querySelector(".workspace-modes button.active")?.dataset.workspace||state.workspace||"INTRADAY").toUpperCase()}
-function hideLegacy(){/* V20 is an orchestration layer. Proven V17/V18/V19 surfaces stay visible and authoritative. */}
+function hideLegacy(){document.body?.classList.add("v20-active");document.documentElement?.classList.add("v20-root-body");document.querySelectorAll("#v17RuntimeBanner,#v16AutonomyPrimary").forEach(n=>{n.hidden=true})}
 function ensure(){
  const w=document.querySelector(".workspace");if(!w)return null;
  let root=$("v20WorkspaceOS");
