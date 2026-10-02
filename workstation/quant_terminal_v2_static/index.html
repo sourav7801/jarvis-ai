@@ -7,12 +7,13 @@
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/v16_workspace.css">
 <script src="/lightweight-charts.standalone.production.js"></script>
+<link rel="stylesheet" href="/v20_workspace_os.css?v=200106">
 </head>
 <body>
 <header class="topbar">
   <div class="brand">
     <div class="logo">J</div>
-    <div><b>JARVIS QUANT TRADING INTELLIGENCE</b><span>V15 AUTONOMOUS MARKET REASONING · PAPER / RESEARCH</span></div>
+    <div><b>JARVIS QUANT TRADING INTELLIGENCE</b><span>V20 WORKSPACE OPERATING SYSTEM · V17/V18/V19 ORCHESTRATED · PAPER / RESEARCH</span></div>
   </div>
   <div class="top-status">
     <button id="providerButton" class="status-pill warn">FYERS · CHECKING</button>
@@ -38,6 +39,31 @@
 
   <section class="workspace">
     <nav class="workspace-modes" aria-label="Trading workspace"><button data-workspace="INTRADAY" class="active">INTRADAY · 50%</button><button data-workspace="SWING">SWING · 30%</button><button data-workspace="INVESTMENT">INVESTMENT · 20%</button><button data-workspace="OPTIONS">OPTIONS</button></nav>
+    <div id="v20WorkspaceOS" class="v20-bootstrap-shell">
+      <section id="v20Global" class="v20-global v20-bootstrap">
+        <div class="v20-global-head">
+          <div>
+            <div class="v20-global-kicker">JARVIS V20 · GLOBAL CONTROL PLANE</div>
+            <div class="v20-global-title">FULL WORKSPACE COMMAND CENTER</div>
+            <div class="v20-global-sub">Intraday · Swing · Investment · Options · global market discovery · capital governance · trade journal · automatic learning</div>
+          </div>
+          <div class="v20-global-actions">
+            <button class="start" data-v20-global="start">START JARVIS TRADING</button>
+            <button class="stop" data-v20-global="stop">STOP NEW ENTRIES</button>
+            <button data-v20-global="scan">SCAN ALL MARKETS</button>
+            <button data-v20-global="refresh">REFRESH</button>
+          </div>
+        </div>
+        <div id="v20GlobalStatus" class="v20-global-status">V20 COMMAND CENTER · INITIALIZING CANONICAL RUNTIME…</div>
+        <div id="v20GlobalStrip" class="v20-global-strip"></div>
+        <div class="v20-global-grid">
+          <div class="v20-global-panel"><div class="head"><span class="title">OVERALL MARKET SCANNER</span><span class="hint">ALL UNIVERSES</span></div><div id="v20GlobalScanner"><div class="v20-empty"><b>GLOBAL DISCOVERY</b>Scanner is independent of the currently selected chart.</div></div></div>
+          <div class="v20-global-panel"><div class="head"><span class="title">CAPITAL + POSITION GOVERNANCE</span><span class="hint">NO DAILY TOP-UP</span></div><div id="v20GlobalPositions"><div class="v20-empty"><b>PAPER CAPITAL</b>Workspace capital is managed from existing allocated cash.</div></div></div>
+        </div>
+        <div class="v20-global-panel"><div class="head"><span class="title">TRADE JOURNAL + AUTOMATIC REVIEW</span><span class="hint">ENTRY → EXECUTION → MANAGEMENT → CLOSE → LEARNING</span></div><div id="v20GlobalJournal"><div class="v20-empty"><b>JOURNAL READY</b>Every paper trade records its lifecycle and receives an outcome review at close.</div></div></div>
+      </section>
+    </div>
+
     <div class="workspace-toolbar">
       <div class="toolbar-group">
         <span>LAYOUT</span>
@@ -273,5 +299,6 @@ if (!window.JARVIS_V16_CANONICAL) {
   setTimeout(pinAutonomousSurface, 500);
 })();
 </script>
+<script src="/v20_workspace_os.js?v=200106"></script>
 </body>
 </html>

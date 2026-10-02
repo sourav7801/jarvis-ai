@@ -272,7 +272,7 @@ class TradeLearningEngine:
             "live_execution": False,
         }
 
-    def record_closed_row(self, row: Any, *, exit_price: float, pnl: float, reason: str) -> dict[str, Any]:
+    def record_closed_row(self, row: Any, *, position_id: int | None = None, exit_price: float, pnl: float, reason: str) -> dict[str, Any]:
         def get(key: str, default: Any = None) -> Any:
             try:
                 return row[key]
@@ -285,7 +285,7 @@ class TradeLearningEngine:
                 metadata = {}
         except Exception:
             metadata = {}
-        return self.record_outcome(
+        result = self.record_outcome(
             symbol=str(get("symbol") or "UNKNOWN"),
             side=str(get("side") or ""),
             entry=_f(get("entry")),
@@ -299,6 +299,11 @@ class TradeLearningEngine:
             stop=_f(get("stop")) if get("stop") is not None else None,
             target=_f(get("target")) if get("target") is not None else None,
         )
+        if position_id is not None:
+            event = dict(result.get("event") or {})
+            event["position_id"] = int(position_id)
+            result["event"] = event
+        return result
 
     def family_weights(self) -> dict[str, float]:
         with self._lock:
