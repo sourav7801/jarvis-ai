@@ -488,18 +488,21 @@ def build_handler(base, runtime):
                 html = html.replace(f'<script src="/{asset}"></script>', "")
 
             # Keep the canonical V17 runtime and its bounded live-fetch scheduler.
-            injection = (
+            head_injection = (
                 '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V18_OPTIONS_WORKBENCH=true;window.JARVIS_V19_WORKSPACE_OS=true;window.JARVIS_V20_WORKSPACE_OS=true;</script>'
-                '<script src="/v17_live_fetch_scheduler.js?v=170404"></script>'
-                '<script defer src="/v17_runtime.js?v=170404"></script>'
-                '<script defer src="/v18_options_workbench.js?v=180102"></script>'
-                '<link rel="stylesheet" href="/v19_workspace_cockpit.css?v=190102">'
-                '<script defer src="/v19_workspace_cockpit.js?v=190102"></script>'
-                '<link rel="stylesheet" href="/v20_workspace_os.css?v=200104">'
-                '<script defer src="/v20_workspace_os.js?v=200104"></script>'
-                '<script defer src="/v17_crypto_paper_runtime.js?v=170302"></script>'
+                '<link rel="stylesheet" href="/v19_workspace_cockpit.css?v=190103">'
+                '<link rel="stylesheet" href="/v20_workspace_os.css?v=200105">'
             )
-            content = html.replace("</head>", injection + "</head>").encode("utf-8")
+            body_injection = (
+                '<script src="/v17_live_fetch_scheduler.js?v=170405"></script>'
+                '<script src="/v17_runtime.js?v=170405"></script>'
+                '<script src="/v18_options_workbench.js?v=180103"></script>'
+                '<script src="/v19_workspace_cockpit.js?v=190103"></script>'
+                '<script src="/v17_crypto_paper_runtime.js?v=170303"></script>'
+                '<script src="/v20_workspace_os.js?v=200105"></script>'
+            )
+            html = html.replace("</head>", head_injection + "</head>")
+            content = html.replace("</body>", body_injection + "</body>").encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(content)))
