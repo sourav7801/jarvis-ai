@@ -126,3 +126,20 @@ def test_overlapping_evaluation_returns_wait_state_without_second_run():
     assert result["state"] == "EVALUATING"
     assert result["symbol"] == "BANKNIFTY"
     assert result["live_execution"] is False
+
+
+
+def test_stopped_options_agent_cannot_create_a_paper_position():
+    from workstation.v20_options_runtime import V20OptionsAgent
+
+    agent = V20OptionsAgent()
+    agent.stop()
+    result = agent._open_if_running(
+        symbol="NSE:TEST",
+        side="BUY",
+        entry=10.0,
+        stop=8.0,
+        target=14.0,
+        quantity=1,
+    )
+    assert result == {"success": False, "reason": "OPTIONS_AGENT_STOPPED"}
