@@ -125,27 +125,38 @@ def backtest(
     start: int = 0,
     end: int | None = None,
 ) -> dict[str, Any]:
-    """Close-to-close backtest; signal at bar t applies to t+1 return."""
+    """Evaluate a close-to-close long/flat strategy over [start, end).
+
+    Signals are calculated on the full chronological series for indicator warm-up.
+    The signal from bar t is applied only to the return ending at bar t+1.
+    Trade statistics count completed position round trips, not signal flips or
+    profitable individual bars.
+    """
     rows = []
     for row in candles:
+        if not isinstance(row, dict):
+            continue
         close, high, low = _num(row.get("close")), _num(row.get("high")), _num(row.get("low"))
-        if close is not None and high is not None and low is not None and close > 0:
+        if close is not None and high is not None and low is not None and close > 0 and high >= low:
             rows.append({"close": close, "high": high, "low": low})
     closes = [r["close"] for r in rows]
     if end is None:
         end = len(rows)
     end = max(0, min(int(end), len(rows)))
     start = max(0, min(int(start), end))
+    cost_inputs = (_num(cost_per_turn_pct), _num(slippage_per_turn_pct))
+    if any(v is None or v < 0 for v in cost_inputs):
+        return {"ready": False, "reason": "INVALID_COST_ASSUMPTION", "metrics": asdict(BacktestMetrics())}
+    cost = float(cost_inputs[0]) + float(cost_inputs[1])
     if end - start < 3:
-        return {"ready": False, "reason": "INSUFFICIENT_EVALUATION_BARS", "metrics": asdict(BacktestMetrics(cost_per_turn_pct=cost_per_turn_pct + slippage_per_turn_pct))}
+        return {"ready": False, "reason": "INSUFFICIENT_EVALUATION_BARS", "metrics": asdict(BacktestMetrics(cost_per_turn_pct=cost))}
     signals = _signals(spec, closes, [r["high"] for r in rows], [r["low"] for r in rows])
-    cost = max(0.0, cost_per_turn_pct) + max(0.0, slippage_per_turn_pct)
     equity, peak, max_dd = 1.0, 1.0, 0.0
     returns: list[float] = []
-    trade_returns: list[float] = []
+    completed_trades: list[float] = []
+    trade_equity: float | None = None
     previous_position = 0
     for i in range(max(start + 1, 1), end):
-        # Use previous bar's signal only, preventing same-bar look-ahead.
         position = signals[i - 1]
         gross = position * (closes[i] / closes[i - 1] - 1.0) * 100.0
         turn = abs(position - previous_position)
@@ -154,25 +165,27 @@ def backtest(
         equity *= max(0.000001, 1 + net / 100.0)
         peak = max(peak, equity)
         max_dd = max(max_dd, (peak - equity) / peak * 100.0)
-        if turn:
-            if previous_position == 1 and trade_returns:
-                pass
-            trade_returns.append(net)
+        if position == 1 and previous_position == 0:
+            trade_equity = 1.0
+        if trade_equity is not None:
+            trade_equity *= max(0.000001, 1 + net / 100.0)
+        if position == 0 and previous_position == 1 and trade_equity is not None:
+            completed_trades.append((trade_equity - 1.0) * 100.0)
+            trade_equity = None
         previous_position = position
-    gains = sum(x for x in returns if x > 0)
-    losses = -sum(x for x in returns if x < 0)
+    gains = sum(x for x in completed_trades if x > 0)
+    losses = -sum(x for x in completed_trades if x < 0)
     metrics = BacktestMetrics(
         bars=len(returns),
-        trades=sum(1 for i in range(1, end) if signals[i] != signals[i - 1]),
-        win_rate=(sum(1 for x in returns if x > 0) / len(returns) * 100.0) if returns else 0.0,
+        trades=len(completed_trades),
+        win_rate=(sum(1 for x in completed_trades if x > 0) / len(completed_trades) * 100.0) if completed_trades else 0.0,
         net_return_pct=(equity - 1.0) * 100.0,
         profit_factor=(gains / losses if losses > 0 else (999.0 if gains > 0 else 0.0)),
         max_drawdown_pct=max_dd,
-        expectancy_pct=(sum(returns) / len(returns)) if returns else 0.0,
+        expectancy_pct=(sum(completed_trades) / len(completed_trades)) if completed_trades else 0.0,
         cost_per_turn_pct=cost,
     )
     return {"ready": True, "metrics": asdict(metrics)}
-
 
 def build_strategy_report(
     candles: Iterable[dict[str, Any]],
