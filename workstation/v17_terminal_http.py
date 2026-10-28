@@ -648,6 +648,28 @@ def build_handler(base, runtime):
 
         def do_POST(self):
             parsed = urllib.parse.urlparse(self.path)
+            if parsed.path == "/api/v20/strategy-builder":
+                if not self._local():
+                    return self.send_json(_safety({"success": False, "reason": "LOCAL_TERMINAL_ONLY"}), 403)
+                try:
+                    body = self._v16_body()
+                    candles = body.get("candles") or []
+                    if not isinstance(candles, list):
+                        raise ValueError("candles must be a list of OHLC dictionaries.")
+                    if len(candles) > 20000:
+                        raise ValueError("Maximum 20,000 candles per research run.")
+                    from omni.trading_intelligence.auto_strategy_builder import build_strategy_report
+                    report = build_strategy_report(
+                        candles,
+                        cost_per_turn_pct=float(body.get("cost_per_turn_pct", 0.10)),
+                        slippage_per_turn_pct=float(body.get("slippage_per_turn_pct", 0.05)),
+                        minimum_train_bars=int(body.get("minimum_train_bars", 120)),
+                        minimum_test_bars=int(body.get("minimum_test_bars", 40)),
+                        max_drawdown_pct=float(body.get("max_drawdown_pct", 12.0)),
+                    )
+                    return self.send_json(_safety({"service": "JARVIS_V20_AUTO_STRATEGY_BUILDER", **report}))
+                except (ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
+                    return self.send_json(_safety({"success": False, "message": str(exc)}), 400)
             if parsed.path == "/api/v20/control":
                 if not self._authorized_v16_write():
                     return self.send_json(_safety({"success": False, "reason": "LOCAL_SESSION_TOKEN_REQUIRED", "message": "Refresh this local terminal before changing V20 PAPER state."}), 403)
