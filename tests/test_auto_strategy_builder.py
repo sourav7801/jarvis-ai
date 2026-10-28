@@ -70,4 +70,7 @@ def test_trade_metrics_count_completed_round_trips_not_signal_flips():
     metrics = result["metrics"]
     assert metrics["trades"] >= 0
     assert 0 <= metrics["win_rate"] <= 100
-    assert metrics["expectancy_pct"] == 0 if metrics["trades"] == 0 else isinstance(metrics["expectancy_pct"], float)
+    if metrics["trades"] == 0:
+        assert metrics["expectancy_pct"] == 0.0
+    else:
+        assert isinstance(metrics["expectancy_pct"], float)
