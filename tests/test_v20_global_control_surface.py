@@ -27,3 +27,13 @@ def test_v20_global_control_routes_to_workspace_autopilot_and_options_agent():
     assert "_autopilot_control(runtime, body)" in http
     assert "_v20_options_agent_control(action)" in http
     assert 'parsed.path == "/api/v20/journal"' in http
+
+
+def test_v20_mounts_after_all_canonical_runtime_scripts():
+    html = (STATIC / "index.html").read_text(encoding="utf-8")
+    http = (ROOT / "workstation" / "v17_terminal_http.py").read_text(encoding="utf-8")
+    # The index must not execute V20 before V17/V18/V19 are injected.
+    assert 'src="/v20_workspace_os.js' not in html
+    body_injection = http.split("body_injection = (", 1)[1].split(")", 1)[0]
+    assert body_injection.index("/v19_workspace_cockpit.js") < body_injection.index("/v20_workspace_os.js")
+    assert 'src="/v20_workspace_os.js?v=200107"' in body_injection
