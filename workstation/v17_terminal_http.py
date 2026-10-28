@@ -499,7 +499,7 @@ def build_handler(base, runtime):
                 '<script src="/v18_options_workbench.js?v=180103"></script>'
                 '<script src="/v19_workspace_cockpit.js?v=190103"></script>'
                 '<script src="/v17_crypto_paper_runtime.js?v=170303"></script>'
-                '<script src="/v20_workspace_os.js?v=200107"></script>'
+                '<script src="/v20_workspace_os.js?v=200108"></script>'
             )
             html = html.replace("</head>", head_injection + "</head>")
             content = html.replace("</body>", body_injection + "</body>").encode("utf-8")
