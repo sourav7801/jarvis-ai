@@ -196,10 +196,20 @@ def _choose_contract(
 class V20OptionsAgent:
     def __init__(self) -> None:
         self._lock = threading.RLock()
+        self._evaluation_lock = threading.Lock()
         self._running = True
         self._last: dict[str, Any] = {}
+        self._active_config: tuple[str, str | None, str] = ("NIFTY", None, "5m")
         self._paper_position_id: int | None = None
         self._last_entry_key: str | None = None
+
+    def active_config(self) -> tuple[str, str | None, str]:
+        with self._lock:
+            return self._active_config
+
+    def start(self) -> None:
+        with self._lock:
+            self._running = True
 
     def _paper_positions(self) -> list[dict[str, Any]]:
         try:
@@ -210,6 +220,14 @@ class V20OptionsAgent:
             return []
 
     def evaluate(self, symbol: str = "NIFTY", expiry: str | None = None, timeframe: str = "5m") -> dict[str, Any]:
+        canonical = str(symbol or "NIFTY").strip().upper()
+        config = (canonical, str(expiry).strip() if expiry else None, str(timeframe or "5m").strip().lower())
+        with self._evaluation_lock:
+            with self._lock:
+                self._active_config = config
+            return self._evaluate_once(*config)
+
+    def _evaluate_once(self, symbol: str, expiry: str | None, timeframe: str) -> dict[str, Any]:
         canonical = str(symbol or "NIFTY").strip().upper()
         params = {"workspace": "OPTIONS", "symbol": canonical}
         if expiry:
@@ -253,6 +271,7 @@ class V20OptionsAgent:
             else None
         )
         fresh_chain = not bool(chain_payload.get("stale"))
+        fresh_candles = not bool(candles_payload.get("stale"))
         score = (float(signal.get("score") or 0.0) + 1.0) * 50.0
         contract_score = float((selected or {}).get("selection_score") or 0.0)
         composite = round(0.60 * score + 0.40 * contract_score, 2)
@@ -271,13 +290,15 @@ class V20OptionsAgent:
         session = VENUE_SESSIONS.evaluate(venue)
         blockers: list[str] = []
         if not session.entry_eligible:
-            blockers.append("NSE_SESSION_NOT_ENTRY_ELIGIBLE")
+            blockers.append(f"{venue}_SESSION_NOT_ENTRY_ELIGIBLE")
         if not signal.get("ready"):
             blockers.append("UNDERLYING_NOT_READY")
         if signal.get("side") == "WAIT":
             blockers.append("NO_DIRECTIONAL_EDGE")
         if not fresh_chain:
             blockers.append("CHAIN_STALE")
+        if not fresh_candles:
+            blockers.append("CANDLES_STALE")
         if selection_attempted and selected is None:
             blockers.append("NO_LIQUID_CONTRACT")
         if selected is not None:
@@ -368,8 +389,8 @@ class V20OptionsAgent:
             "data_quality": {
                 "chain": chain_payload.get("source") or "FYERS_OPTION_CHAIN_V3",
                 "candles": candles_payload.get("source") or "VERIFIED_CANDLES",
-                "chain_stale": bool(chain_payload.get("stale")),
-                "candle_stale": bool(candles_payload.get("stale")),
+                "chain_stale": not fresh_chain,
+                "candle_stale": not fresh_candles,
             },
             "generated_at": _now(),
             "paper_only": True,
@@ -398,7 +419,7 @@ class V20OptionsAgent:
     def run_forever(self, interval: float = 5.0) -> None:
         while self._running:
             try:
-                self.evaluate("NIFTY", None, "5m")
+                self.evaluate(*self.active_config())
             except Exception as exc:
                 with self._lock:
                     self._last = {
