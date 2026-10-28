@@ -212,7 +212,11 @@ def build_strategy_report(
         if not isinstance(row, dict):
             continue
         close, high, low = _num(row.get("close")), _num(row.get("high")), _num(row.get("low"))
-        if close is not None and high is not None and low is not None and close > 0:
+        if (
+            close is not None and high is not None and low is not None
+            and close > 0 and high >= low and low > 0
+            and low <= close <= high
+        ):
             rows.append({"close": close, "high": high, "low": low})
     n = len(rows)
     if n < minimum_train_bars + minimum_test_bars:
