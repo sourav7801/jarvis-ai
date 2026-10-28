@@ -80,3 +80,33 @@ def test_contract_selector_prefers_liquid_mid_delta_contract():
     assert selected is not None
     assert selected["symbol"] == "NSE:TEST-LOW"
     assert selected["selection_score"] > 0
+
+
+
+def test_options_agent_tracks_selected_underlying_without_network_io():
+    from workstation.v20_options_runtime import V20OptionsAgent
+
+    agent = V20OptionsAgent()
+    assert agent.active_config() == ("NIFTY", None, "5m")
+    agent.start()
+    seen = {}
+
+    def fake_evaluate(symbol, expiry, timeframe):
+        seen["config"] = (symbol, expiry, timeframe)
+        return {"success": True}
+
+    agent._evaluate_once = fake_evaluate
+    result = agent.evaluate("BANKNIFTY", "2026-10-29", "15m")
+    assert result["success"] is True
+    assert seen["config"] == ("BANKNIFTY", "2026-10-29", "15m")
+    assert agent.active_config() == ("BANKNIFTY", "2026-10-29", "15m")
+
+
+def test_options_agent_can_restart_after_stop():
+    from workstation.v20_options_runtime import V20OptionsAgent
+
+    agent = V20OptionsAgent()
+    agent.stop()
+    assert agent.status()["running"] is False
+    agent.start()
+    assert agent.status()["running"] is True
