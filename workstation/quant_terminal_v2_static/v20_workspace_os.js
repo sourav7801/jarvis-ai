@@ -38,8 +38,25 @@ const V20_MARKETS=[
  ["NATURALGAS","NAT GAS"],["BTC","BITCOIN"],["ETH","ETHEREUM"],["SOL","SOLANA"]
 ];
 const V20_TFS=["1m","3m","5m","15m","30m","1h","2h","4h","1d"];
-const v20ChartState={layout:4,slots:[],generation:0,active:false,loading:false};
+const v20ChartState={workspace:"INTRADAY",layout:4,slots:[],generation:0,active:false,loading:false};
+const v20ChartProfiles={
+ INTRADAY:{layout:4,slots:[]},
+ SWING:{layout:4,slots:[]},
+ INVESTMENT:{layout:2,slots:[]}
+};
 function v20ChartCount(v){return Math.max(1,Math.min(8,Math.trunc(Number(v)||4)))}
+function v20SwitchChartWorkspace(workspace){
+ const target=String(workspace||"INTRADAY").toUpperCase();
+ const current=v20ChartState.workspace;
+ if(current===target)return;
+ if(v20ChartProfiles[current]){
+  v20ChartProfiles[current]={layout:v20ChartState.layout,slots:v20ChartState.slots.map(s=>({symbol:s.symbol,timeframe:s.timeframe}))};
+ }
+ v20ChartState.workspace=target;
+ const profile=v20ChartProfiles[target]||{layout:4,slots:[]};
+ v20ChartState.layout=profile.layout;
+ v20ChartState.slots=profile.slots.map(s=>({...s}));
+}
 function v20ChartDefaults(workspace){
  const tf=workspace==="SWING"?"1h":workspace==="INVESTMENT"?"1d":"5m";
  return ["NIFTY","BANKNIFTY","SENSEX","CRUDEOIL","GOLD","BTC","ETH","SILVER"].map((symbol,i)=>({symbol,timeframe:tf}));
@@ -347,7 +364,7 @@ async function scanAllMarkets(){
 function render(){
  globalStyle();
  const root=ensure();if(!root)return;
- const w=activeWorkspace();state.workspace=w;
+ const w=activeWorkspace();state.workspace=w;v20SwitchChartWorkspace(w);
  const workspaceContent=w==="OPTIONS"?optionShell():w==="SWING"?swing():w==="INVESTMENT"?investment():intraday();
  root.innerHTML=header(w)+globalDeck(w)+workspaceContent;
  hideLegacy();
