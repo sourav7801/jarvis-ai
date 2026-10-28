@@ -143,3 +143,13 @@ def test_stopped_options_agent_cannot_create_a_paper_position():
         quantity=1,
     )
     assert result == {"success": False, "reason": "OPTIONS_AGENT_STOPPED"}
+
+
+
+def test_options_agent_starts_paused_until_explicit_start():
+    from workstation.v20_options_runtime import V20OptionsAgent
+
+    agent = V20OptionsAgent()
+    assert agent.status()["running"] is False
+    agent.start()
+    assert agent.status()["running"] is True
