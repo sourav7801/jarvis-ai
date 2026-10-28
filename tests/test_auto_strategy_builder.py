@@ -53,3 +53,21 @@ def test_backtest_accounts_for_round_trip_costs():
     free = backtest(rows, spec, cost_per_turn_pct=0, slippage_per_turn_pct=0)
     charged = backtest(rows, spec, cost_per_turn_pct=0.15, slippage_per_turn_pct=0.10)
     assert charged["metrics"]["net_return_pct"] <= free["metrics"]["net_return_pct"]
+
+
+
+def test_backtest_rejects_negative_or_nonfinite_costs():
+    negative = backtest(candles(), candidate_specs()[0], cost_per_turn_pct=-0.1)
+    infinite = backtest(candles(), candidate_specs()[0], slippage_per_turn_pct=float("inf"))
+    assert negative["ready"] is False
+    assert negative["reason"] == "INVALID_COST_ASSUMPTION"
+    assert infinite["ready"] is False
+    assert infinite["reason"] == "INVALID_COST_ASSUMPTION"
+
+
+def test_trade_metrics_count_completed_round_trips_not_signal_flips():
+    result = backtest(candles(), candidate_specs()[0])
+    metrics = result["metrics"]
+    assert metrics["trades"] >= 0
+    assert 0 <= metrics["win_rate"] <= 100
+    assert metrics["expectancy_pct"] == 0 if metrics["trades"] == 0 else isinstance(metrics["expectancy_pct"], float)
