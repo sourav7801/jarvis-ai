@@ -76,3 +76,22 @@ def test_trade_metrics_count_completed_round_trips_not_signal_flips():
         assert metrics["expectancy_pct"] == 0.0
     else:
         assert isinstance(metrics["expectancy_pct"], float)
+
+
+
+def test_builder_rejects_invalid_risk_assumptions():
+    import pytest
+
+    with pytest.raises(ValueError, match="max_drawdown_pct"):
+        build_strategy_report(candles(), max_drawdown_pct=float("nan"))
+    with pytest.raises(ValueError, match="Cost and slippage"):
+        build_strategy_report(candles(), cost_per_turn_pct=-1)
+
+
+def test_builder_skips_malformed_non_dictionary_candle_rows():
+    rows = candles()
+    rows[0] = None
+    rows[1] = "not a candle"
+    result = build_strategy_report(rows, minimum_train_bars=100, minimum_test_bars=30)
+    assert result["success"] is True
+    assert result["bars"] == len(rows) - 2
