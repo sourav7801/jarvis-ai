@@ -137,7 +137,11 @@ def backtest(
         if not isinstance(row, dict):
             continue
         close, high, low = _num(row.get("close")), _num(row.get("high")), _num(row.get("low"))
-        if close is not None and high is not None and low is not None and close > 0 and high >= low:
+        if (
+            close is not None and high is not None and low is not None
+            and close > 0 and high >= low and low > 0
+            and low <= close <= high
+        ):
             rows.append({"close": close, "high": high, "low": low})
     closes = [r["close"] for r in rows]
     if end is None:
