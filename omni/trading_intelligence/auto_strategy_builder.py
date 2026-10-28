@@ -216,19 +216,29 @@ def build_strategy_report(
         train = backtest(rows, spec, cost_per_turn_pct=cost_per_turn_pct, slippage_per_turn_pct=slippage_per_turn_pct, start=0, end=split)
         test = backtest(rows, spec, cost_per_turn_pct=cost_per_turn_pct, slippage_per_turn_pct=slippage_per_turn_pct, start=split, end=n)
         tm, om = train["metrics"], test["metrics"]
-        eligible = (
-            train.get("ready") and test.get("ready")
-            and om["trades"] >= 3
-            and om["net_return_pct"] > 0
-            and om["profit_factor"] >= 1.10
-            and om["max_drawdown_pct"] <= max_drawdown_pct
-            and tm["net_return_pct"] > 0
-        )
+        reasons = []
+        if not train.get("ready"):
+            reasons.append("TRAIN_WINDOW_NOT_READY")
+        if not test.get("ready"):
+            reasons.append("OUT_OF_SAMPLE_WINDOW_NOT_READY")
+        if tm["trades"] < 3:
+            reasons.append("INSUFFICIENT_TRAIN_ROUND_TRIPS")
+        if om["trades"] < 3:
+            reasons.append("INSUFFICIENT_OUT_OF_SAMPLE_ROUND_TRIPS")
+        if tm["net_return_pct"] <= 0:
+            reasons.append("TRAIN_RETURN_NOT_POSITIVE")
+        if om["net_return_pct"] <= 0:
+            reasons.append("OUT_OF_SAMPLE_RETURN_NOT_POSITIVE")
+        if om["profit_factor"] < 1.10:
+            reasons.append("OUT_OF_SAMPLE_PROFIT_FACTOR_BELOW_1_10")
+        if om["max_drawdown_pct"] > max_drawdown_pct:
+            reasons.append("OUT_OF_SAMPLE_DRAWDOWN_LIMIT_BREACHED")
+        eligible = not reasons
         score = (om["net_return_pct"] - 0.75 * om["max_drawdown_pct"] + min(om["profit_factor"], 3.0) * 0.5) if test.get("ready") else -999
         results.append({
             "spec": asdict(spec), "train": train.get("metrics"), "out_of_sample": test.get("metrics"),
             "score": round(score, 4), "paper_trial_eligible": bool(eligible),
-            "reasons": [] if eligible else ["RESEARCH_ONLY_UNTIL_ALL_GATES_PASS"],
+            "reasons": reasons,
         })
     results.sort(key=lambda x: (x["paper_trial_eligible"], x["score"]), reverse=True)
     return {
