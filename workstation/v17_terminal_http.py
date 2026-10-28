@@ -489,7 +489,7 @@ def build_handler(base, runtime):
 
             # Keep the canonical V17 runtime and its bounded live-fetch scheduler.
             head_injection = (
-                '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V18_OPTIONS_WORKBENCH=true;window.JARVIS_V19_WORKSPACE_OS=true;window.JARVIS_V20_WORKSPACE_OS=true;</script>'
+                '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V18_OPTIONS_WORKBENCH=true;window.JARVIS_V19_WORKSPACE_OS=true;window.JARVIS_V20_WORKSPACE_OS=true;window.JARVIS_V17_SINGLE_OPTION_CONTROLLER=true;</script>'
                 '<link rel="stylesheet" href="/v19_workspace_cockpit.css?v=190103">'
                 '<link rel="stylesheet" href="/v20_workspace_os.css?v=200108">'
             )
