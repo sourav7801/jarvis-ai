@@ -168,6 +168,11 @@ async function loadOptionRuntime(){
   const r=await getJSON("/api/v20/options/runtime?"+q,6500);
   if(id!==optionSeq)return;
   const p=r.p||{};
+  if(p.state==="EVALUATING"){
+    if(box)box.textContent="OPTIONS AGENT EVALUATING · waiting for the current verified-data pass";
+    const decision=$("v20DecisionState");if(decision)decision.textContent="EVALUATING · NO NEW ENTRY";
+    return;
+  }
   if(!r.ok||p.success!==true)throw new Error(p.message||"Options Agent unavailable");
   state.option.runtime=p;
   state.option.rows=Array.isArray(p.chain)?p.chain:[];state.option.spot=Number.isFinite(Number(p.spot))?Number(p.spot):null;state.option.pcr=Number.isFinite(Number(p.chain_analytics?.pcr_oi))?Number(p.chain_analytics.pcr_oi):Number.isFinite(Number(p.pcr_oi))?Number(p.pcr_oi):null;state.option.analytics=p.chain_analytics||{};state.option.expiries=Array.isArray(p.available_expiries)?p.available_expiries:[];
