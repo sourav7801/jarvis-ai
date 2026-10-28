@@ -387,7 +387,7 @@ async function buildStrategies(){
  if(!out)return;
  out.textContent="Loading verified OHLC history and evaluating candidate strategies…";
  try{
-  const q=new URLSearchParams({symbol,timeframe,bars:"1200",display:"1"});
+  const q=new URLSearchParams({symbol,timeframe,bars:"1200"});
   const market=await getJSON("/api/candles?"+q,25000);
   if(!market.ok||market.p.success!==true||!Array.isArray(market.p.candles))throw new Error(market.p.message||market.p.reason||"Verified candles unavailable");
   const response=await fetch("/api/v20/strategy-builder",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({candles:market.p.candles,cost_per_turn_pct:0.10,slippage_per_turn_pct:0.05,minimum_train_bars:120,minimum_test_bars:40,max_drawdown_pct:12})});
