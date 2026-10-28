@@ -218,8 +218,8 @@ class V17CrossMarketControlPlaneTests(unittest.TestCase):
 
         self.assertIn('"version": "17.4.1"', http)
         self.assertIn('"control_plane": control_plane', http)
-        self.assertIn('/v17_runtime.js?v=170401', http)
-        self.assertIn('/v17_crypto_paper_runtime.js?v=170300', http)
+        self.assertIn('/v17_runtime.js?v=170405', http)
+        self.assertIn('/v17_crypto_paper_runtime.js?v=170303', http)
         self.assertIn('id="v17ArmedState"', ui)
         self.assertIn("ARMED · AUTO-RESUME", ui)
         self.assertIn("DISARMED", cross_ui)
