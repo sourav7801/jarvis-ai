@@ -93,7 +93,7 @@ class V17UnifiedDataPlaneTests(unittest.TestCase):
     def test_v17_http_cache_busts_v174_assets_and_has_diagnostics(self):
         self.assertIn('/app.js?v=170406', self.terminal_http)
         self.assertIn('/v17_live_fetch_scheduler.js?v=170405', self.terminal_http)
-        self.assertIn('/v20_workspace_os.js?v=200109', self.terminal_http)
+        self.assertIn('/v20_workspace_os.js?v=200110', self.terminal_http)
         self.assertIn('/v17_runtime.js?v=170405', self.terminal_http)
         self.assertIn('/api/v17/diagnostics/performance', self.terminal_http)
         self.assertIn('"version": "17.4.1"', self.terminal_http)
