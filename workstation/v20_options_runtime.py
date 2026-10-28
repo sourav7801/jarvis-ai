@@ -197,7 +197,7 @@ class V20OptionsAgent:
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._evaluation_lock = threading.Lock()
-        self._running = True
+        self._running = False
         self._last: dict[str, Any] = {}
         self._active_config: tuple[str, str | None, str] = ("NIFTY", None, "5m")
         self._paper_position_id: int | None = None
