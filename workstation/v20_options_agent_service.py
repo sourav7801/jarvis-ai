@@ -11,6 +11,25 @@ from workstation.v20_options_runtime import options_agent
 
 HOST = "127.0.0.1"
 PORT = int(os.getenv("JARVIS_V20_OPTIONS_AGENT_PORT", "8796"))
+_worker_stop = threading.Event()
+
+
+def _worker_loop() -> None:
+    """Persistent supervisor loop; stopping the agent pauses evaluations, not the worker."""
+    while not _worker_stop.is_set():
+        if options_agent.status().get("running"):
+            try:
+                options_agent.evaluate(*options_agent.active_config())
+            except Exception as exc:
+                with options_agent._lock:
+                    options_agent._last = {
+                        "success": False,
+                        "state": "DEGRADED",
+                        "message": f"{type(exc).__name__}: {exc}"[:400],
+                        "paper_only": True,
+                        "live_execution": False,
+                    }
+        _worker_stop.wait(5.0)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -64,7 +83,7 @@ class Handler(BaseHTTPRequestHandler):
                 options_agent.stop()
                 result = {"success": True, "action": "STOP", "running": False}
             elif action == "start":
-                options_agent._running = True
+                options_agent.start()
                 result = {"success": True, "action": "START", "running": True}
             else:
                 raise ValueError("Options Agent control accepts start or stop.")
@@ -78,7 +97,7 @@ def main() -> int:
     os.environ["JARVIS_LIVE_EXECUTION"] = "0"
     os.environ["JARVIS_V20_WORKSPACE_OS"] = "1"
     server = ThreadingHTTPServer((HOST, PORT), Handler)
-    worker = threading.Thread(target=options_agent.run_forever, name="jarvis-options-agent", daemon=True)
+    worker = threading.Thread(target=_worker_loop, name="jarvis-options-agent", daemon=True)
     worker.start()
     print(f"JARVIS V20 Options Agent listening on http://{HOST}:{PORT}")
     print("Continuous option selection is PAPER ONLY. LIVE ORDERS LOCKED.")
@@ -87,7 +106,9 @@ def main() -> int:
     except KeyboardInterrupt:
         return 0
     finally:
+        _worker_stop.set()
         options_agent.stop()
+        worker.join(timeout=2.0)
         server.server_close()
     return 0
 
