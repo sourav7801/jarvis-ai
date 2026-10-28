@@ -119,6 +119,7 @@ async function v20LoadCharts(){
 }
 function v20BindCharts(){
  document.querySelectorAll("[data-v20-layout]").forEach(b=>b.onclick=()=>{v20ChartState.layout=v20ChartCount(b.dataset.v20Layout);render()});
+ document.querySelectorAll(".v20-chart-card").forEach(card=>card.onclick=e=>{if(e.target.closest("select"))return;document.querySelectorAll(".v20-chart-card").forEach(x=>x.classList.toggle("active",x===card))});
  document.querySelectorAll("[data-v20-tf]").forEach(b=>b.onclick=()=>{const tf=b.dataset.v20Tf;const idx=Math.max(0,Number(document.querySelector(".v20-chart-card.active")?.dataset.v20Chart||0));if(v20ChartState.slots[idx])v20ChartState.slots[idx].timeframe=tf;render()});
  document.querySelectorAll("[data-v20-chart-symbol]").forEach(s=>s.onchange=()=>{const i=Number(s.dataset.v20ChartSymbol);if(v20ChartState.slots[i])v20ChartState.slots[i].symbol=s.value;render()});
 }
