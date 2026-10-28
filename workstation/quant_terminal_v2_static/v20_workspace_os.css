@@ -83,3 +83,23 @@ body.v20-root-body #v20WorkspaceOS .v20-head{flex:0 0 auto}
 #v20WorkspaceOS .v20-canonical-layout button:hover,
 #v20WorkspaceOS .v20-canonical-controls .v20-actions button:hover{border-color:#4bc8ea;color:#effcff;background:#0b2833}
 body:not(.v20-root-body) #v20WorkspaceOS .v20-head{margin-top:0}
+
+
+/* V20 autonomous options command surface */
+.v20-options-command{margin-bottom:8px}
+.v20-auto-badge{border:1px solid rgba(97,230,154,.55);color:#61e69a;background:rgba(97,230,154,.07);padding:5px 8px;border-radius:999px;font-size:9px;letter-spacing:.8px;font-weight:800}
+.v20-auto-state{font-size:18px;font-weight:900;letter-spacing:.5px;color:#61e69a}
+.v20-options-charts{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-bottom:8px}
+.v20-option-chart-panel{min-width:0}
+.v20-option-chart{height:310px;min-height:260px;width:100%;overflow:hidden}
+.v20-selected-contract{display:flex;flex-direction:column;gap:5px;padding:10px;border:1px solid rgba(92,219,255,.25);background:rgba(92,219,255,.035);border-radius:5px}
+.v20-selected-contract b{font-size:17px;color:#61e69a}
+.v20-selected-contract span{font-size:10px;color:#8eabb7;word-break:break-word}
+.v20-gates{display:flex;flex-wrap:wrap;gap:5px}
+.v20-gate{display:inline-flex;padding:4px 6px;border-radius:4px;border:1px solid rgba(142,171,183,.22);font-size:9px;font-weight:800;letter-spacing:.4px}
+.v20-gate.ok{border-color:rgba(97,230,154,.4);color:#61e69a}
+.v20-gate.bad{border-color:rgba(255,102,125,.4);color:#ff667d}
+@media(max-width:1100px){
+ .v20-options-charts{grid-template-columns:1fr}
+ .v20-option-chart{height:270px}
+}

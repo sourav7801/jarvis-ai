@@ -45,10 +45,10 @@ class V17UnifiedExecutionUiTests(unittest.TestCase):
 
     def test_v17_http_cache_busts_unified_browser_runtimes(self):
         text = (ROOT / "workstation" / "v17_terminal_http.py").read_text(encoding="utf-8")
-        self.assertIn('/v16_option_decision_runtime.js?v=170222', text)
-        self.assertIn('/v16_workspace_router.js?v=170401', text)
-        self.assertIn('/v17_runtime.js?v=170401', text)
-        self.assertIn('/v17_crypto_paper_runtime.js?v=170300', text)
+        self.assertIn('/v18_options_workbench.js?v=180103', text)
+        self.assertIn('/v20_workspace_os.js?v=200111', text)
+        self.assertIn('/v17_runtime.js?v=170405', text)
+        self.assertIn('/v17_crypto_paper_runtime.js?v=170303', text)
 
     def test_india_monitor_uses_canonical_autonomous_option_map(self):
         text = (STATIC / "v17_crypto_paper_runtime.js").read_text(encoding="utf-8")
@@ -61,7 +61,7 @@ class V17UnifiedExecutionUiTests(unittest.TestCase):
 
     def test_india_monitor_asset_is_cache_busted(self):
         text = (ROOT / "workstation" / "v17_terminal_http.py").read_text(encoding="utf-8")
-        self.assertIn('/v17_crypto_paper_runtime.js?v=170300', text)
+        self.assertIn('/v17_crypto_paper_runtime.js?v=170303', text)
 
 
 if __name__ == "__main__":

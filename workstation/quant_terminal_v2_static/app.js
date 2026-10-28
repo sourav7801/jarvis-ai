@@ -657,6 +657,7 @@ function bindControls(){
 function startTimers(){
   if(liveTimer)clearInterval(liveTimer);
   liveTimer=setInterval(async()=>{
+    if(activeWorkspace==="OPTIONS") return;
     if(liveTickBusy)return;
     liveTickBusy=true;
     try{

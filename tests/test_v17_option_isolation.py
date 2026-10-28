@@ -93,13 +93,14 @@ class V17OptionIsolationTests(unittest.TestCase):
         self.assertIn("v20-invest", js)
         self.assertIn("v20-options-active", css)
 
-    def test_v18_workbench_is_not_injected_into_v20_page(self):
+    def test_v18_workbench_is_preserved_under_v20_orchestration(self):
         from pathlib import Path
         root = Path(__file__).resolve().parents[1]
         text = (root / "workstation" / "v17_terminal_http.py").read_text(encoding="utf-8")
         js = (root / "workstation" / "quant_terminal_v2_static" / "v18_options_workbench.js").read_text(encoding="utf-8")
-        self.assertNotIn('<script defer src="/v18_options_workbench.js', text)
-        self.assertIn('JARVIS_V18_OPTIONS_WORKBENCH=false', text)
+        self.assertIn('/v18_options_workbench.js?v=180103', text)
+        self.assertIn('window.JARVIS_V18_OPTIONS_WORKBENCH=true', text)
+        self.assertIn('v20-options', (root / "workstation" / "quant_terminal_v2_static" / "v20_workspace_os.js").read_text(encoding="utf-8"))
 
     def test_v17_http_contains_isolated_option_routes(self):
         from pathlib import Path
