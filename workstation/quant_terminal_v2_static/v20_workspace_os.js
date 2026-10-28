@@ -320,7 +320,7 @@ function renderGlobal(data){
   for(const pos of (p.positions||[])) allPositions.push({...pos,workspace:item.name});
  }
  openCount=allPositions.length;
- strip.innerHTML=ws.map(item=>{const p=item.p||{},cap=p.capital||{};const running=String(p.session?.entry_session||"PAUSED").toUpperCase()==="RUNNING";return '<div class="v20-global-card '+(running?"ok":"")+"'><small>"+esc(item.name)+"</small><b>"+(running?"RUNNING":"PAUSED")+"</b><span>"+money(cap.available_capital)+" available · "+money(cap.open_risk)+" risk</span></div>'}).join("")+
+ strip.innerHTML=ws.map(item=>{const p=item.p||{},cap=p.capital||{};const running=String(p.session?.entry_session||"PAUSED").toUpperCase()==="RUNNING";return '<div class="v20-global-card '+(running?"ok":"")+'"><small>'+esc(item.name)+"</small><b>"+(running?"RUNNING":"PAUSED")+"</b><span>"+money(cap.available_capital)+" available · "+money(cap.open_risk)+" risk</span></div>'}).join("")+
  '<div class="v20-global-card"><small>OPTIONS AGENT</small><b>'+esc(String(data.options?.running===true?"RUNNING":"READY/WAIT"))+'</b><span>paper-only · live locked</span></div>'+
  '<div class="v20-global-card ok"><small>GLOBAL AVAILABLE</small><b>'+money(totalAvail)+'</b><span>new entries use current workspace cash</span></div>';
  status.className="v20-global-status "+((data.options?.success!==false)?"ok":"bad");
