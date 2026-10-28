@@ -491,7 +491,7 @@ def build_handler(base, runtime):
             head_injection = (
                 '<script>window.JARVIS_V16_CANONICAL=true;window.JARVIS_V17_RUNTIME=true;window.JARVIS_V18_OPTIONS_WORKBENCH=true;window.JARVIS_V19_WORKSPACE_OS=true;window.JARVIS_V20_WORKSPACE_OS=true;</script>'
                 '<link rel="stylesheet" href="/v19_workspace_cockpit.css?v=190103">'
-                '<link rel="stylesheet" href="/v20_workspace_os.css?v=200107">'
+                '<link rel="stylesheet" href="/v20_workspace_os.css?v=200108">'
             )
             body_injection = (
                 '<script src="/v17_live_fetch_scheduler.js?v=170405"></script>'
