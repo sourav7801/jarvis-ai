@@ -222,10 +222,29 @@ class V20OptionsAgent:
     def evaluate(self, symbol: str = "NIFTY", expiry: str | None = None, timeframe: str = "5m") -> dict[str, Any]:
         canonical = str(symbol or "NIFTY").strip().upper()
         config = (canonical, str(expiry).strip() if expiry else None, str(timeframe or "5m").strip().lower())
-        with self._evaluation_lock:
+        with self._lock:
+            self._active_config = config
+        if not self._evaluation_lock.acquire(blocking=False):
             with self._lock:
-                self._active_config = config
+                last = dict(self._last)
+            if last and str(last.get("symbol") or "").upper() == canonical and str(last.get("timeframe") or "5m").lower() == config[2]:
+                last["evaluation_in_progress"] = True
+                return last
+            return {
+                "success": False,
+                "state": "EVALUATING",
+                "symbol": canonical,
+                "timeframe": config[2],
+                "message": "A previous verified-data evaluation is still running; no second evaluation was started.",
+                "paper_only": True,
+                "live_execution": False,
+                "live_orders_locked": True,
+                "generated_at": _now(),
+            }
+        try:
             return self._evaluate_once(*config)
+        finally:
+            self._evaluation_lock.release()
 
     def _evaluate_once(self, symbol: str, expiry: str | None, timeframe: str) -> dict[str, Any]:
         canonical = str(symbol or "NIFTY").strip().upper()
