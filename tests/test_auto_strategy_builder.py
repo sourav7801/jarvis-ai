@@ -39,6 +39,8 @@ def test_builder_splits_chronologically_and_never_enables_live_execution():
     assert result["governance"]["automatic_code_rewrite"] is False
     assert result["governance"]["live_execution"] is False
     assert all("out_of_sample" in row and "train" in row for row in result["candidates"])
+    assert all("walk_forward" in row and "walk_forward_pass" in row for row in result["candidates"])
+    assert result["governance"]["walk_forward_required_before_paper"] is True
 
 
 def test_builder_refuses_insufficient_history():
