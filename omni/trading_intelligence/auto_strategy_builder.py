@@ -216,6 +216,25 @@ def build_strategy_report(
         train = backtest(rows, spec, cost_per_turn_pct=cost_per_turn_pct, slippage_per_turn_pct=slippage_per_turn_pct, start=0, end=split)
         test = backtest(rows, spec, cost_per_turn_pct=cost_per_turn_pct, slippage_per_turn_pct=slippage_per_turn_pct, start=split, end=n)
         tm, om = train["metrics"], test["metrics"]
+        # Expanding-window checks inside the training segment; the final holdout
+        # is kept separate from these stability checks.
+        wf_results = []
+        remaining = split - minimum_train_bars
+        fold_width = remaining // 2
+        if fold_width >= minimum_test_bars:
+            for fold_index in range(2):
+                fold_start = minimum_train_bars + fold_index * fold_width
+                fold_end = split if fold_index == 1 else fold_start + fold_width
+                fold = backtest(rows, spec, cost_per_turn_pct=cost_per_turn_pct, slippage_per_turn_pct=slippage_per_turn_pct, start=fold_start, end=fold_end)
+                wf_results.append({
+                    "fold": fold_index + 1,
+                    "start_index": fold_start,
+                    "end_index": fold_end,
+                    "metrics": fold.get("metrics"),
+                    "ready": bool(fold.get("ready")),
+                })
+        wf_positive = sum(1 for fold in wf_results if fold["ready"] and fold["metrics"]["net_return_pct"] > 0)
+        wf_pass = len(wf_results) == 2 and wf_positive == 2
         reasons = []
         if not train.get("ready"):
             reasons.append("TRAIN_WINDOW_NOT_READY")
@@ -233,10 +252,13 @@ def build_strategy_report(
             reasons.append("OUT_OF_SAMPLE_PROFIT_FACTOR_BELOW_1_10")
         if om["max_drawdown_pct"] > max_drawdown_pct:
             reasons.append("OUT_OF_SAMPLE_DRAWDOWN_LIMIT_BREACHED")
+        if not wf_pass:
+            reasons.append("WALK_FORWARD_STABILITY_GATE_FAILED")
         eligible = not reasons
         score = (om["net_return_pct"] - 0.75 * om["max_drawdown_pct"] + min(om["profit_factor"], 3.0) * 0.5) if test.get("ready") else -999
         results.append({
             "spec": asdict(spec), "train": train.get("metrics"), "out_of_sample": test.get("metrics"),
+            "walk_forward": wf_results, "walk_forward_pass": wf_pass,
             "score": round(score, 4), "paper_trial_eligible": bool(eligible),
             "reasons": reasons,
         })
@@ -245,7 +267,7 @@ def build_strategy_report(
         "success": True, "state": "PAPER_CANDIDATES_READY", "bars": n, "split_index": split,
         "candidates": results, "recommended": next((x for x in results if x["paper_trial_eligible"]), None),
         "governance": {
-            "chronological_holdout": True, "costs_included": True, "walk_forward_required_before_paper": True,
+            "chronological_holdout": True, "costs_included": True, "walk_forward_required_before_paper": True, "walk_forward_folds": 2,
             "minimum_out_of_sample_trades": 3, "automatic_code_rewrite": False,
             "automatic_live_execution": False, "live_execution": False, "paper_only": True,
         },
