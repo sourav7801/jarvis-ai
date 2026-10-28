@@ -370,6 +370,7 @@ function render(){
  root.innerHTML=header(w)+globalDeck(w)+workspaceContent;
  hideLegacy();
  refreshGlobal();
+ telemetry();
  if(w==="OPTIONS"){
    stopOptionRuntime();
    bindOptions();
@@ -401,6 +402,6 @@ function wire(){
    }
  });
 }
-function boot(){wire();render();setInterval(()=>{if(!document.hidden){const w=activeWorkspace();if(w!==state.workspace)render();else refreshGlobal()}},5000)}
+function boot(){wire();render();setInterval(()=>{if(!document.hidden){const w=activeWorkspace();if(w!==state.workspace)render();else{refreshGlobal();telemetry();if(w==="OPTIONS")loadOptionRuntime();}},5000)}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});else boot();
 })();
