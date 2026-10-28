@@ -110,3 +110,19 @@ def test_options_agent_can_restart_after_stop():
     assert agent.status()["running"] is False
     agent.start()
     assert agent.status()["running"] is True
+
+
+
+def test_overlapping_evaluation_returns_wait_state_without_second_run():
+    from workstation.v20_options_runtime import V20OptionsAgent
+
+    agent = V20OptionsAgent()
+    agent._evaluation_lock.acquire()
+    try:
+        result = agent.evaluate("BANKNIFTY")
+    finally:
+        agent._evaluation_lock.release()
+    assert result["success"] is False
+    assert result["state"] == "EVALUATING"
+    assert result["symbol"] == "BANKNIFTY"
+    assert result["live_execution"] is False
