@@ -197,8 +197,20 @@ def build_strategy_report(
     max_drawdown_pct: float = 12.0,
 ) -> dict[str, Any]:
     """Rank candidates by out-of-sample metrics and gate them for paper trial."""
+    cost_value, slippage_value, drawdown_limit = (
+        _num(cost_per_turn_pct), _num(slippage_per_turn_pct), _num(max_drawdown_pct)
+    )
+    if cost_value is None or slippage_value is None or cost_value < 0 or slippage_value < 0:
+        raise ValueError("Cost and slippage assumptions must be finite, non-negative percentages.")
+    if drawdown_limit is None or drawdown_limit <= 0 or drawdown_limit > 100:
+        raise ValueError("max_drawdown_pct must be greater than 0 and at most 100.")
+    if minimum_train_bars < 50 or minimum_test_bars < 20:
+        raise ValueError("minimum_train_bars must be >= 50 and minimum_test_bars must be >= 20.")
+    cost_per_turn_pct, slippage_per_turn_pct, max_drawdown_pct = cost_value, slippage_value, drawdown_limit
     rows = []
     for row in candles:
+        if not isinstance(row, dict):
+            continue
         close, high, low = _num(row.get("close")), _num(row.get("high")), _num(row.get("low"))
         if close is not None and high is not None and low is not None and close > 0:
             rows.append({"close": close, "high": high, "low": low})
