@@ -211,6 +211,14 @@ class V20OptionsAgent:
         with self._lock:
             self._running = True
 
+    def _open_if_running(self, **request: Any) -> dict[str, Any]:
+        """Make stop-entry control atomic with paper-position creation."""
+        with self._lock:
+            if not self._running:
+                return {"success": False, "reason": "OPTIONS_AGENT_STOPPED"}
+            from workstation.paper_trading_desk import paper_desk
+            return paper_desk.open_position(**request)
+
     def _paper_positions(self) -> list[dict[str, Any]]:
         try:
             from workstation.paper_trading_desk import paper_desk
@@ -333,6 +341,9 @@ class V20OptionsAgent:
                     blockers.append("DELTA_OUTSIDE_ENTRY_BAND")
 
         eligible = not blockers and composite >= 72.0
+        if not self.status().get("running"):
+            blockers.append("OPTIONS_AGENT_STOPPED")
+            eligible = False
 
         paper_trade = None
         if eligible and selected is not None:
@@ -347,7 +358,7 @@ class V20OptionsAgent:
                     if entry and entry > 0:
                         stop = entry * 0.72
                         target = entry * 1.45
-                        paper_trade = paper_desk.open_position(
+                        paper_trade = self._open_if_running(
                             symbol=symbol_key,
                             side="BUY",
                             entry=entry,
@@ -370,7 +381,8 @@ class V20OptionsAgent:
                                 "paper_auto_entry": True,
                             },
                         )
-                        self._last_entry_key = entry_key
+                        if paper_trade.get("success"):
+                            self._last_entry_key = entry_key
                 except Exception as exc:
                     paper_trade = {"success": False, "reason": f"PAPER_ENTRY_ERROR:{type(exc).__name__}"}
 
