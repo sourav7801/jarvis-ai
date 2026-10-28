@@ -343,10 +343,18 @@ function render(){
  globalStyle();
  const root=ensure();if(!root)return;
  const w=activeWorkspace();state.workspace=w;
- root.innerHTML=globalDeck(w);
+ const workspaceContent=w==="OPTIONS"?optionShell():w==="SWING"?swing()+v20ChartGrid():w==="INVESTMENT"?investment():intraday()+v20ChartGrid();
+ root.innerHTML=header(w)+globalDeck(w)+workspaceContent;
  hideLegacy();
  refreshGlobal();
- if(w!=="OPTIONS")stopOptionRuntime();
+ if(w==="OPTIONS"){
+   stopOptionRuntime();
+   bindOptions();
+ }else{
+   stopOptionRuntime();
+   v20BindCharts();
+   v20LoadCharts();
+ }
  window.scrollTo?.(0,0);
 }
 function wire(){
