@@ -113,7 +113,7 @@ function canonicalControls(){
 }
 
 function intraday(){
- return '<div class="v20-body"><div class="v20-main">'+canonicalControls()+'</div><aside class="v20-rail"><div class="v20-panel"><div class="v20-panel-title">V20 INTEGRATION</div><div class="v20-list"><div><span>Chart engine</span><b>V16 CANONICAL</b></div><div><span>Intelligence</span><b>V17 RUNTIME</b></div><div><span>Paper Desk</span><b>AUTHORITATIVE</b></div><div><span>Execution</span><b>LOCKED</b></div></div></div><div class="v20-panel"><div class="v20-panel-title">MARKETS</div><div class="v20-list"><div><span>NIFTY 50</span><b>ROUTED</b></div><div><span>BANK NIFTY</span><b>ROUTED</b></div><div><span>SENSEX</span><b>ROUTED</b></div><div><span>CRUDE OIL</span><b>ROUTED</b></div><div><span>GOLD</span><b>ROUTED</b></div><div><span>BITCOIN</span><b>ROUTED</b></div></div></div></aside></div>'
+ return '<div class="v20-body"><aside class="v20-rail"><div class="v20-panel"><div class="v20-panel-title">V20 INTEGRATION</div><div class="v20-list"><div><span>Chart engine</span><b>V16 CANONICAL</b></div><div><span>Intelligence</span><b>V17 RUNTIME</b></div><div><span>Paper Desk</span><b>AUTHORITATIVE</b></div><div><span>Execution</span><b>LOCKED</b></div></div></div><div class="v20-panel"><div class="v20-panel-title">MARKETS</div><div class="v20-list"><div><span>NIFTY 50</span><b>ROUTED</b></div><div><span>BANK NIFTY</span><b>ROUTED</b></div><div><span>SENSEX</span><b>ROUTED</b></div><div><span>CRUDE OIL</span><b>ROUTED</b></div><div><span>GOLD</span><b>ROUTED</b></div><div><span>BITCOIN</span><b>ROUTED</b></div></div></div></aside></div>'
 }
 function swing(){
  return '<div class="v20-body"><div class="v20-main">'+canonicalControls()+'</div><aside class="v20-rail"><div class="v20-panel"><div class="v20-panel-title">SWING ROUTING</div><div class="v20-list"><div><span>Trend engine</span><b>V17 / CANONICAL</b></div><div><span>Setups</span><b>CANONICAL</b></div><div><span>Risk geometry</span><b>CANONICAL</b></div><div><span>Execution</span><b>PAPER LOCKED</b></div></div></div></aside></div>'
@@ -367,6 +367,14 @@ function wire(){
      if(action==="stop")v20GlobalControl("stop");
      if(action==="scan")scanAllMarkets();
      if(action==="refresh")refreshGlobal();
+   }
+   const control=e.target.closest("[data-v20]");
+   if(control){
+     const action=control.dataset.v20;
+     if(action==="refresh"){refreshGlobal();if(activeWorkspace()==="OPTIONS")loadOptionRuntime();else v20LoadCharts();}
+     if(action==="reset"){state.option.expiry="";state.option.range=12;state.option.legs=[];render();}
+     if(action==="charts-refresh")v20LoadCharts();
+     if(action==="research"){const status=$("v20GlobalStatus");if(status){status.className="v20-global-status";status.textContent="Research desk opened. Fundamental and valuation outputs remain unavailable until a verified data provider is connected.";}}
    }
  });
 }
