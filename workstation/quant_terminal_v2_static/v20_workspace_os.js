@@ -302,6 +302,7 @@ function globalDeck(workspace){
  return '<section id="v20Global" class="v20-global">'+
  '<div class="v20-global-head"><div><div class="v20-global-kicker">JARVIS V20 · GLOBAL CONTROL PLANE</div><div class="v20-global-title">FULL WORKSPACE COMMAND CENTER</div><div class="v20-global-sub">Proven V17/V18/V19 surfaces stay visible. V20 orchestrates the canonical runtime. One control can arm or pause Intraday, Swing, Investment and the dedicated Options Agent without replacing their proven surfaces.</div></div><div class="v20-global-actions"><button class="start" data-v20-global="start">START JARVIS TRADING</button><button class="stop" data-v20-global="stop">STOP NEW ENTRIES</button><button data-v20-global="scan">SCAN ALL MARKETS</button><button data-v20-global="refresh">REFRESH</button></div></div>'+
  '<div id="v20GlobalStatus" class="v20-global-status">Reading canonical workspace, scanner and journal state…</div>'+
+ '<div class="v20-global-panel" style="margin:10px 0"><div class="head"><span class="title">AI STRATEGY FACTORY</span><span class="note">CHRONOLOGICAL HOLDOUT · COST-AWARE · PAPER ONLY</span></div><div class="v20-global-actions"><select id="v20StrategySymbol" class="v20-select"><option>NSE:NIFTY50-INDEX</option><option>NSE:NIFTYBANK-INDEX</option><option>BSE:SENSEX-INDEX</option><option>NSE:RELIANCE-EQ</option></select><select id="v20StrategyTimeframe" class="v20-select"><option value="5">5 MIN</option><option value="15">15 MIN</option><option value="60">1 HOUR</option><option value="D">DAILY</option></select><button data-v20="build-strategies">GENERATE & BACKTEST STRATEGIES</button></div><div id="v20StrategyResults" class="v20-global-status">Generates interpretable candidates and ranks out-of-sample performance. It will not auto-deploy or place orders.</div></div>'+
  '<div id="v20GlobalStrip" class="v20-global-strip"></div>'+
  '<div class="v20-global-grid"><div class="v20-global-panel"><div class="head"><span class="title">OVERALL MARKET SCANNER</span><span class="hint">GLOBAL · NOT SELECTED-MARKET ONLY</span></div><div id="v20GlobalScanner"></div></div><div class="v20-global-panel"><div class="head"><span class="title">CAPITAL + POSITION GOVERNANCE</span><span class="hint">NO DAILY TOP-UP</span></div><div id="v20GlobalPositions"></div></div></div>'+
  '<div class="v20-global-panel"><div class="head"><span class="title">TRADE JOURNAL + AUTOMATIC REVIEW</span><span class="hint">ENTRY → EXECUTION → MANAGEMENT → CLOSE → LEARNING</span></div><div id="v20GlobalJournal"></div></div>'+
@@ -381,6 +382,23 @@ function render(){
  }
  window.scrollTo?.(0,0);
 }
+async function buildStrategies(){
+ const out=$("v20StrategyResults"),symbol=$("v20StrategySymbol")?.value||"NSE:NIFTY50-INDEX",timeframe=$("v20StrategyTimeframe")?.value||"5";
+ if(!out)return;
+ out.textContent="Loading verified OHLC history and evaluating candidate strategies…";
+ try{
+  const q=new URLSearchParams({symbol,timeframe,bars:"1200",display:"1"});
+  const market=await getJSON("/api/candles?"+q,25000);
+  if(!market.ok||market.p.success!==true||!Array.isArray(market.p.candles))throw new Error(market.p.message||market.p.reason||"Verified candles unavailable");
+  const response=await fetch("/api/v20/strategy-builder",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({candles:market.p.candles,cost_per_turn_pct:0.10,slippage_per_turn_pct:0.05,minimum_train_bars:120,minimum_test_bars:40,max_drawdown_pct:12})});
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok||!result.success)throw new Error(result.message||result.reason||"Strategy research failed");
+  out.innerHTML='<div><b>'+esc(result.state)+'</b> · '+esc(result.bars)+' bars · holdout starts at '+esc(result.split_index)+'</div>'+
+   '<div class="v20-global-table-wrap"><table class="v20-global-table"><thead><tr><th>Candidate</th><th>Train return</th><th>OOS return</th><th>OOS PF</th><th>Max DD</th><th>Paper gate</th></tr></thead><tbody>'+
+   (result.candidates||[]).map(x=>'<tr><td>'+esc(x.spec.name)+'</td><td>'+num(x.train?.net_return_pct)+'%</td><td>'+num(x.out_of_sample?.net_return_pct)+'%</td><td>'+num(x.out_of_sample?.profit_factor)+'</td><td>'+num(x.out_of_sample?.max_drawdown_pct)+'%</td><td>'+esc(x.paper_trial_eligible?"ELIGIBLE FOR PAPER REVIEW":"RESEARCH ONLY")+'</td></tr>').join("")+
+   '</tbody></table></div><div class="note">'+esc(result.warning||"")+'</div><div class="note">No live execution, automatic code rewriting, or strategy deployment was performed.</div>';
+ }catch(e){out.textContent="Strategy research unavailable: "+e.message+" · No strategy was deployed."}
+}
 function wire(){
  window.addEventListener("jarvis:workspace",()=>render());
  document.addEventListener("click",e=>{
@@ -398,6 +416,7 @@ function wire(){
      if(action==="refresh"){refreshGlobal();if(activeWorkspace()==="OPTIONS")loadOptionRuntime();else v20LoadCharts();}
      if(action==="reset"){state.option.expiry="";state.option.range=12;state.option.legs=[];render();}
      if(action==="charts-refresh")v20LoadCharts();
+     if(action==="build-strategies")buildStrategies();
      if(action==="research"){const status=$("v20GlobalStatus");if(status){status.className="v20-global-status";status.textContent="Research desk opened. Fundamental and valuation outputs remain unavailable until a verified data provider is connected.";}}
    }
  });
