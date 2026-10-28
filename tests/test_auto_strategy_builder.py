@@ -81,9 +81,10 @@ class AutoStrategyBuilderTests(unittest.TestCase):
     def test_builder_skips_malformed_non_dictionary_candle_rows(self):
         rows = candles()
         rows[0], rows[1] = None, "not a candle"
+        rows[2] = {"close": 100, "high": 99, "low": 101}
         result = build_strategy_report(rows, minimum_train_bars=100, minimum_test_bars=30)
         self.assertTrue(result["success"])
-        self.assertEqual(result["bars"], len(rows) - 2)
+        self.assertEqual(result["bars"], len(rows) - 3)
 
 
 if __name__ == "__main__":
