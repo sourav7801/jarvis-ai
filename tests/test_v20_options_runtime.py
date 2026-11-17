@@ -176,4 +176,7 @@ def test_v21_options_evaluation_is_research_only_and_requires_confirmation():
     ]
     assert "open_position" not in calls
     assert "AWAITING_EXPLICIT_USER_CONFIRMATION" in source
+    assert '"execution_authorized": False' in source
+    assert '"confirmation_required": bool(eligible and selected is not None)' in source
+    assert '"AWAITING_USER_CONFIRMATION" if eligible else "WAIT"' in source
     assert "paper_auto_entry" not in source
