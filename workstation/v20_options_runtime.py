@@ -362,7 +362,7 @@ class V20OptionsAgent:
         positions = self._paper_positions()
         result = {
             "success": True,
-            "state": "PAPER_POSITION_OPEN" if any(str(p.get("symbol") or "").upper() == str((selected or {}).get("symbol") or "").upper() and str(p.get("status") or "OPEN").upper() == "OPEN" for p in positions) else ("READY_TO_PAPER" if eligible else "WAIT"),
+            "state": "PAPER_POSITION_OPEN" if any(str(p.get("symbol") or "").upper() == str((selected or {}).get("symbol") or "").upper() and str(p.get("status") or "OPEN").upper() == "OPEN" for p in positions) else ("AWAITING_USER_CONFIRMATION" if eligible else "WAIT"),
             "symbol": canonical,
             "timeframe": timeframe,
             "spot": chain_payload.get("spot"),
@@ -386,6 +386,10 @@ class V20OptionsAgent:
             },
             "composite_score": composite,
             "eligible": eligible,
+            "execution_authorized": False,
+            "confirmation_required": bool(eligible and selected is not None),
+            "paper_only": True,
+            "live_execution": False,
             "blockers": blockers,
             "paper_trade": paper_trade,
             "positions": positions,
