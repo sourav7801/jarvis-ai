@@ -153,3 +153,30 @@ def test_options_agent_starts_paused_until_explicit_start():
     assert agent.status()["running"] is False
     agent.start()
     assert agent.status()["running"] is True
+
+
+def test_v21_options_evaluation_is_research_only_and_requires_confirmation():
+    import ast
+    from pathlib import Path
+
+    source = Path("workstation/v20_options_runtime.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    runtime = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "V20OptionsAgent"
+    )
+    evaluate = next(
+        node for node in runtime.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_evaluate_once"
+    )
+    calls = [
+        node.func.attr
+        for node in ast.walk(evaluate)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+    ]
+    assert "open_position" not in calls
+    assert "AWAITING_EXPLICIT_USER_CONFIRMATION" in source
+    assert '"execution_authorized": False' in source
+    assert '"confirmation_required": bool(eligible and selected is not None)' in source
+    assert '"AWAITING_USER_CONFIRMATION" if eligible else "WAIT"' in source
+    assert "paper_auto_entry" not in source

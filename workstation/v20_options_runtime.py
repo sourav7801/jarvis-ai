@@ -345,51 +345,24 @@ class V20OptionsAgent:
             blockers.append("OPTIONS_AGENT_STOPPED")
             eligible = False
 
+        # V21 safety boundary: evaluation is research-only. Never create a
+        # paper position from a background worker or a GET/read request.
+        # A separate, authenticated user-confirmation flow must own execution.
         paper_trade = None
         if eligible and selected is not None:
-            symbol_key = str(selected.get("symbol") or "").strip().upper()
-            expiry_key = str(chain_payload.get("expiry") or expiry or "NEAREST")
-            entry_key = f"{canonical}|{expiry_key}|{symbol_key}"
-            existing = [p for p in self._paper_positions() if str(p.get("symbol") or "").upper() == symbol_key and str(p.get("status") or "OPEN").upper() == "OPEN"]
-            if not existing and entry_key != self._last_entry_key:
-                try:
-                    from workstation.paper_trading_desk import paper_desk
-                    entry = _num(selected.get("ask")) or _num(selected.get("mid")) or _num(selected.get("ltp"))
-                    if entry and entry > 0:
-                        stop = entry * 0.72
-                        target = entry * 1.45
-                        paper_trade = self._open_if_running(
-                            symbol=symbol_key,
-                            side="BUY",
-                            entry=entry,
-                            stop=stop,
-                            target=target,
-                            quantity=1,
-                            timeframe=timeframe,
-                            strategy="V20_OPTIONS_ADAPTIVE_PAPER",
-                            score=composite,
-                            source="JARVIS_V20_OPTIONS_AGENT",
-                            asset_type="OPTION",
-                            external_id=f"v20-options:{int(time.time() // 60)}:{symbol_key}",
-                            metadata={
-                                "underlying": canonical,
-                                "option_type": selected.get("option_type"),
-                                "expiry": chain_payload.get("expiry"),
-                                "selection_score": contract_score,
-                                "underlying_signal": signal,
-                                "composite_score": composite,
-                                "paper_auto_entry": True,
-                            },
-                        )
-                        if paper_trade.get("success"):
-                            self._last_entry_key = entry_key
-                except Exception as exc:
-                    paper_trade = {"success": False, "reason": f"PAPER_ENTRY_ERROR:{type(exc).__name__}"}
+            paper_trade = {
+                "success": False,
+                "status": "AWAITING_EXPLICIT_USER_CONFIRMATION",
+                "confirmation_required": True,
+                "reason": "ANALYSIS_ONLY_NO_AUTOMATIC_PAPER_ENTRY",
+                "paper_only": True,
+                "live_execution": False,
+            }
 
         positions = self._paper_positions()
         result = {
             "success": True,
-            "state": "PAPER_POSITION_OPEN" if any(str(p.get("symbol") or "").upper() == str((selected or {}).get("symbol") or "").upper() and str(p.get("status") or "OPEN").upper() == "OPEN" for p in positions) else ("READY_TO_PAPER" if eligible else "WAIT"),
+            "state": "PAPER_POSITION_OPEN" if any(str(p.get("symbol") or "").upper() == str((selected or {}).get("symbol") or "").upper() and str(p.get("status") or "OPEN").upper() == "OPEN" for p in positions) else ("AWAITING_USER_CONFIRMATION" if eligible else "WAIT"),
             "symbol": canonical,
             "timeframe": timeframe,
             "spot": chain_payload.get("spot"),
@@ -413,6 +386,10 @@ class V20OptionsAgent:
             },
             "composite_score": composite,
             "eligible": eligible,
+            "execution_authorized": False,
+            "confirmation_required": bool(eligible and selected is not None),
+            "paper_only": True,
+            "live_execution": False,
             "blockers": blockers,
             "paper_trade": paper_trade,
             "positions": positions,
@@ -438,8 +415,8 @@ class V20OptionsAgent:
             running = self._running
         return {
             "success": True,
-            "service": "JARVIS_V20_OPTIONS_AGENT",
-            "version": "20.2",
+            "service": "JARVIS_V21_OPTIONS_RESEARCH",
+            "version": "21.0",
             "running": running,
             "last": last,
             "paper_only": True,
